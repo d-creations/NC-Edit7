@@ -1,0 +1,130 @@
+.header {
+    z-index: 1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 50%;
+    height: 38pt;
+    border-style: none;
+    border-width: 2px;
+    border-color: black;
+    text-align: left;
+/*    background: #f3f0f5 linear-gradient(to right, #f1e7f5, white);*/
+    background-color:  rgb(199, 199, 199);
+    padding-left: 50px;
+}
+
+
+.navigation {
+    min-width: 550px;
+    z-index: 2;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    position: fixed;
+    height: 38pt;
+    left: 50%;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+/*    background: #f1e7f5 linear-gradient(to right, white, #f1e7f5);*/
+    background-color:  rgb(199, 199, 199);
+    border-style: none;
+    border-width: 2px;
+    border-color: black;
+}
+
+.editorFrame {
+    top: 60pt;
+    bottom: 0pt;
+    left: 0pt;
+    right: 0pt;
+    overflow: hidden;
+    position: absolute;
+}
+
+
+
+
+.txt{
+}
+
+.content {
+    min-width: 200px;
+    z-index: -3;
+    position: absolute;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding-left: 10px;
+    left: 0;
+    right: 35%;
+}
+
+
+.readOnly{
+    visibility: hidden;
+} 
+
+.DView {
+    z-index: -3;
+    position: absolute;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding-left: 10px;
+    left: 65%;
+    right: 0;
+
+    border-width: 2px;
+    border-color: black;
+    background-color: whitesmoke;
+}
+.centerContent{
+    top: 40pt;
+    padding-right: 10px;
+    text-align: left;
+    background-color: whitesmoke;
+     opacity: 0.9;
+    bottom: 60pt;
+    border-radius: 1px;
+    border-radius: 0;
+    border-style: none;
+    border-width: 2px;
+    border-color: black;
+
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+.footer {
+    z-index: 2;
+    position: fixed;
+    bottom: 0;
+    padding-left: 20px;
+    left: 0;
+    right: 0;
+    height: 60pt;
+    overflow: scroll;
+
+    background: #f1e7f5 linear-gradient(to center, white, #f1e7f5);
+    border-style: none;
+    border-top: 1px solid;
+    border-color: black;
+    font-family: Arial;
+    color: turquoise;
+}
+
+
+body{
+    /*  overflow: hidden;*/
+    
+    overflow-x: hidden;
+    overflow-y: hidden;
+  } 
+
+
+
+.radio {
+    padding: 48px 64px;
+    border-radius: 24px;
+    border-style: solid;
+    border-width: 2px;
+    background: #2775b1;
+}
