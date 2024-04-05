@@ -1,2 +1,13 @@
 *.js
-!_*.js
+!three*.js
+!TrackballControl.js
+!TransformControls.js
+!ext*.js
+!mode*.js
+!theme*.js
+!ace.js
+!canal.js
+!main.js
+!view3d.js
+
+
