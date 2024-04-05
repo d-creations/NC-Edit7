@@ -221,7 +221,7 @@ export class Machine_Star{
     async plotCNCCode(view3d: any, canalNumbers: number[],programs : string[],toolGeometries: ToolGeometrie[][], ncVariable : NCVariable[][]) {
         async function getData(selectedMachineS : string[], program,canalNumbers: number[])  {
             try {
-                let url = "\\cgi-bin\\plot.cgi"
+                let url = "\\plot.cgi" // Integrate PlOt
                 let requestData = ""
                 let machines = [] 
                 for(let canal in programs){
