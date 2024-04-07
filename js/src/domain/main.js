@@ -15,8 +15,8 @@ import { UserError } from '../technicalService/error/userError.js';
 
 window.onload = function () {
 
-    let printConsole = new UserError()
-    var view3d = new View3D();
+    let printConsole = new UserError(document.getElementById("footer"))
+    var view3d = new View3D(document.getElementById("DView"));
     var canalCreation = function(id, view3d, parentDiv,readOnly,timeLine){
         return new Canal(id, view3d, parentDiv,readOnly,timeLine)
     }

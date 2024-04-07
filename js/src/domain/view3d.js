@@ -56,13 +56,11 @@ export class View3D{
      static camera;
      static controls;
 
-
-    constructor() {
-
-
-
-        let DView = document.getElementById("DView");
-        var container = document.getElementById('container');
+    constructor(parentDiv) {
+        var DView = parentDiv.appendChild(document.createElement("div"));
+        DView.id = "DView_Menu";
+        var container = parentDiv.appendChild(document.createElement("div"))
+        container.id ='container';
         const fov = 75;
         const aspect = 2;  // the canvas default
         const near = 0.1;
@@ -85,7 +83,7 @@ export class View3D{
 
         window.renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(DView.clientWidth, (DView.clientHeight-100));
+        renderer.setSize(parentDiv.clientWidth, (parentDiv.clientHeight-100));
         renderer.shadowMap.enabled = true;
         document.body.appendChild( renderer.domElement );
   

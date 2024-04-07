@@ -2,25 +2,18 @@
 
 export class UserError{
 
-    constructor() {
+    parentDiv : HTMLDivElement
+
+    constructor(parentDiv : HTMLDivElement) {
+        this.parentDiv = parentDiv
     }
 
     public printMessage(message: string) {
-        let errorMessage =  document.getElementById("errorLabel");
-        if (errorMessage instanceof HTMLParagraphElement){
-            errorMessage.innerHTML = message.replaceAll("\n",'<br>');
+        if (this.parentDiv instanceof HTMLDivElement){
+            this.parentDiv.innerHTML = message.replaceAll("\n",'<br>');
         }else{
             console.log("error proint")
         }
     }
 }
 
-
-
-export class FileNotFoundUserError extends UserError{
-    constructor() {
-        super()
-        this.printMessage(" File not Found");
-    }
-
-}
