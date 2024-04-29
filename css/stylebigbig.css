@@ -1,4 +1,4 @@
-.header {
+/*.header {
     z-index: 1;
     position: fixed;
     top: 0;
@@ -9,7 +9,8 @@
     border-width: 2px;
     border-color: black;
     text-align: left;
-/*    background: #f3f0f5 linear-gradient(to right, #f1e7f5, white);*/
+
+    
     background-color:  rgb(199, 199, 199);
     padding-left: 50px;
 }
@@ -26,12 +27,12 @@
     right: 0;
     top: 0;
     border-radius: 0;
-/*    background: #f1e7f5 linear-gradient(to right, white, #f1e7f5);*/
+    
     background-color:  rgb(199, 199, 199);
     border-style: none;
     border-width: 2px;
     border-color: black;
-}
+}*/
 
 .editorFrame {
     top: 60pt;
@@ -78,7 +79,7 @@
     background-color: whitesmoke;
 }
 .centerContent{
-    top: 40pt;
+    top: 5pt;
     padding-right: 10px;
     text-align: left;
     background-color: whitesmoke;
