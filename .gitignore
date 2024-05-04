@@ -1,4 +1,4 @@
-*.js
+#*.js
 !three*.js
 !TrackballControl.js
 !TransformControls.js
