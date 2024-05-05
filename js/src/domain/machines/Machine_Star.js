@@ -209,7 +209,7 @@ export class Machine_Star {
     async plotCNCCode(view3d, canalNumbers, programs, toolGeometries, ncVariable) {
         async function getData(selectedMachineS, program, canalNumbers) {
             try {
-                let url = "\\plot.cgi";
+                let url = "https:\\plot.nc-editx7pro.d-creations.org\\cgi-bin\\plot.cgi";
                 let requestData = "";
                 let machines = [];
                 for (let canal in programs) {

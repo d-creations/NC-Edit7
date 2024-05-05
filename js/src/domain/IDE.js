@@ -122,7 +122,6 @@ export class IDE extends Observable {
                 let message_t = o.message;
                 if (message_t.length > 4)
                     message_t = message_t.substring(0, message_t.length - 4);
-                console.log(message_t);
                 printConsole.printMessage(message_t);
                 view3d.clearPlot();
                 let times = [];
