@@ -19,15 +19,15 @@
 import {CanalAdapter} from './canalAdapter.js';
 import {ExampleCreator} from '../technicalService/ExampleCreator.js';
 import { NCToolManager, NCToolManagerCreator } from './NCToolManager.js';
-import { MachineManager } from './MachineManager.js';
 import { MachineManagerAdapter } from './MachineManagerAdapter.js';
 import { NCVariableManager, NCVariableManagerCreator } from './NCVariableManager.js';
 import { Observable, Observer } from '../technicalService/observer.js';
 import { UserError } from '../technicalService/error/userError.js';
 
 export class IDE extends Observable implements Observer {
-    getCalcTime(): string {
-        return String(IDE.CompleteTime)
+
+    getCanalsCount(): number {
+        return this.canals.length
     }
 
 
@@ -92,6 +92,14 @@ export class IDE extends Observable implements Observer {
         });
 
     }
+
+    getTextFromCanal(canalnr : number) {
+        return this.canals[canalnr].text
+    }
+    getCalcTime(): string {
+        return String(IDE.CompleteTime)
+    }
+
     public getCanalKeyList(canal: number) {
         if (canal < this.canals.length)
         return this.canals[canal].keyElementList

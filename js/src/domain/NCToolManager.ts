@@ -34,10 +34,8 @@ SOFTWARE.
 * 
  */
 
-import {ViewObjectCreator} from '../technicalService/ViewObjectCreator.js';
 import { UserError } from '../technicalService/error/userError.js';
 import { Observable } from '../technicalService/observer.js';
-import {IDEAdapter} from './IDEAdapter.js';
 import { ToolGeometrie } from './machines/MachineAdapter.js';
 
 export class NCToolManagerCreator{

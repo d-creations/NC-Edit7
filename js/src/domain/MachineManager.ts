@@ -1,4 +1,3 @@
-import { IDE } from "./IDE.js"
 import { MachineAdapter, NCVariable, ToolGeometrie } from "./machines/MachineAdapter.js"
 
 

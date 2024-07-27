@@ -1,8 +1,6 @@
-import {ViewObjectCreator} from '../technicalService/ViewObjectCreator.js';
 import { UserError } from '../technicalService/error/userError.js';
 import { Observable } from '../technicalService/observer.js';
-import {IDEAdapter} from './IDEAdapter.js';
-import { NCVariable, ToolGeometrie } from './machines/MachineAdapter.js';
+import { NCVariable } from './machines/MachineAdapter.js';
 
 
 export class NCVariableManagerCreator{

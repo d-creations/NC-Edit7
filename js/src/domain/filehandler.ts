@@ -35,11 +35,12 @@ SOFTWARE.
  */
 
 import { UserError } from '../technicalService/error/userError.js';
+import { FileHandler_I } from './fileHandler_I.js';
 import { IDEAdapter } from './IDEAdapter.js';
 import { IDEView } from './IDEView.js';
 
 
-export class FileHandler {
+export class FileHandler implements FileHandler_I {
 
     readonly parentDiv;
     readonly chooseFileButton: HTMLButtonElement;
@@ -51,6 +52,7 @@ export class FileHandler {
     readonly editor: IDEAdapter;
     private IDEView : IDEView
     readonly userError : UserError
+    
 
     constructor(editor: IDEAdapter, parentDiv: HTMLDivElement, IDEView : IDEView, userError : UserError) {
         this.editor = editor;
@@ -108,14 +110,15 @@ export class FileHandler {
         this.input.click()
     }
 
-    setChooseFileButton(this: FileHandler) {
+    private setChooseFileButton(this: FileHandler) {
         this.parentDiv.removeChild(this.loadFileDiv)
         this.parentDiv.appendChild(this.chooseFileButton)
     }
 
 
-    phraseNCCode(result: string | ArrayBuffer): string[] {
-        let isMultiProgram = result.toString().includes("<")
+    private phraseNCCode(result: string | ArrayBuffer): string[] {
+        let isMultiProgram = false
+        isMultiProgram = result.toString().includes("<")
         let chanal = 1
         let selction = document.querySelector('input[name="programTypeSelection"]:checked');
         if (selction != null){
@@ -162,7 +165,7 @@ export class FileHandler {
         }
     }
 
-    setTextToTextArea(this: FileHandler, result: string | ArrayBuffer | null) {
+    private setTextToTextArea(this: FileHandler, result: string | ArrayBuffer | null) {
         if (result != null) {
             let list: string[] = this.phraseNCCode(result)
 //            this.editor.createCanalIfNotExist(list.length);

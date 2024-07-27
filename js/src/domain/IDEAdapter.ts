@@ -34,18 +34,13 @@ SOFTWARE.
 * 
  */
 
-import {CanalAdapter} from './canalAdapter.js';
-import {ExampleCreator} from '../technicalService/ExampleCreator.js';
-import {ViewObjectCreator} from '../technicalService/ViewObjectCreator.js';
-import { NCToolManager, NCToolManagerCreator } from "./NCToolManager.js";
 import {IDE} from './IDE.js';
-import { Observable, Observer } from '../technicalService/observer.js';
+import { Observer } from '../technicalService/observer.js';
+import { WebPageFileHandler } from './WebPageFileHandler.js';
 
 
 export class IDEAdapter  implements Observer{
-    getCalcTime(): string {
-        return this.IDEController.getCalcTime()
-    }
+
 
 
     IDEController : IDE
@@ -70,6 +65,17 @@ export class IDEAdapter  implements Observer{
  */
     public OberverUpdate(): void {
         this.IDEController.OberverUpdate()
+    }
+
+ 
+    getCanalsCount(): number {
+        return this.IDEController.getCanalsCount()
+    }
+    getTextFromCanal(canal: number) {
+        return this.IDEController.getTextFromCanal(canal)
+    }
+    getCalcTime(): string {
+        return this.IDEController.getCalcTime()
     }
     public clearPlot(){
         this.IDEController.clearPlot()

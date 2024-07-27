@@ -10,8 +10,8 @@
 
     <title>NC-Edit7Pro Example</title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link type="text/css" rel="stylesheet" media="only screen and (max-width: 1000px)" href="css/stylemobil.css">
-    <link rel="stylesheet" type="text/css" media="only screen and (min-width: 1000px)" href="css/stylebigbig.css">
+    <link type="text/css" rel="stylesheet" media="only screen and (max-width: 750pt)" href="css/stylemobil.css">
+    <link rel="stylesheet" type="text/css" media="only screen and (min-width: 750pt)" href="css/stylebigbig.css">
     <link rel="stylesheet" type="text/css"  href="css/style.css">
     <link rel="stylesheet" type="text/css" href="css/editor.css">
     <link rel="stylesheet" type="text/css"  href="css/canal.css">
@@ -33,5 +33,42 @@
 <div class="footer errorMessage" id="footer">
 </div>
 </body>
-<script type="module" src="js/src/domain/main.js"></script>
+<script type="module">
+    import {View3D} from "./js/src/domain/view3d.js"; 
+    import {IDE} from "./js/src/domain/IDE.js";
+    import {FileHandler} from "./js/src/domain/filehandler.js";  
+    import {WebPageFileHandler} from "./js/src/domain/WebPageFileHandler.js";  
+
+    import {IDEView} from "./js/src/domain/IDEView.js"  ;
+    import {IDEAdapter} from "./js/src/domain/IDEAdapter.js";  
+    import { Canal } from "./js/src/domain/canal.js";
+    import { NCToolManagerCreator } from "./js/src/domain/NCToolManager.js";
+    import {MachineAdapter} from "./js/src/domain/machines/MachineAdapter.js"
+    import {Machine_Star} from "./js/src/domain/machines/Machine_Star.js"
+    import { NCVariableManagerCreator } from "./js/src/domain/NCVariableManager.js";
+    import { MachineManager } from "./js/src/domain/MachineManager.js";
+    import { MachineManagerAdapter } from "./js/src/domain/MachineManagerAdapter.js";
+    import { UserError } from './js/src/technicalService/error/userError.js';
+
+
+    window.onload = function () {
+
+        let printConsole = new UserError(document.getElementById("footer"))
+        var view3d = new View3D(document.getElementById("DView"));
+        var canalCreation = function(id, view3d, parentDiv,readOnly,timeLine){
+            return new Canal(id, view3d, parentDiv,readOnly,timeLine)
+        }
+        let machineAdapter = new MachineAdapter(new Machine_Star(printConsole))
+        let machineManagerAdapter = new MachineManagerAdapter(new MachineManager())
+        machineManagerAdapter.setMaschine(machineAdapter)
+        let toolManager = new NCToolManagerCreator(60,printConsole)
+        let variableManager = new NCVariableManagerCreator(60,printConsole)
+
+        let IDEcontroller = new IDE(document.getElementById("editor"),2,view3d,printConsole,canalCreation,toolManager,variableManager,machineManagerAdapter)
+        let IDEadaptar = new IDEAdapter(IDEcontroller)
+        let ideview = new IDEView(document.getElementById("editor"),IDEadaptar, 2,view3d,printConsole);
+        new WebPageFileHandler(IDEadaptar, document.getElementById("fileHandler"), ideview,printConsole);
+    }
+
+</script>
 </html>

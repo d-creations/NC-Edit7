@@ -222,7 +222,7 @@ export class Machine_Star{
         async function getData(selectedMachineS : string[], program,canalNumbers: number[])  {
             try {
                 
-                let url = "https:\\plot.nc-editx7pro.d-creations.org\\cgi-bin\\plot.cgi" // Integrate Plot
+                let url = "https://plot.nc-editx7pro.d-creations.org//cgi-bin//plot.cgi" // Integrate Plot
                 let requestData = ""
                 let machines = [] 
                 for(let canal in programs){

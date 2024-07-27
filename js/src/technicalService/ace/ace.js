@@ -684,7 +684,8 @@
                 return cssCache.push([cssText, id]);
             }
         }
-        if (strictCSP)
+//        if (strictCSP)
+        if (true)
             return;
         var container = target;
         if (!target || !target.getRootNode) {
@@ -701,7 +702,6 @@
         if (id)
             cssText += "\n/*# sourceURL=ace/css/" + id + " */";
         var style = exports.createElement("style");
-        style.nonce  = "rAnd0m";
         style.appendChild(doc.createTextNode(cssText));
         if (id)
             style.id = id;

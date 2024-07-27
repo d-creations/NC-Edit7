@@ -225,3 +225,16 @@ select {
  } 
 
 
+.fileHandler{
+    display: block;
+}
+
+.fileLoadSelector{
+    position:fixed;
+    left: calc(100vw/2);
+    top: calc(100vh/2);
+    background-color: #727272;
+    z-index: 999;
+    padding: 10pt;
+    border: solid;
+}
