@@ -63,16 +63,13 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
 
     
     readonly parentDiv : HTMLDivElement;
-    private chooseFileButton: HTMLButtonElement;
-    private loadFileButton: HTMLButtonElement;
-    private closeDialog: HTMLButtonElement;
+    private SaveFileDiv: HTMLDivElement
     private loadFileDiv: HTMLDivElement
-    private input: HTMLInputElement;
-    private ProgramTypeSelection: HTMLFormElement;
     readonly editor: IDEAdapter;
     private IDEView : IDEView
     readonly userError : UserError
     private chanal : Chanals
+    private comunicationPort : MessagePort
 
     constructor(editor: IDEAdapter, parentDiv: HTMLDivElement, IDEView : IDEView, userError : UserError) {        
         this.editor = editor;
@@ -82,31 +79,19 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         this.chanal = Chanals.none
         this.editor.addViewObserver(this)
         console.log("WEPPAGEFILE HANDLER Frame ")
-        var port 
         var that = this
         window.addEventListener("message",(event)=>{
             console.log("gotinit message iframe")
-            port = event.ports[0]
+            this.comunicationPort = event.ports[0]
             let data : ApplicationMessage  = event.data
             this.createWhereToLoadDiv(data.textValue)
-            port.onmessage = (event)=>{
+            this.comunicationPort.onmessage = (event)=>{
                       console.log("got " + event)
                       let data = event.data
-                      let textData = ""
-                      if(this.chanal == Chanals.one || this.chanal == Chanals.none)textData = editor.getTextFromCanal(0)
-                      if(this.chanal == Chanals.two)textData = editor.getTextFromCanal(1)
-                      if(this.chanal == Chanals.tree)textData = editor.getTextFromCanal(2)
-                      if(this.chanal == Chanals.multi)textData= this.createMultiProgram(editor)
-                        console.log(textData)
-                        if(this.chanal == Chanals.multi)return
+
 
                       if(data.command == "saveText"){
-                        let retObject = {
-                          command : "storeText",
-                          textValue : editor.getTextFromCanal(0)
-                        }
-                        console.log("iframe past Save Text \n")
-                        port.postMessage(retObject)
+                        this.createSaveDiv();
                       }
                       if(data.command == "setText"){
                         
@@ -118,6 +103,25 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
                 })
 
     }
+    private saveText(editor: IDEAdapter) {
+        let textData = "";
+        if (this.chanal == Chanals.one || this.chanal == Chanals.none) textData = editor.getTextFromCanal(0);
+        if (this.chanal == Chanals.two) textData = editor.getTextFromCanal(1);
+        if (this.chanal == Chanals.tree) textData = editor.getTextFromCanal(2);
+        if (this.chanal == Chanals.multi) textData = this.createMultiProgram(editor);
+        console.log(textData);
+
+        let retObject = {
+            command: "storeText",
+            textValue: textData
+        };
+        console.log("iframe past Save Text \n");
+        this.comunicationPort.postMessage(retObject);
+        if(this.parentDiv.contains(this.SaveFileDiv)){
+            this.parentDiv.removeChild(this.SaveFileDiv)
+        }
+    }
+
     OberverUpdate(): void {
         console.log("textCanged")
     }
@@ -230,29 +234,23 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
 
         }
     }
+
     closeWhereToLoadDiv(){
         if(this.parentDiv.contains(this.loadFileDiv)){
             this.parentDiv.removeChild(this.loadFileDiv)
-}
+        }
     }
+
     private createWhereToLoadDiv(this: WebPageFileHandler, result: string | ArrayBuffer | null){
         if(this.parentDiv.contains(this.loadFileDiv)){
                     this.parentDiv.removeChild(this.loadFileDiv)
         }
         this.loadFileDiv = document.createElement('div')
         this.loadFileDiv.classList.add("fileLoadSelector")
-        this.loadFileButton = document.createElement('button')
-        this.loadFileButton.addEventListener('click', () => this.setTextToTextArea(result));
-        this.loadFileButton.textContent = "load File"
-        //this.closeDialog = document.createElement('button')
-        //this.closeDialog.addEventListener('click', () => this.setChooseFileButton());
-        //this.closeDialog.textContent = "close"
-        //this.input = document.createElement('input')
-        //this.input.type = 'file'
-        //this.input.accept = '*,*'
-        this.loadFileButton.style.backgroundColor = "green"
-        
-        this.ProgramTypeSelection = document.createElement('form')
+        let loadFileButton = document.createElement('button')
+        loadFileButton.textContent = "load File"
+        loadFileButton.style.backgroundColor = "green"
+        let ProgramTypeSelection = document.createElement('form')
 
         let names = ['1', '2', '3', 'multi']
         for (let key in names) {
@@ -264,44 +262,50 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             var label = document.createElement('label');
             label.htmlFor = names[key]
             label.innerHTML = names[key]
-            this.ProgramTypeSelection.appendChild(opt);
-            this.ProgramTypeSelection.appendChild(label);
+            ProgramTypeSelection.appendChild(opt);
+            ProgramTypeSelection.appendChild(label);
         }
 
-
-        this.loadFileDiv.appendChild(this.loadFileButton)
-        //this.loadFileDiv.appendChild(this.input)
-        this.loadFileDiv.appendChild(this.ProgramTypeSelection)
-
-
-        this.chooseFileButton = document.createElement('button');
-        this.chooseFileButton.textContent = "Load New File"
-        //this.chooseFileButton.addEventListener('click', () => this.setFileLoadButton())
+        loadFileButton.addEventListener('click', () => this.setTextToTextArea(result));
+        this.loadFileDiv.appendChild(loadFileButton)
+        this.loadFileDiv.appendChild(ProgramTypeSelection)
         this.parentDiv.appendChild(this.loadFileDiv)
     }
 
 
-    uploadFile(this: WebPageFileHandler): void {
-        if (this.input.files != null) {
-            const [file] = this.input.files;
-            const reader = new FileReader();
-            reader.addEventListener(
-                "load",
-                () => {
-                    this.setTextToTextArea(reader.result);
-                },
-                false
-            );
+    private createSaveDiv(this: WebPageFileHandler){
+        console.log("SAVE TEXT")
+        if(this.parentDiv.contains(this.SaveFileDiv)){
+                    this.parentDiv.removeChild(this.SaveFileDiv)
+        }
+        this.SaveFileDiv = document.createElement('div')
+        this.SaveFileDiv.classList.add("fileLoadSelector")
+        let loadFileButton = document.createElement('button')
+        loadFileButton.addEventListener('click', () => this.saveText(this.editor));
+        loadFileButton.textContent = "load File"
+        loadFileButton.style.backgroundColor = "green"
+        let ProgramTypeSelection = document.createElement('form')
 
-            if (file) {
-                reader.readAsText(file);
-            }
-            this.input.value = "";
-        } else {
-            this.userError.printMessage("No File Selected")
-            // no file chosen
+        let names = ['1', '2', '3', 'multi']
+        for (let key in names) {
+            let opt = document.createElement('input');
+            opt.type = "radio"
+            opt.id = names[key]
+            opt.name = "programTypeSelection"
+            opt.classList.add("radio")
+            var label = document.createElement('label');
+            label.htmlFor = names[key]
+            label.innerHTML = names[key]
+            ProgramTypeSelection.appendChild(opt);
+            ProgramTypeSelection.appendChild(label);
         }
 
+
+        this.SaveFileDiv.appendChild(loadFileButton)
+        this.SaveFileDiv.appendChild(ProgramTypeSelection)
+        this.parentDiv.appendChild(this.SaveFileDiv)
     }
+
+
 
 }
