@@ -78,7 +78,6 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         this.userError = userError
         this.chanal = Chanals.none
         this.editor.addViewObserver(this)
-        console.log("WEPPAGEFILE HANDLER Frame ")
         var that = this
         window.addEventListener("message",(event)=>{
             console.log("gotinit message iframe")

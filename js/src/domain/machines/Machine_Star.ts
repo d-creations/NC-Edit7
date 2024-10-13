@@ -226,7 +226,7 @@ export class Machine_Star{
                 let requestData = ""
                 let machines = [] 
                 for(let canal in programs){
-                    machines.push(new MachineDataRequest(canalNumbers[canal],selectedMachineS[canalNumbers[canal]],program[canal].replace(/\(.*\)/g, ""),toolGeometries[canal],ncVariable[canal]))
+                    machines.push(new MachineDataRequest(canalNumbers[canal],selectedMachineS[canalNumbers[canal]],program[canal].replace(/\(.*\)/g, "").replace(/\r?\n/g, "\n"),toolGeometries[canal],ncVariable[canal]))
                }
                 const config = {
                     method: 'POST',
