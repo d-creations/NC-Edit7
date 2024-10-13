@@ -48,7 +48,7 @@ export class WebPageFileHandler {
         let retObject = {
             command: "storeText",
             textValue: textData,
-            info: ""
+            info: "program.txt"
         };
         this.comunicationPort.postMessage(retObject);
         if (this.parentDiv.contains(this.SaveFileDiv)) {

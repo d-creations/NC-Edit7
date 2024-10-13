@@ -114,7 +114,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         let retObject = {
             command: "storeText",
             textValue: textData,
-            info: ""
+            info: "program.txt"
         };
 
         this.comunicationPort.postMessage(retObject);
