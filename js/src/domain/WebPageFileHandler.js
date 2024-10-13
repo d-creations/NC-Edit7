@@ -24,11 +24,9 @@ export class WebPageFileHandler {
         window.addEventListener("message", (event) => {
             console.log("gotinit message iframe");
             this.comunicationPort = event.ports[0];
-            let data = event.data;
-            this.createWhereToLoadDiv(data.textValue);
             this.comunicationPort.onmessage = (event) => {
-                console.log("got " + event);
                 let data = event.data;
+                console.log("got " + event);
                 if (data.command == "saveText") {
                     this.createSaveDiv();
                 }
@@ -201,10 +199,10 @@ export class WebPageFileHandler {
         this.SaveFileDiv.classList.add("fileLoadSelector");
         let loadFileButton = document.createElement('button');
         loadFileButton.addEventListener('click', () => this.saveText(this.editor));
-        loadFileButton.textContent = "load File";
+        loadFileButton.textContent = "Save File";
         loadFileButton.style.backgroundColor = "green";
         let ProgramTypeSelection = document.createElement('form');
-        let names = ['1', '2', '3', 'multi'];
+        let names = ['multi\singelfile'];
         for (let key in names) {
             let opt = document.createElement('input');
             opt.type = "radio";
