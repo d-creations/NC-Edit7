@@ -80,22 +80,22 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         this.editor.addViewObserver(this)
         var that = this
         window.addEventListener("message",(event)=>{
-            console.log("gotinit message iframe")
+            
             this.comunicationPort = event.ports[0]
             this.comunicationPort.onmessage = (event)=>{
                 
                 let data : ApplicationMessage  = event.data
-                      console.log("got " + event)
+                      
         
                       
 
-                      if(data.command == "saveText"){
+                      if(data.command == "saveAsText"){
                         this.createSaveDiv();
                       }
                       if(data.command == "setText"){
                         
                         that.createWhereToLoadDiv(data.textValue)
-                        console.log("iframe set Text\n")
+                        
                       }
                     }
     
@@ -108,13 +108,12 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         if (this.chanal == Chanals.two) textData = editor.getTextFromCanal(1);
         if (this.chanal == Chanals.tree) textData = editor.getTextFromCanal(2);
         if (this.chanal == Chanals.multi) textData = this.createMultiProgram(editor);
-        console.log(textData);
-
+        
         let retObject = {
             command: "storeText",
             textValue: textData
         };
-        console.log("iframe past Save Text \n");
+
         this.comunicationPort.postMessage(retObject);
         if(this.parentDiv.contains(this.SaveFileDiv)){
             this.parentDiv.removeChild(this.SaveFileDiv)
@@ -122,7 +121,6 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
     }
 
     OberverUpdate(): void {
-        console.log("textCanged")
     }
     createMultiProgram(editor: IDEAdapter) {
         let canals : number= this.editor.getCanalsCount()
@@ -276,7 +274,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
 
 
     private createSaveDiv(this: WebPageFileHandler){
-        console.log("SAVE TEXT")
+        
         if(this.parentDiv.contains(this.SaveFileDiv)){
                     this.parentDiv.removeChild(this.SaveFileDiv)
         }
@@ -288,7 +286,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         loadFileButton.style.backgroundColor = "green"
         let ProgramTypeSelection = document.createElement('form')
 
-        let names = ['multi\singelfile']
+        let names = ['1', '2', '3', 'ALL \\ multi']
         for (let key in names) {
             let opt = document.createElement('input');
             opt.type = "radio"
