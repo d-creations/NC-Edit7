@@ -198,6 +198,9 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             else if (selction.id == "3"){
                 this.chanal = Chanals.tree
             }
+            else{
+                this.chanal = Chanals.one                
+            }
             
         }
         if (this.chanal == Chanals.multi) {

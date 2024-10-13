@@ -125,6 +125,9 @@ export class WebPageFileHandler {
             else if (selction.id == "3") {
                 this.chanal = Chanals.tree;
             }
+            else {
+                this.chanal = Chanals.one;
+            }
         }
         if (this.chanal == Chanals.multi) {
             result = result.toString().replaceAll(/&F=.*/g, "");
