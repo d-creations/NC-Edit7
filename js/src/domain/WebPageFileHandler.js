@@ -1,7 +1,8 @@
 export class ApplicationMessage {
-    constructor(command, textValue) {
+    constructor(command, textValue, info) {
         this.command = command;
         this.textValue = textValue;
+        this.info = info;
     }
 }
 export var Chanals;
@@ -22,17 +23,14 @@ export class WebPageFileHandler {
         this.editor.addViewObserver(this);
         var that = this;
         window.addEventListener("message", (event) => {
-            console.log("gotinit message iframe");
             this.comunicationPort = event.ports[0];
             this.comunicationPort.onmessage = (event) => {
                 let data = event.data;
-                console.log("got " + event);
-                if (data.command == "saveText") {
+                if (data.command == "saveAsText") {
                     this.createSaveDiv();
                 }
                 if (data.command == "setText") {
                     that.createWhereToLoadDiv(data.textValue);
-                    console.log("iframe set Text\n");
                 }
             };
         });
@@ -47,19 +45,17 @@ export class WebPageFileHandler {
             textData = editor.getTextFromCanal(2);
         if (this.chanal == Chanals.multi)
             textData = this.createMultiProgram(editor);
-        console.log(textData);
         let retObject = {
             command: "storeText",
-            textValue: textData
+            textValue: textData,
+            info: ""
         };
-        console.log("iframe past Save Text \n");
         this.comunicationPort.postMessage(retObject);
         if (this.parentDiv.contains(this.SaveFileDiv)) {
             this.parentDiv.removeChild(this.SaveFileDiv);
         }
     }
     OberverUpdate() {
-        console.log("textCanged");
     }
     createMultiProgram(editor) {
         let canals = this.editor.getCanalsCount();
@@ -194,7 +190,6 @@ export class WebPageFileHandler {
         this.parentDiv.appendChild(this.loadFileDiv);
     }
     createSaveDiv() {
-        console.log("SAVE TEXT");
         if (this.parentDiv.contains(this.SaveFileDiv)) {
             this.parentDiv.removeChild(this.SaveFileDiv);
         }
@@ -205,7 +200,7 @@ export class WebPageFileHandler {
         loadFileButton.textContent = "Save File";
         loadFileButton.style.backgroundColor = "green";
         let ProgramTypeSelection = document.createElement('form');
-        let names = ['multi\singelfile'];
+        let names = ['1', '2', '3', 'ALL \\ multi'];
         for (let key in names) {
             let opt = document.createElement('input');
             opt.type = "radio";

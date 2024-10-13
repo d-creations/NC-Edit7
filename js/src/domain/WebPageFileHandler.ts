@@ -46,10 +46,12 @@ export class ApplicationMessage{
 
     command : string
     textValue : string
+    info : string
 
-    constructor(command : string , textValue : string){
+    constructor(command : string , textValue : string, info){
         this.command = command
         this.textValue = textValue
+        this.info = info
     }
 }
 export enum Chanals {
@@ -111,7 +113,8 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         
         let retObject = {
             command: "storeText",
-            textValue: textData
+            textValue: textData,
+            info: ""
         };
 
         this.comunicationPort.postMessage(retObject);
