@@ -85,45 +85,52 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             
             this.comunicationPort = event.ports[0]
             this.comunicationPort.onmessage = (event)=>{
-                
                 let data : ApplicationMessage  = event.data
-                      
-        
-                      
-
-                      if(data.command == "saveAsText"){
-                        this.createSaveDiv();
-                      }
-                      if(data.command == "setText"){
-                        
-                        that.createWhereToLoadDiv(data.textValue)
-                        
-                      }
-                    }
-    
+                      if(data.command == "saveAsText")this.openSaveDialog();
+                      else if(data.command == "saveText")this.saveText(this.editor)
+                      else if(data.command == "setTextAs")that.openOpenDialog(data.textValue)
+                      else if(data.command == "setText")this.formateNCTextToChanalList(data.textValue)
+                    }    
                 })
 
     }
-    private saveText(editor: IDEAdapter) {
-        let textData = "";
-        if (this.chanal == Chanals.one || this.chanal == Chanals.none) textData = editor.getTextFromCanal(0);
-        if (this.chanal == Chanals.two) textData = editor.getTextFromCanal(1);
-        if (this.chanal == Chanals.tree) textData = editor.getTextFromCanal(2);
-        if (this.chanal == Chanals.multi) textData = this.createMultiProgram(editor);
-        
-        let retObject = {
-            command: "storeText",
-            textValue: textData,
-            info: "program.txt"
-        };
 
+    private saveText(editor: IDEAdapter){
+        this.storeTextExec(editor,"","storeText")
+    }
+
+    private saveTextAs(editor: IDEAdapter,name : string) {
+        this.storeTextExec(editor,name,"storeTextAs")
+
+    }
+
+    private storeTextExec(editor: IDEAdapter,name : string,command){
+        let textData = "";
+        let chanal =  this.getSelectedChanal()
+        if (chanal == Chanals.one || chanal == Chanals.none) textData = editor.getTextFromCanal(0);
+        else if (chanal == Chanals.two) textData = editor.getTextFromCanal(1);
+        else if (chanal == Chanals.tree) textData = editor.getTextFromCanal(2);
+        else textData = this.createMultiProgram(editor);        
+        let retObject = {
+            command: command,
+            textValue: textData,
+            info: name
+        };
         this.comunicationPort.postMessage(retObject);
-        if(this.parentDiv.contains(this.SaveFileDiv)){
-            this.parentDiv.removeChild(this.SaveFileDiv)
+        this.closeSaveDialog();
+    }
+
+ 
+
+    private closeSaveDialog() {
+        if (this.parentDiv.contains(this.SaveFileDiv)) {
+            this.parentDiv.removeChild(this.SaveFileDiv);
         }
     }
 
+    
     OberverUpdate(): void {
+
     }
     createMultiProgram(editor: IDEAdapter) {
         let canals : number= this.editor.getCanalsCount()
@@ -152,12 +159,8 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             let prgrmName = head.substring(canaltext.indexOf("O") + 1);
             let Onumber = "";
             for (let n of prgrmName) {
-                if (Number(n) <= 9) {
-                    Onumber = Onumber + n;
-                }
-                else {
-                    break;
-                }
+                if (Number(n) <= 9) Onumber = Onumber + n;
+                else break
             }
             return Onumber;
         }
@@ -165,54 +168,22 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
 
     private setTextToTextArea(this: WebPageFileHandler, result: string | ArrayBuffer | null) {
         if (result != null) {
-            let list: string[] = this.phraseNCCode(result)
-//            this.editor.createCanalIfNotExist(list.length);
+            let list: string[] = this.formateNCTextToChanalList(result)
             this.IDEView.changeCanalCount(list.length)
-            if (list.length > 0) {
-                this.editor.setTextToCanal(0,list[0].replaceAll("\r",""))
-            }
-            if (list.length > 1) {
-                this.editor.setTextToCanal(1,list[1].replaceAll("\r",""))
-
-            }
-            if (list.length > 2) {
-                
-                
-                this.editor.setTextToCanal(2,list[2].replaceAll("\r",""))
-            }
-            this.closeWhereToLoadDiv()
+            if (list.length > 0) this.editor.setTextToCanal(0,list[0].replaceAll("\r",""))
+            else if (list.length > 1) this.editor.setTextToCanal(1,list[1].replaceAll("\r",""))
+            else if (list.length > 2)this.editor.setTextToCanal(2,list[2].replaceAll("\r",""))            
         }
     }
 
-    private phraseNCCode(result: string | ArrayBuffer): string[] {
-        if(result.toString().includes("<")){
-            this.chanal = Chanals.multi
-        }
-        let selction = document.querySelector('input[name="programTypeSelection"]:checked');
-        if (selction != null){
-            if (selction.id == "multi"){ 
-                this.chanal = Chanals.multi
-            }
-            else if (selction.id == "2"){
-                this.chanal = Chanals.two
-            }
-            else if (selction.id == "3"){
-                this.chanal = Chanals.tree
-            }
-            else{
-                this.chanal = Chanals.one                
-            }
-            
-        }
-        if (this.chanal == Chanals.multi) {
+    private formateNCTextToChanalList(result: string | ArrayBuffer): string[] {
+        let chanal = this.getSelectedChanal(String(result));
+        if (chanal == Chanals.multi) {
             result = result.toString().replaceAll(/&F=.*/g, "")
             result = result.toString().replaceAll("%", "")
             let ret: string[] = [];
             let programs: string[] = result.toString().split("<");
-            programs.shift() // first is nothing
-
-
-            
+            programs.shift() // first is empty            
             for (let programNr in programs) {
                 if(Number(programNr) > 2) break;
                 let programName: string[] = programs[programNr].split("\n");
@@ -227,24 +198,36 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             }
             return ret;
         }         
-        else if(this.chanal == Chanals.two){
-            return Array.of("",result.toString())
-        }
-        else if(this.chanal == Chanals.tree){
-            return Array.of("","",result.toString())
-        }else {
-            return Array.of(result.toString())
-
-        }
+        else if(this.chanal == Chanals.two) return Array.of("",result.toString())
+        else if(this.chanal == Chanals.tree) return Array.of("","",result.toString())
+        else return Array.of(result.toString())
     }
 
-    closeWhereToLoadDiv(){
+    private getSelectedChanal(ProgramText?: string | null) {
+        if(ProgramText != null && ProgramText.toString().includes("<")){
+            this.chanal = Chanals.multi
+        }  
+        else{ 
+            let selction = document.querySelector('input[name="programTypeSelection"]:checked');
+            if (selction != null) {            
+                this.closeOpenDialog()
+                if (selction.id == "multi") this.chanal = Chanals.multi;
+                else if (selction.id == "2") this.chanal = Chanals.two
+                else if (selction.id == "3")this.chanal = Chanals.tree
+                else this.chanal = Chanals.one;
+            }        
+        }
+        return this.chanal;
+    }
+
+    private closeOpenDialog(){
         if(this.parentDiv.contains(this.loadFileDiv)){
             this.parentDiv.removeChild(this.loadFileDiv)
         }
     }
 
-    private createWhereToLoadDiv(this: WebPageFileHandler, result: string | ArrayBuffer | null){
+
+    private openOpenDialog(this: WebPageFileHandler, result: string | ArrayBuffer | null){
         if(this.parentDiv.contains(this.loadFileDiv)){
                     this.parentDiv.removeChild(this.loadFileDiv)
         }
@@ -254,7 +237,6 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         loadFileButton.textContent = "load File"
         loadFileButton.style.backgroundColor = "green"
         let ProgramTypeSelection = document.createElement('form')
-
         let names = ['1', '2', '3', 'multi']
         for (let key in names) {
             let opt = document.createElement('input');
@@ -276,7 +258,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
     }
 
 
-    private createSaveDiv(this: WebPageFileHandler){
+    private openSaveDialog(this: WebPageFileHandler){
         
         if(this.parentDiv.contains(this.SaveFileDiv)){
                     this.parentDiv.removeChild(this.SaveFileDiv)
@@ -284,7 +266,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         this.SaveFileDiv = document.createElement('div')
         this.SaveFileDiv.classList.add("fileLoadSelector")
         let loadFileButton = document.createElement('button')
-        loadFileButton.addEventListener('click', () => this.saveText(this.editor));
+        loadFileButton.addEventListener('click', () => this.saveTextAs(this.editor,"PROGRAM.txt"));
         loadFileButton.textContent = "Save File"
         loadFileButton.style.backgroundColor = "green"
         let ProgramTypeSelection = document.createElement('form')

@@ -218,11 +218,9 @@ export class IDE extends Observable implements Observer {
                     let plotlinesExec = []
                     let timeLineListEdit = Array.apply(null,Array(IDE.canals[resp_canal.canalNr].getLength())).map(function(x,i){return ["-:--"];})
                     if (resp_canal.plot.length > programIndex && resp_canal.plot.length > 0) {
-                        
                         for (let i = 0; i < resp_canal.plot.length; i++) {
                             line_index = i;
                             plotlineEdit[resp_canal.programExec[i]].push(resp_canal.plot[line_index]);
-
                             plotlinesExec.push([resp_canal.plot[i]])
                             view3d.plot(resp_canal.plot[line_index]);
                             let t = String(resp_canal.plot[line_index].t);
