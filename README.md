@@ -1,10 +1,13 @@
 # NC-Edit7
-CNC NC-Code Editor view with Plot interface
-A text editor for CNC NC code in Typedscript and Javascript. 
-The editor integrates the ACE text editor and enables the plotting of tool paths with the three.js library
+CNC NC code editor view with plot interface. 
 
-The project is still ahead of the first release
+The editor integrates the ACE text editor and enables the plotting of toolpaths with the three.js library
 
+It is currently developed as a gui for an nc-code plot 
+
+The project is still awaiting its first release, 
+but a beta view is already available
 
 ### beta view
-you will find a beta view under star-ncplot.com
+you will find a beta view under https://www.star-ncplot.com
+
