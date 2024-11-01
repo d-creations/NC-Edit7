@@ -133,13 +133,7 @@ table {
     font-size: 11pt;
 }
 
-.PlayButton:active {
-    background-color: beige;
-}
 
-.PlayButton:hover  {
-    background-color:  rgb(199, 199, 199);
-}
 .PlayButton  {
     background-color: transparent;
     vertical-align: top;
@@ -155,6 +149,14 @@ table {
     text-decoration: none;
     display: inline-block;
     font-size: 11pt;
+}
+
+
+.PlayButton:active {
+    background-color: beige;
+}
+.PlayButton:hover {
+    border-width: 1pt;
 }
 
 .menuImage  {

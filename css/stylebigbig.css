@@ -41,6 +41,8 @@
     right: 0pt;
     overflow: hidden;
     position: absolute;
+    
+    background-color: whitesmoke;
 }
 
 
@@ -74,21 +76,21 @@
     left: 65%;
     right: 0;
 
-    border-width: 2px;
+    border-radius: 1pt;
+    border-radius: 0;
+    border-style: solid;
+    margin: 5pt;
+    padding: 2pt;
+    border-width: 1pt;
     border-color: black;
-    background-color: whitesmoke;
+    background-color: whitesmoke
 }
 .centerContent{
     top: 5pt;
     padding-right: 10px;
     text-align: left;
-    background-color: whitesmoke;
      opacity: 0.9;
     bottom: 60pt;
-    border-radius: 1px;
-    border-radius: 0;
-    border-style: none;
-    border-width: 2px;
     border-color: black;
 
     overflow-x: hidden;

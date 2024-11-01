@@ -26,31 +26,43 @@ export class WebPageFileHandler {
             this.comunicationPort = event.ports[0];
             this.comunicationPort.onmessage = (event) => {
                 let data = event.data;
-                if (data.command == "saveAsText") {
-                    this.createSaveDiv();
-                }
-                if (data.command == "setText") {
-                    that.createWhereToLoadDiv(data.textValue);
-                }
+                if (data.command == "saveAsText")
+                    this.openSaveDialog();
+                else if (data.command == "saveText")
+                    this.saveText(this.editor);
+                else if (data.command == "setTextAs")
+                    that.openOpenDialog(data.textValue);
+                else if (data.command == "setText")
+                    this.formateNCTextToChanalList(data.textValue);
             };
         });
     }
     saveText(editor) {
+        this.storeTextExec(editor, "", "storeText");
+    }
+    saveTextAs(editor, name) {
+        this.storeTextExec(editor, name, "storeTextAs");
+    }
+    storeTextExec(editor, name, command) {
         let textData = "";
-        if (this.chanal == Chanals.one || this.chanal == Chanals.none)
+        let chanal = this.getSelectedChanal();
+        if (chanal == Chanals.one || chanal == Chanals.none)
             textData = editor.getTextFromCanal(0);
-        if (this.chanal == Chanals.two)
+        else if (chanal == Chanals.two)
             textData = editor.getTextFromCanal(1);
-        if (this.chanal == Chanals.tree)
+        else if (chanal == Chanals.tree)
             textData = editor.getTextFromCanal(2);
-        if (this.chanal == Chanals.multi)
+        else
             textData = this.createMultiProgram(editor);
         let retObject = {
-            command: "storeText",
+            command: command,
             textValue: textData,
-            info: "program.txt"
+            info: name
         };
         this.comunicationPort.postMessage(retObject);
+        this.closeSaveDialog();
+    }
+    closeSaveDialog() {
         if (this.parentDiv.contains(this.SaveFileDiv)) {
             this.parentDiv.removeChild(this.SaveFileDiv);
         }
@@ -80,52 +92,29 @@ export class WebPageFileHandler {
             let prgrmName = head.substring(canaltext.indexOf("O") + 1);
             let Onumber = "";
             for (let n of prgrmName) {
-                if (Number(n) <= 9) {
+                if (Number(n) <= 9)
                     Onumber = Onumber + n;
-                }
-                else {
+                else
                     break;
-                }
             }
             return Onumber;
         }
     }
     setTextToTextArea(result) {
         if (result != null) {
-            let list = this.phraseNCCode(result);
+            let list = this.formateNCTextToChanalList(result);
             this.IDEView.changeCanalCount(list.length);
-            if (list.length > 0) {
+            if (list.length > 0)
                 this.editor.setTextToCanal(0, list[0].replaceAll("\r", ""));
-            }
-            if (list.length > 1) {
+            else if (list.length > 1)
                 this.editor.setTextToCanal(1, list[1].replaceAll("\r", ""));
-            }
-            if (list.length > 2) {
+            else if (list.length > 2)
                 this.editor.setTextToCanal(2, list[2].replaceAll("\r", ""));
-            }
-            this.closeWhereToLoadDiv();
         }
     }
-    phraseNCCode(result) {
-        if (result.toString().includes("<")) {
-            this.chanal = Chanals.multi;
-        }
-        let selction = document.querySelector('input[name="programTypeSelection"]:checked');
-        if (selction != null) {
-            if (selction.id == "multi") {
-                this.chanal = Chanals.multi;
-            }
-            else if (selction.id == "2") {
-                this.chanal = Chanals.two;
-            }
-            else if (selction.id == "3") {
-                this.chanal = Chanals.tree;
-            }
-            else {
-                this.chanal = Chanals.one;
-            }
-        }
-        if (this.chanal == Chanals.multi) {
+    formateNCTextToChanalList(result) {
+        let chanal = this.getSelectedChanal(String(result));
+        if (chanal == Chanals.multi) {
             result = result.toString().replaceAll(/&F=.*/g, "");
             result = result.toString().replaceAll("%", "");
             let ret = [];
@@ -146,22 +135,39 @@ export class WebPageFileHandler {
             }
             return ret;
         }
-        else if (this.chanal == Chanals.two) {
+        else if (this.chanal == Chanals.two)
             return Array.of("", result.toString());
-        }
-        else if (this.chanal == Chanals.tree) {
+        else if (this.chanal == Chanals.tree)
             return Array.of("", "", result.toString());
+        else
+            return Array.of(result.toString());
+    }
+    getSelectedChanal(ProgramText) {
+        if (ProgramText != null && ProgramText.toString().includes("<")) {
+            this.chanal = Chanals.multi;
         }
         else {
-            return Array.of(result.toString());
+            let selction = document.querySelector('input[name="programTypeSelection"]:checked');
+            if (selction != null) {
+                this.closeOpenDialog();
+                if (selction.id == "multi")
+                    this.chanal = Chanals.multi;
+                else if (selction.id == "2")
+                    this.chanal = Chanals.two;
+                else if (selction.id == "3")
+                    this.chanal = Chanals.tree;
+                else
+                    this.chanal = Chanals.one;
+            }
         }
+        return this.chanal;
     }
-    closeWhereToLoadDiv() {
+    closeOpenDialog() {
         if (this.parentDiv.contains(this.loadFileDiv)) {
             this.parentDiv.removeChild(this.loadFileDiv);
         }
     }
-    createWhereToLoadDiv(result) {
+    openOpenDialog(result) {
         if (this.parentDiv.contains(this.loadFileDiv)) {
             this.parentDiv.removeChild(this.loadFileDiv);
         }
@@ -189,18 +195,18 @@ export class WebPageFileHandler {
         this.loadFileDiv.appendChild(ProgramTypeSelection);
         this.parentDiv.appendChild(this.loadFileDiv);
     }
-    createSaveDiv() {
+    openSaveDialog() {
         if (this.parentDiv.contains(this.SaveFileDiv)) {
             this.parentDiv.removeChild(this.SaveFileDiv);
         }
         this.SaveFileDiv = document.createElement('div');
         this.SaveFileDiv.classList.add("fileLoadSelector");
         let loadFileButton = document.createElement('button');
-        loadFileButton.addEventListener('click', () => this.saveText(this.editor));
+        loadFileButton.addEventListener('click', () => this.saveTextAs(this.editor, "PROGRAM.txt"));
         loadFileButton.textContent = "Save File";
         loadFileButton.style.backgroundColor = "green";
         let ProgramTypeSelection = document.createElement('form');
-        let names = ['1', '2', '3', 'ALL \\ multi'];
+        let names = ['1', '2', '3', 'multi'];
         for (let key in names) {
             let opt = document.createElement('input');
             opt.type = "radio";

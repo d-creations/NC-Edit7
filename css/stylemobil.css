@@ -71,7 +71,7 @@ body{
     border-style: none;
     border-width: 2px;
     border-color: black;
-    background-color: whitesmoke;
+    background-color: rgb(133, 133, 133);
 }
 .readOnly{
     visibility: hidden;

@@ -271,7 +271,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         loadFileButton.style.backgroundColor = "green"
         let ProgramTypeSelection = document.createElement('form')
 
-        let names = ['1', '2', '3', 'ALL \\ multi']
+        let names = ['1', '2', '3', 'multi']
         for (let key in names) {
             let opt = document.createElement('input');
             opt.type = "radio"

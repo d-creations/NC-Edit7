@@ -207,8 +207,11 @@ export class Machine_Star {
         return this.controllListS[canal];
     }
     async plotCNCCode(view3d, canalNumbers, programs, toolGeometries, ncVariable) {
+        this.printConsole.printMessage("Loading ***");
         async function getData(selectedMachineS, program, canalNumbers) {
+            let that = this;
             try {
+                this.printConsole.printMessage("Loading ***");
                 let url = "https://plot.nc-editx7pro.d-creations.org//cgi-bin//plot.cgi";
                 let requestData = "";
                 let machines = [];
@@ -223,7 +226,9 @@ export class Machine_Star {
                     },
                     body: JSON.stringify(machines)
                 };
+                that.printConsole.printMessage("Loading ****");
                 let response = await fetch(url, config);
+                that.printConsole.printMessage("Loading ******");
                 return response.json();
             }
             catch (error) {
