@@ -11,3 +11,5 @@ but a beta view is already available
 ### beta view
 you will find a beta view under https://www.star-ncplot.com
 
+
+<img src="./image.png" width="200px">
