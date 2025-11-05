@@ -1,6 +1,6 @@
 import { ViewObjectCreator } from '../technicalService/ViewObjectCreator.js';
 export class IDEView {
-    constructor(parentDiv, IDEAdapter, canalCount, view3d, printConsole) {
+    constructor(parentDiv, IDEAdapter, canalCount, view3d, printConsole, DView_MenuDiv) {
         this._rowWidth = 35.0;
         this.viewList = ["Home", "F_G17", "F_G18", "F_G19"];
         this.IDEAdapter = IDEAdapter;
@@ -25,7 +25,7 @@ export class IDEView {
         this.canalTabs = [];
         IDEView.view3d = view3d;
         this.printConsole = printConsole;
-        this.create3DViewMenu(document.getElementById("DView_Menu"));
+        this.create3DViewMenu(DView_MenuDiv);
         this.MulitcheckedBox = ViewObjectCreator.createMultiViewSelector(parentDiv);
         this.MulitcheckedBox.addEventListener(`change`, (e) => {
             this.switchMultiView();
@@ -137,10 +137,10 @@ export class IDEView {
             this.tableDiv.appendChild(canalTabDiv);
             let tab1 = ViewObjectCreator.createTabButton(canalTabDiv, "Edit");
             let tab2 = ViewObjectCreator.createTabButton(canalTabDiv, "Exec");
-            let tab3 = ViewObjectCreator.createTabButton(canalTabDiv, "Geo");
             let tab4 = ViewObjectCreator.createTabButton(canalTabDiv, "Var");
             this.canalTabs.push(tab1);
             this.canalTabs.push(tab2);
+            let tab3 = ViewObjectCreator.createTabButton(canalTabDiv, "Geo");
             this.canalTabs.push(tab3);
             this.canalTabs.push(tab4);
             this.canalTabs.forEach((tab) => tab.classList.add("tabInactiv"));
@@ -366,6 +366,8 @@ export class IDEView {
             index = 1;
         else if (machine == "SR_20JII")
             index = 2;
+        else if (machine == "ISO_MILL")
+            index = 3;
         for (let canal = 0; canal < this.canalCount; canal++) {
             this.machineSelectorS[canal].selectedIndex = index;
             this.IDEAdapter.setSelectedMachineS(canal, this.machineSelectorS[canal].value);

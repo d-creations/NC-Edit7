@@ -40,13 +40,9 @@ SOFTWARE.
 
 import * as THREE from "../technicalService/build/three.module.js";
 
-import {OrbitControls} from '../technicalService/build/OrbitControls.js';
-
-import {TransformControls} from '../technicalService/build/TransformControls.js';
-
 import {TrackballControls} from '../technicalService/build/TrackballControl.js';
 
-import Stats from '../technicalService/build/stats.module.js';
+
 
 
 
@@ -57,9 +53,7 @@ export class View3D{
      static controls;
 
     constructor(parentDiv) {
-        var DView = parentDiv.appendChild(document.createElement("div"));
-        DView.id = "DView_Menu";
-        var container = parentDiv.appendChild(document.createElement("div"))
+        let container = parentDiv.appendChild(document.createElement("div"))
         container.id ='container';
         const fov = 75;
         const aspect = 2;  // the canvas default

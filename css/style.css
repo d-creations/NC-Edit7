@@ -5,6 +5,26 @@
 /*                                        */
 /******************************************/
 
+/* Style Scrollbar */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+
+::-webkit-scrollbar-thumb {
+    background: #717171;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #383838;
+}
 
 ul {
     list-style-type: none;
@@ -239,4 +259,78 @@ select {
     z-index: 999;
     padding: 10pt;
     border: solid;
+}
+
+.D3ViewTabButton{
+    background-color: transparent;
+    vertical-align: top;
+    border: solid;
+    border-width: 1pt;
+    border-bottom-width: 0pt;
+    border-top-right-radius: 5pt;
+    color: black;
+    padding: 2pt;
+    height: fit-content;
+    width: fit-content;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 11pt;    
+}
+.D3ViewTabHead{
+    height: 20pt;
+
+}
+.D3ViewTabBody{
+    border: solid;
+    border-top-width: 1pt;
+    border-left-width: 0pt;
+    border-bottom-width: 0pt;
+    border-right-width: 0pt;
+    position: absolute;
+    top: 20pt;
+    left: 0pt;
+    right: 0pt;
+    bottom: 0pt;
+}
+.D3ViewTabButtonInactive{
+    color: rgba(57, 57, 57, 0.553);
+}
+.D3ViewTabButtonActive{
+    color: black
+}
+
+
+.D3ViewTabButton:hover {
+    background-color:  rgb(199, 199, 199);
+}
+
+.D3ViewTabButton:active{
+    background-color:beige; 
+ }
+
+ #DView_Menu{
+    height: 30pt;
+ }
+ #D3iew {
+    top: 30pt;
+    left: 0pt;
+    right: 0pt;
+    bottom: 0pt;
+    position: absolute;
+}
+#container{
+    top: 0pt;
+    left: 0pt;
+    right: 0pt;
+    bottom: 0pt;
+    position: absolute;
+}
+
+#D3ViewFrame {
+    position: absolute;
+    top: 0pt;
+    left: 0pt;
+    right: 0pt;
+    bottom: 0pt;
 }

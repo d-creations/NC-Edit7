@@ -21,7 +21,14 @@ export class ViewObjectCreator{
         return button;
     }
 
-
+    public static create3DViewTabButton(parentDiv: HTMLDivElement,text : string) : HTMLButtonElement{
+        let button = document.createElement('button');
+        button.name = text;
+        button.innerText = text;
+        button.classList.add("D3ViewTabButton")
+        parentDiv.appendChild(button);
+        return button;
+    }
     
 
 

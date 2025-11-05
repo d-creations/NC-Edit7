@@ -208,11 +208,11 @@ export class Machine_Star {
     }
     async plotCNCCode(view3d, canalNumbers, programs, toolGeometries, ncVariable) {
         this.printConsole.printMessage("Loading ***");
+        let that = this;
         async function getData(selectedMachineS, program, canalNumbers) {
-            let that = this;
             try {
-                this.printConsole.printMessage("Loading ***");
-                let url = "https://plot.nc-editx7pro.d-creations.org//cgi-bin//plot.cgi";
+                that.printConsole.printMessage("Loading ***");
+                let url = "https://plot.star-ncplot.com//cgi-bin//plot.cgi";
                 let requestData = "";
                 let machines = [];
                 for (let canal in programs) {
@@ -232,6 +232,7 @@ export class Machine_Star {
                 return response.json();
             }
             catch (error) {
+                console.log(error);
             }
             return null;
         }

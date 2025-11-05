@@ -81,7 +81,7 @@ export class IDEView implements Observer{
  * @param view3d      3D View for th Plot
  * @param printConsole Print error and Info messages for the USER 
  */
-    constructor(parentDiv: HTMLDivElement, IDEAdapter : IDEAdapter, canalCount: number, view3d: any, printConsole: UserError) {
+    constructor(parentDiv: HTMLDivElement, IDEAdapter : IDEAdapter, canalCount: number, view3d: any, printConsole: UserError,DView_MenuDiv : HTMLDivElement) {
         this.IDEAdapter = IDEAdapter
         this.keyWordTable = document.createElement('table');
         this.keyWordTable.id = "keyWordTable";
@@ -106,7 +106,7 @@ export class IDEView implements Observer{
 
         IDEView.view3d = view3d;
         this.printConsole = printConsole
-        this.create3DViewMenu(document.getElementById("DView_Menu"))
+        this.create3DViewMenu(DView_MenuDiv)
         
         this.MulitcheckedBox  = ViewObjectCreator.createMultiViewSelector(parentDiv);
         this.MulitcheckedBox.addEventListener(`change`, (e) => {
@@ -255,13 +255,13 @@ export class IDEView implements Observer{
             this.tableDiv.appendChild(canalTabDiv);
             let tab1 = ViewObjectCreator.createTabButton(canalTabDiv, "Edit");
             let tab2 = ViewObjectCreator.createTabButton(canalTabDiv, "Exec");
-            let tab3 = ViewObjectCreator.createTabButton(canalTabDiv, "Geo");
             let tab4 = ViewObjectCreator.createTabButton(canalTabDiv, "Var");
 
             this.canalTabs.push(tab1)
             this.canalTabs.push(tab2)
-            this.canalTabs.push(tab3)
-            this.canalTabs.push(tab4)
+            let tab3 = ViewObjectCreator.createTabButton(canalTabDiv, "Geo");
+            this.canalTabs.push(tab3) 
+            this.canalTabs.push(tab4) 
 
             this.canalTabs.forEach((tab) => tab.classList.add("tabInactiv"))
             tab1.addEventListener('click', () => this.switchToTab(0));   
@@ -296,7 +296,7 @@ export class IDEView implements Observer{
             canalGeoHeadDiv.classList.add("canalHeadDiv")
             canalGeoHeadDiv.style.gridColumn = String(canal + 2);
             this.canalGeoHeadDivs.push(canalGeoHeadDiv)
-            this.tableDiv.appendChild(canalGeoHeadDiv);
+            this.tableDiv.appendChild(canalGeoHeadDiv); // @todo option geo 
             canalGeoHeadDiv.style.display = "none";
             ViewObjectCreator.createLabel(canalGeoHeadDiv, "Geo" + (Number(canal) + 1) + "");
         
@@ -522,6 +522,7 @@ export class IDEView implements Observer{
         if(machine == "STAR_SB_12RG")   index = 0
         else if(machine == "FANUC_TURN")index = 1
         else if(machine== "SR_20JII")index = 2  
+        else if(machine== "ISO_MILL")index = 3
         for (let canal = 0;canal < this.canalCount ;canal++){
             this.machineSelectorS[canal].selectedIndex = index
             this.IDEAdapter.setSelectedMachineS(canal,this.machineSelectorS[canal].value)

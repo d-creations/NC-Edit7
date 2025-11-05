@@ -82,12 +82,21 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         this.editor.addViewObserver(this)
         var that = this
         window.addEventListener("message",(event)=>{
-            
             this.comunicationPort = event.ports[0]
             this.comunicationPort.onmessage = (event)=>{
                 let data : ApplicationMessage  = event.data
                       if(data.command == "saveAsText")this.openSaveDialog();
-                      else if(data.command == "saveText")this.saveText(this.editor)
+                      else if(data.command == "saveText"){
+                        if(editor.getCanalsCount() == 1 && this.chanal == Chanals.one)
+                            this.saveText(this.editor)
+                        else if(editor.getCanalsCount() == 2 && this.chanal == Chanals.two)
+                            this.saveText(this.editor)
+                        else if(editor.getCanalsCount() == 3 && this.chanal == Chanals.tree)
+                            this.saveText(this.editor)
+                        else if(editor.getCanalsCount() > 3 && this.chanal == Chanals.multi)
+                            this.saveText(this.editor)
+                        this.saveText(this.editor)
+                      }
                       else if(data.command == "setTextAs")that.openOpenDialog(data.textValue)
                       else if(data.command == "setText")this.formateNCTextToChanalList(data.textValue)
                     }    
@@ -96,7 +105,9 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
     }
 
     private saveText(editor: IDEAdapter){
-        this.storeTextExec(editor,"","storeText")
+        if(this.chanal == Chanals.one && this.editor.getCanalsCount() == 1)this.storeTextExec(editor,"","storeText")
+        else if(this.chanal == Chanals.multi && this.editor.getCanalsCount() > 1)this.storeTextExec(editor,"","storeText")
+        else this.storeTextExec(editor,"name","storeText")
     }
 
     private saveTextAs(editor: IDEAdapter,name : string) {
@@ -106,7 +117,7 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
 
     private storeTextExec(editor: IDEAdapter,name : string,command){
         let textData = "";
-        let chanal =  this.getSelectedChanal()
+        let chanal =  this.chanal
         if (chanal == Chanals.one || chanal == Chanals.none) textData = editor.getTextFromCanal(0);
         else if (chanal == Chanals.two) textData = editor.getTextFromCanal(1);
         else if (chanal == Chanals.tree) textData = editor.getTextFromCanal(2);
@@ -118,6 +129,11 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         };
         this.comunicationPort.postMessage(retObject);
         this.closeSaveDialog();
+    }
+    getCanalOfEditor(editor: IDEAdapter) {
+        let canals = editor.getCanalsCount();
+        if(canals == 1) return Chanals.one
+        else return Chanals.multi
     }
 
  
@@ -167,12 +183,24 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
     }
 
     private setTextToTextArea(this: WebPageFileHandler, result: string | ArrayBuffer | null) {
+        let canals = this.getSelectedChanal(String(result))
         if (result != null) {
-            let list: string[] = this.formateNCTextToChanalList(result)
-            this.IDEView.changeCanalCount(list.length)
-            if (list.length > 0) this.editor.setTextToCanal(0,list[0].replaceAll("\r",""))
-            else if (list.length > 1) this.editor.setTextToCanal(1,list[1].replaceAll("\r",""))
-            else if (list.length > 2)this.editor.setTextToCanal(2,list[2].replaceAll("\r",""))            
+            if(canals == Chanals.multi){
+                let list: string[] = this.formateNCTextToChanalList(result)
+                this.IDEView.changeCanalCount(list.length)
+                if (list.length > 0) this.editor.setTextToCanal(0,list[0].replaceAll("\r",""))
+                else if (list.length > 1) this.editor.setTextToCanal(1,list[1].replaceAll("\r",""))
+                else if (list.length > 2)this.editor.setTextToCanal(2,list[2].replaceAll("\r",""))            
+            }else if(canals = Chanals.one){
+                if(this.editor.getCanalsCount()<1)this.IDEView.changeCanalCount(1)    
+                this.editor.setTextToCanal(0,String(result).replaceAll("\r",""))               
+            }else if(canals = Chanals.two){
+                if(this.editor.getCanalsCount()<1)this.IDEView.changeCanalCount(1)    
+                this.editor.setTextToCanal(0,String(result).replaceAll("\r",""))               
+            }else if(canals = Chanals.tree){
+                if(this.editor.getCanalsCount()<1)this.IDEView.changeCanalCount(1)    
+                this.editor.setTextToCanal(0,String(result).replaceAll("\r",""))               
+            }
         }
     }
 
@@ -210,12 +238,12 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         else{ 
             let selction = document.querySelector('input[name="programTypeSelection"]:checked');
             if (selction != null) {            
-                this.closeOpenDialog()
                 if (selction.id == "multi") this.chanal = Chanals.multi;
                 else if (selction.id == "2") this.chanal = Chanals.two
                 else if (selction.id == "3")this.chanal = Chanals.tree
                 else this.chanal = Chanals.one;
             }        
+            this.closeOpenDialog()
         }
         return this.chanal;
     }
@@ -284,6 +312,12 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
             ProgramTypeSelection.appendChild(opt);
             ProgramTypeSelection.appendChild(label);
         }
+        let programNameInput = document.createElement('input');
+        programNameInput.type = "text";
+        programNameInput.id = "programName";
+        programNameInput.name = "programName";
+        programNameInput.placeholder = "Enter program name";
+        ProgramTypeSelection.appendChild(programNameInput);
 
 
         this.SaveFileDiv.appendChild(loadFileButton)

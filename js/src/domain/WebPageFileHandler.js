@@ -28,8 +28,17 @@ export class WebPageFileHandler {
                 let data = event.data;
                 if (data.command == "saveAsText")
                     this.openSaveDialog();
-                else if (data.command == "saveText")
+                else if (data.command == "saveText") {
+                    if (editor.getCanalsCount() == 1 && this.chanal == Chanals.one)
+                        this.saveText(this.editor);
+                    else if (editor.getCanalsCount() == 2 && this.chanal == Chanals.two)
+                        this.saveText(this.editor);
+                    else if (editor.getCanalsCount() == 3 && this.chanal == Chanals.tree)
+                        this.saveText(this.editor);
+                    else if (editor.getCanalsCount() > 3 && this.chanal == Chanals.multi)
+                        this.saveText(this.editor);
                     this.saveText(this.editor);
+                }
                 else if (data.command == "setTextAs")
                     that.openOpenDialog(data.textValue);
                 else if (data.command == "setText")
@@ -38,14 +47,19 @@ export class WebPageFileHandler {
         });
     }
     saveText(editor) {
-        this.storeTextExec(editor, "", "storeText");
+        if (this.chanal == Chanals.one && this.editor.getCanalsCount() == 1)
+            this.storeTextExec(editor, "", "storeText");
+        else if (this.chanal == Chanals.multi && this.editor.getCanalsCount() > 1)
+            this.storeTextExec(editor, "", "storeText");
+        else
+            this.storeTextExec(editor, "name", "storeText");
     }
     saveTextAs(editor, name) {
         this.storeTextExec(editor, name, "storeTextAs");
     }
     storeTextExec(editor, name, command) {
         let textData = "";
-        let chanal = this.getSelectedChanal();
+        let chanal = this.chanal;
         if (chanal == Chanals.one || chanal == Chanals.none)
             textData = editor.getTextFromCanal(0);
         else if (chanal == Chanals.two)
@@ -61,6 +75,13 @@ export class WebPageFileHandler {
         };
         this.comunicationPort.postMessage(retObject);
         this.closeSaveDialog();
+    }
+    getCanalOfEditor(editor) {
+        let canals = editor.getCanalsCount();
+        if (canals == 1)
+            return Chanals.one;
+        else
+            return Chanals.multi;
     }
     closeSaveDialog() {
         if (this.parentDiv.contains(this.SaveFileDiv)) {
@@ -101,15 +122,33 @@ export class WebPageFileHandler {
         }
     }
     setTextToTextArea(result) {
+        let canals = this.getSelectedChanal(String(result));
         if (result != null) {
-            let list = this.formateNCTextToChanalList(result);
-            this.IDEView.changeCanalCount(list.length);
-            if (list.length > 0)
-                this.editor.setTextToCanal(0, list[0].replaceAll("\r", ""));
-            else if (list.length > 1)
-                this.editor.setTextToCanal(1, list[1].replaceAll("\r", ""));
-            else if (list.length > 2)
-                this.editor.setTextToCanal(2, list[2].replaceAll("\r", ""));
+            if (canals == Chanals.multi) {
+                let list = this.formateNCTextToChanalList(result);
+                this.IDEView.changeCanalCount(list.length);
+                if (list.length > 0)
+                    this.editor.setTextToCanal(0, list[0].replaceAll("\r", ""));
+                else if (list.length > 1)
+                    this.editor.setTextToCanal(1, list[1].replaceAll("\r", ""));
+                else if (list.length > 2)
+                    this.editor.setTextToCanal(2, list[2].replaceAll("\r", ""));
+            }
+            else if (canals = Chanals.one) {
+                if (this.editor.getCanalsCount() < 1)
+                    this.IDEView.changeCanalCount(1);
+                this.editor.setTextToCanal(0, String(result).replaceAll("\r", ""));
+            }
+            else if (canals = Chanals.two) {
+                if (this.editor.getCanalsCount() < 1)
+                    this.IDEView.changeCanalCount(1);
+                this.editor.setTextToCanal(0, String(result).replaceAll("\r", ""));
+            }
+            else if (canals = Chanals.tree) {
+                if (this.editor.getCanalsCount() < 1)
+                    this.IDEView.changeCanalCount(1);
+                this.editor.setTextToCanal(0, String(result).replaceAll("\r", ""));
+            }
         }
     }
     formateNCTextToChanalList(result) {
@@ -149,7 +188,6 @@ export class WebPageFileHandler {
         else {
             let selction = document.querySelector('input[name="programTypeSelection"]:checked');
             if (selction != null) {
-                this.closeOpenDialog();
                 if (selction.id == "multi")
                     this.chanal = Chanals.multi;
                 else if (selction.id == "2")
@@ -159,6 +197,7 @@ export class WebPageFileHandler {
                 else
                     this.chanal = Chanals.one;
             }
+            this.closeOpenDialog();
         }
         return this.chanal;
     }
@@ -219,6 +258,12 @@ export class WebPageFileHandler {
             ProgramTypeSelection.appendChild(opt);
             ProgramTypeSelection.appendChild(label);
         }
+        let programNameInput = document.createElement('input');
+        programNameInput.type = "text";
+        programNameInput.id = "programName";
+        programNameInput.name = "programName";
+        programNameInput.placeholder = "Enter program name";
+        ProgramTypeSelection.appendChild(programNameInput);
         this.SaveFileDiv.appendChild(loadFileButton);
         this.SaveFileDiv.appendChild(ProgramTypeSelection);
         this.parentDiv.appendChild(this.SaveFileDiv);

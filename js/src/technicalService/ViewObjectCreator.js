@@ -15,6 +15,14 @@ export class ViewObjectCreator {
         parentDiv.appendChild(button);
         return button;
     }
+    static create3DViewTabButton(parentDiv, text) {
+        let button = document.createElement('button');
+        button.name = text;
+        button.innerText = text;
+        button.classList.add("D3ViewTabButton");
+        parentDiv.appendChild(button);
+        return button;
+    }
     static createMultiViewSelector(parentDiv) {
         let MulitcheckedBox = document.createElement('input');
         MulitcheckedBox.type = "checkbox";
