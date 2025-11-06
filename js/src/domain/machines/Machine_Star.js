@@ -189,8 +189,8 @@ export class Machine_Star {
         return NtextAreas;
     }
     constructor(printConsole) {
-        this.controllList = ['STAR_SB_12RG', 'FANUC_TURN', 'SR_20JII'];
-        this.controllListS = [['SB12RG_F', 'FANUC_T', 'SR20JII_F'], ['SB12RG_B', 'FANUC_T', 'SR20JII_B'], ['SB12RG_F', 'FANUC_T', 'SR20JII_F']];
+        this.controllList = ['ISO_MILL','STAR_SB_12RG', 'FANUC_TURN', 'SR_20JII'];
+        this.controllListS = [['ISO_MILL','SB12RG_F', 'FANUC_T', 'SR20JII_F'], ['ISO_MILL','SB12RG_B', 'FANUC_T', 'SR20JII_B'], ['ISO_MILL','SB12RG_F', 'FANUC_T', 'SR20JII_F']];
         this.printConsole = printConsole;
         this.selectedMachineS = [];
         for (let i = 0; i < 3; i++) {
@@ -212,7 +212,7 @@ export class Machine_Star {
         async function getData(selectedMachineS, program, canalNumbers) {
             try {
                 that.printConsole.printMessage("Loading ***");
-                let url = "https://plot.star-ncplot.com//cgi-bin//plot.cgi";
+                let url = "https://preview.plot.star-ncplot.com//cgi-bin//plot.cgi";
                 let requestData = "";
                 let machines = [];
                 for (let canal in programs) {

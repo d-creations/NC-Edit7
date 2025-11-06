@@ -136,9 +136,28 @@ export class IDE extends Observable {
                     let line_index = 0;
                     let time = 0.0;
                     let timeLineList = [];
-                    let plotlineEdit = Array.apply(null, Array(IDE.canals[resp_canal.canalNr].getLength())).map(function (x, i) { return []; });
+                    // validate canal index and guard against undefined canals (prevents getLength() on undefined)
+                    // accept formats like "C0" or "0" by extracting the first integer substring
+                    const rawCanalNr = String(resp_canal.canalNr);
+                    let canalNr = NaN;
+                    const m = rawCanalNr.match(/-?\d+/);
+                    if (m) {
+                        canalNr = parseInt(m[0], 10);
+                    }
+                    else {
+                        // fallback to direct numeric coercion
+                        canalNr = Number(rawCanalNr);
+                    }
+                    if (!Number.isInteger(canalNr) || canalNr < 0 || canalNr >= IDE.canals.length) {
+                        console.error('plotCNCCode: invalid canal index', resp_canal.canalNr, 'parsed as', canalNr, 'canals length', IDE.canals.length, resp_canal);
+                        // skip this canal response if the target canal doesn't exist
+                        continue;
+                    }
+                    const canal = IDE.canals[canalNr];
+                    const canalExec = IDE.canalExecs[canalNr];
+                    let plotlineEdit = Array.apply(null, Array(canal.getLength())).map(function (x, i) { return []; });
                     let plotlinesExec = [];
-                    let timeLineListEdit = Array.apply(null, Array(IDE.canals[resp_canal.canalNr].getLength())).map(function (x, i) { return ["-:--"]; });
+                    let timeLineListEdit = Array.apply(null, Array(canal.getLength())).map(function (x, i) { return ["-:--"]; });
                     if (resp_canal.plot.length > programIndex && resp_canal.plot.length > 0) {
                         for (let i = 0; i < resp_canal.plot.length; i++) {
                             line_index = i;
@@ -154,23 +173,38 @@ export class IDE extends Observable {
                             timeLineList.push(t);
                             timeLineListEdit[resp_canal.programExec[i]] = t;
                         }
-                        IDE.canals[resp_canal.canalNr].timeLine = timeLineListEdit;
-                        IDE.canalExecs[resp_canal.canalNr].timeLine = timeLineList;
+                        canal.timeLine = timeLineListEdit;
+                        if (canalExec)
+                            canalExec.timeLine = timeLineList;
                     }
                     times.push(time);
                     programIndex += 1;
-                    this.canals[resp_canal.canalNr].resetPlotPosition();
-                    this.canals[resp_canal.canalNr].plotLines = plotlineEdit;
+                    canal.resetPlotPosition();
+                    canal.plotLines = plotlineEdit;
                     let execProgram = resp_canal.programExec;
                     let execText = "";
-                    let program = IDE.canals[resp_canal.canalNr].text.split("\n");
+                    let program = canal.text.split("\n");
                     for (let line of execProgram) {
                         execText += program[line] + "\n";
                     }
-                    IDE.canalExecs[resp_canal.canalNr].plotLines = plotlinesExec;
-                    IDE.canalExecs[resp_canal.canalNr].text = execText;
+                    if (canalExec) {
+                        canalExec.plotLines = plotlinesExec;
+                        canalExec.text = execText;
+                    }
                 }
-                IDE.CompleteTime = times[0].toFixed(2);
+                // protect against empty times array (avoid calling toFixed on undefined)
+                if (times.length > 0 && typeof times[0] === 'number') {
+                    IDE.CompleteTime = times[0].toFixed(2);
+                }
+                else if (times.length > 0) {
+                    // try to coerce to number, fall back to 0.00
+                    const t0 = parseFloat(times[0]);
+                    IDE.CompleteTime = isNaN(t0) ? "0.00" : t0.toFixed(2);
+                }
+                else {
+                    console.warn('plotCNCCode: no times were produced, setting CompleteTime to 0.00');
+                    IDE.CompleteTime = "0.00";
+                }
                 this.updated();
             }
         });

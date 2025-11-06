@@ -89,9 +89,9 @@
         let toolManager = new NCToolManagerCreator(60,printConsole)
         let variableManager = new NCVariableManagerCreator(60,printConsole)
 
-        let IDEcontroller = new IDE(document.getElementById("editor"),2,view3d,printConsole,canalCreation,toolManager,variableManager,machineManagerAdapter)
+        let IDEcontroller = new IDE(document.getElementById("editor"),1,view3d,printConsole,canalCreation,toolManager,variableManager,machineManagerAdapter)
         let IDEadaptar = new IDEAdapter(IDEcontroller)
-        let ideview = new IDEView(document.getElementById("editor"),IDEadaptar, 2,view3d,printConsole,menuDiv);
+        let ideview = new IDEView(document.getElementById("editor"),IDEadaptar, 1,view3d,printConsole,menuDiv);
         new WebPageFileHandler(IDEadaptar, document.getElementById("fileHandler"), ideview,printConsole);
         
         
