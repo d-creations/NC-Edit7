@@ -225,7 +225,7 @@ export class Machine_Star{
 
             try {
                 that.printConsole.printMessage("Loading ***")                
-                let url = "https://plot.star-ncplot.com//cgi-bin//plot.cgi" // Integrate Plot
+                let url = "https://preview.plot.star-ncplot.com//cgi-bin//plot.cgi" // Integrate Plot
                 let requestData = ""
                 let machines = [] 
                 for(let canal in programs){

@@ -136,8 +136,6 @@ export class IDE extends Observable {
                     let line_index = 0;
                     let time = 0.0;
                     let timeLineList = [];
-                    // validate canal index and guard against undefined canals (prevents getLength() on undefined)
-                    // accept formats like "C0" or "0" by extracting the first integer substring
                     const rawCanalNr = String(resp_canal.canalNr);
                     let canalNr = NaN;
                     const m = rawCanalNr.match(/-?\d+/);
@@ -145,12 +143,10 @@ export class IDE extends Observable {
                         canalNr = parseInt(m[0], 10);
                     }
                     else {
-                        // fallback to direct numeric coercion
                         canalNr = Number(rawCanalNr);
                     }
                     if (!Number.isInteger(canalNr) || canalNr < 0 || canalNr >= IDE.canals.length) {
                         console.error('plotCNCCode: invalid canal index', resp_canal.canalNr, 'parsed as', canalNr, 'canals length', IDE.canals.length, resp_canal);
-                        // skip this canal response if the target canal doesn't exist
                         continue;
                     }
                     const canal = IDE.canals[canalNr];
@@ -192,18 +188,16 @@ export class IDE extends Observable {
                         canalExec.text = execText;
                     }
                 }
-                // protect against empty times array (avoid calling toFixed on undefined)
                 if (times.length > 0 && typeof times[0] === 'number') {
-                    IDE.CompleteTime = times[0].toFixed(2);
+                    IDE.CompleteTime = Number(times[0].toFixed(2));
                 }
                 else if (times.length > 0) {
-                    // try to coerce to number, fall back to 0.00
-                    const t0 = parseFloat(times[0]);
-                    IDE.CompleteTime = isNaN(t0) ? "0.00" : t0.toFixed(2);
+                    const t0 = parseFloat(String(times[0]));
+                    IDE.CompleteTime = isNaN(t0) ? 0.0 : Number(t0.toFixed(2));
                 }
                 else {
                     console.warn('plotCNCCode: no times were produced, setting CompleteTime to 0.00');
-                    IDE.CompleteTime = "0.00";
+                    IDE.CompleteTime = 0.0;
                 }
                 this.updated();
             }
