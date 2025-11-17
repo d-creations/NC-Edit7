@@ -125,11 +125,11 @@
 1. ✅ **Setup & Tooling** _(complete)_
    - Configure TypeScript project, bundler, test runner, linting, and basic index page with custom elements polyfill if needed.
    - Implement ServiceRegistry scaffolding and core type definitions.
-2. 🔄 **Parser & State Foundations** _(in progress)_
-   - Added `EventBus`, parser, and state services under `src/` that emit parse results and channel updates.
+2. ✅ **Parser & State Foundations** _(complete)_
+   - Added `EventBus`, parser, and state services under `src/` that emit parse results and channel updates and provide `npm run test` coverage via `node --test`.
    - Implemented simple NC parser heuristics (comment stripping, keyword/timeline tracking) and `StateService` timeline management.
-3. ⏳ **Web Component Shell** _(queued)_
-   - Build `<nc-editor-app>` with layout placeholders; wire machine selector and channel switching.
+3. 🔄 **Web Component Shell** _(in progress)_
+   - Added `<nc-editor-app>` and `<nc-channel-panel>` shells that bind to the parser/state services and surface summary metrics/errors.
 4. ⏳ **ACE Integration** _(queued)_
    - Develop `<nc-code-pane>` with time gutter and basic markers; hook to ParserService outputs.
 5. ⏳ **Channel Panels** _(queued)_
@@ -162,6 +162,7 @@
 ## 12. Tooling notes
 - Added `package.json` with `npm run clean` (Node-based `fs.rm` script) and `npm run build` targeting `tsconfig.build.json` so the TypeScript sources under `originalCode/js/src` compile into `dist` without needing `rimraf`.
 - Phase 2 now includes Node's built-in `test` runner (`node --test test/parser.service.test.js test/state.service.test.js`) invoked via `npm run test` to validate `ParserService` and `StateService` behavior against the compiled `dist` output.
+- Phase 3 now instantiates `<nc-editor-app>` and `<nc-channel-panel>` so the parser/state services can be exercised via a Web Component shell once the scripts from `dist/src/index.js` are loaded, and the unit tests now cover parser completion events, empty programs, and cached channel states.
 
 ## 13. Open Questions
 - Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).

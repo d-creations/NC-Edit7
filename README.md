@@ -34,4 +34,12 @@ Phase 2 tests verify the parser and state services using Node's built-in test ru
 npm run test
 ```
 
-This script rebuilds the project and then executes `node --test test/parser.service.test.js test/state.service.test.js`, which loads those files from the `test` directory and reports any failures from the services under test.
+This script rebuilds the project and then executes `node --test test/parser.service.test.js test/state.service.test.js`, which loads those files from the `test` directory and reports any failures from the services under test. The parser test now covers sync/tool detection, parse completion emission, and empty-program handling, while the state test validates timeline length and cached channel states.
+
+## Phase 3 preview
+
+The new `<nc-editor-app>` web component wires the parser and state services into a simple UI shell with a program editor on the left and a `<nc-channel-panel>` on the right that summarizes parsed state, tools, and errors. To try it manually:
+
+1. Build the project (`npm run build`).
+2. Include the compiled bundle (e.g., `<script type="module" src="dist/src/index.js"></script>`) on a page.
+3. Drop `<nc-editor-app></nc-editor-app>` into the HTML body and type or paste an NC program to see the services in action.

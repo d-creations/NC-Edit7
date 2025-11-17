@@ -1,13 +1,15 @@
 {
   "extends": "./originalCode/js/tsconfig.json",
   "compilerOptions": {
-      "rootDir": "./src",
+    "module": "Node16",
+    "rootDir": "./src",
     "outDir": "./dist",
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
     "incremental": true,
-    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo"
+    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo",
+    "moduleResolution": "node16"
   },
     "include": [
       "src/**/*"
