@@ -28,7 +28,20 @@
   - `PlotRequest`, `PlotSegment`, `PlotResponse`: data contract with plotting server.
 - Specify DTOs for server communication and error structures.
 
-## 4. Services & Instantiation
+## 4. Server Interface Contracts
+- **Endpoint**: CGI script at `scripts/cgiserver.cgi` behind web server (expects JSON POST, returns JSON).
+- **Payload Shapes**:
+   - Object with `machinedata` array `{ "machinedata": [ { program, machineName, canalNr }, ... ] }`.
+   - Direct array `[ { program, machineName, canalNr }, ... ]`.
+- **Required Fields**: `program` (string without `() { }` characters), `machineName` (one of SB12RG_F, FANUC_T, SR20JII_F, SB12RG_B, SR20JII_B, ISO_MILL), `canalNr` (string or number identifying synchronization channel).
+- **Preprocessing**: Server strips parentheses comments, converts newlines to semicolons, removes spaces before execution.
+- **Processing Flow**: Builds CNC states per machine, configures units, instantiates `StatefulIsoTurnNCControl`, and runs `NCExecutionEngine.get_Syncro_plot(programs, True)`.
+- **Response**: `{ "canal": <engine_result>, "message": <message_stack> }` on success; error responses contain diagnostic keys (e.g., `message_TEST`).
+- **Side Effects**: Optional MariaDB logging of request IP (`REMOTE_ADDR`) and truncated POST body when credentials available.
+- **Machine Discovery**: POST `{ "action": "list_machines" }` (or `"get_machines"`) to receive `{ "machines": [ { machineName, controlType }, ... ] }`.
+- **Client Responsibilities**: Avoid forbidden characters, supply newline-separated programs, handle diagnostic messages, and map `canal` data to plotting/visualization models.
+
+## 5. Services & Instantiation
 1. **ServiceRegistry** (instantiation service)
    - Registers constructors/factories keyed by symbols.
    - Supports singleton and scoped instantiation for components.
@@ -38,21 +51,25 @@
 3. **StateService**
    - Central store for machines, channels, documents, UI settings.
    - Provides immutable snapshots + event notifications on changes.
-4. **ParserService**
+4. **MachineService**
+   - Retrieves machine profiles, canal metadata, and plot points from the CGI server (`action=list_machines` and main `machinedata` response).
+   - Normalizes server data into `MachineProfile` plus plot-ready `PlotPoint` bundles, caches responses, and exposes async getters to other services.
+   - Emits machine change events so components can rebind editors, tool lists, and plots when a new profile arrives.
+5. **ParserService**
    - Runs in a worker when available to parse NC source into `NcParseResult`.
    - Emits timing, error markers, synchronization metadata.
-5. **BackendGateway**
+6. **BackendGateway**
    - Wraps fetch calls to plotting server; handles retries, cancellation, and mapping into `PlotResponse`.
-6. **PlotService**
+7. **PlotService**
    - Converts parser output into three.js scene elements; caches segments per machine/channel.
-7. **UserPreferenceService**
+8. **UserPreferenceService**
    - Stores layout preferences, active machine, channel toggles in local storage.
-8. **CommandService**
+9. **CommandService**
    - Centralized commands (e.g., `alignSync`, `toggleChannel`, `requestPlot`).
-9. **DiagnosticsService**
+10. **DiagnosticsService**
    - Aggregates parser errors, backend errors, and surfacing guidelines for the UI.
 
-## 5. Web Components
+## 6. Web Components
 - **Root Component** `<nc-editor-app>`
   - Bootstraps ServiceRegistry, loads initial machine profile, orchestrates layout.
   - Contains panels: channel switcher, left tool/sync list, channel container, plot area, status bar.
@@ -81,7 +98,7 @@
 - **Machine Selector** `<nc-machine-selector>`
   - Dropdown to switch machines, triggers state updates and reparse.
 
-## 6. ACE Editor Customization
+## 7. ACE Editor Customization
 - Load ACE modules via dynamic imports inside `<nc-code-pane>`.
 - Configure session per channel with custom NC mode (syntax highlighting, line tokens).
 - Implement custom gutter renderer for time values via `session.gutterRenderer`.
@@ -89,14 +106,14 @@
 - Implement synchronized scrolling between channels as needed via shared events.
 - Provide commands (keyboard shortcuts) for toggling channel visibility, aligning sync, jumping to errors.
 
-## 7. Three.js Plot Integration
+## 8. Three.js Plot Integration
 - Initialize three.js (scene, camera, lights) in `<nc-toolpath-plot>`.
 - Load machine-specific geometry (e.g., chuck, turret) based on `MachineProfile`.
 - Convert `PlotResponse` segments into `BufferGeometry` lines and tool markers.
 - Provide controls for playback speed, zoom/pan, and toggling channel overlays.
 - Highlight current execution line by mapping ParserService timeline to plot animation.
 
-## 8. Workflow & Data Flow
+## 9. Workflow & Data Flow
 1. User selects machine/channels → `StateService` updates configuration.
 2. User loads NC program → `ParserService` processes text, returns `NcParseResult`.
 3. `StateService` updates channel states, tool lists, time gutter data, errors.
@@ -104,7 +121,7 @@
 5. Plot request triggered with `PlotRequest` derived from `NcParseResult` → `BackendGateway` fetches plot → `PlotService` feeds `<nc-toolpath-plot>`.
 6. Synchronization controls adjust state/timeline; ACE panes react via markers.
 
-## 9. Implementation Phases
+## 10. Implementation Phases
 1. **Setup & Tooling**
    - Configure TypeScript project, bundler, test runner, linting, and basic index page with custom elements polyfill if needed.
    - Implement ServiceRegistry scaffolding and core type definitions.
@@ -132,7 +149,7 @@
     - Document architecture, service contracts, component APIs, and build/deployment instructions.
     - Prepare release bundle and deployment scripts.
 
-## 10. Deliverables Checklist
+## 11. Deliverables Checklist
 - [ ] TypeScript project scaffold with ServiceRegistry and core interfaces.
 - [ ] ParserService producing timing, sync events, errors, tool usage.
 - [ ] Event-driven StateService with worker integration.
@@ -142,7 +159,7 @@
 - [ ] Diagnostics and status reporting UI.
 - [ ] Automated tests and documentation.
 
-## 11. Open Questions
+## 12. Open Questions
 - Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).
 - Validate performance requirements (max file size, target FPS for plotting, acceptable parse latency).
 - Determine localization needs for UI labels and measurement units.
