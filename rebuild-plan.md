@@ -121,33 +121,33 @@
 5. Plot request triggered with `PlotRequest` derived from `NcParseResult` → `BackendGateway` fetches plot → `PlotService` feeds `<nc-toolpath-plot>`.
 6. Synchronization controls adjust state/timeline; ACE panes react via markers.
 
-## 10. Implementation Phases
-1. **Setup & Tooling**
+## 10. Implementation Phases (status)
+1. ✅ **Setup & Tooling** _(complete)_
    - Configure TypeScript project, bundler, test runner, linting, and basic index page with custom elements polyfill if needed.
    - Implement ServiceRegistry scaffolding and core type definitions.
-2. **Parser & State Foundations**
-   - Port/implement NC parsing logic, timing calculations, error detection.
-   - Implement StateService, EventBus, and initial ParserService integration (no UI yet).
-3. **Web Component Shell**
+2. 🔄 **Parser & State Foundations** _(in progress)_
+   - Added `EventBus`, parser, and state services under `src/` that emit parse results and channel updates.
+   - Implemented simple NC parser heuristics (comment stripping, keyword/timeline tracking) and `StateService` timeline management.
+3. ⏳ **Web Component Shell** _(queued)_
    - Build `<nc-editor-app>` with layout placeholders; wire machine selector and channel switching.
-4. **ACE Integration**
+4. ⏳ **ACE Integration** _(queued)_
    - Develop `<nc-code-pane>` with time gutter and basic markers; hook to ParserService outputs.
-5. **Channel Panels**
+5. ⏳ **Channel Panels** _(queued)_
    - Implement tool list, variable list, executed code components; connect to state updates.
-6. **Keyword & Sync Controls**
-   - Build left panel for tools/sync keywords; implement synchronization alignment commands.
-7. **Three.js Plot**
+6. ⏳ **Keyword & Sync Controls** _(queued)_
+   - Build left panel for tools/sync codes; implement synchronization alignment commands.
+7. ⏳ **Three.js Plot** _(queued)_
    - Implement `<nc-toolpath-plot>` and PlotService; connect to backend requests.
    - Add animation playback aligned with ACE selection/timeline.
-8. **Diagnostics & UX Polishing**
+8. ⏳ **Diagnostics & UX Polishing** _(queued)_
    - Integrate status indicator, error overlays, loading states, and channel alignment UI.
    - Ensure responsive layout and accessibility (keyboard navigation, ARIA labels).
-9. **Testing & Stabilization**
+9. ⏳ **Testing & Stabilization** _(queued)_
    - Add unit tests for services, integration tests for key interactions.
    - Profile performance with large NC programs; optimize parsing/plotting hotspots.
-10. **Documentation & Packaging**
-    - Document architecture, service contracts, component APIs, and build/deployment instructions.
-    - Prepare release bundle and deployment scripts.
+10. ⏳ **Documentation & Packaging** _(queued)_
+   - Document architecture, service contracts, component APIs, and build/deployment instructions.
+   - Prepare release bundle and deployment scripts.
 
 ## 11. Deliverables Checklist
 - [ ] TypeScript project scaffold with ServiceRegistry and core interfaces.
@@ -159,7 +159,11 @@
 - [ ] Diagnostics and status reporting UI.
 - [ ] Automated tests and documentation.
 
-## 12. Open Questions
+## 12. Tooling notes
+- Added `package.json` with `npm run clean` (Node-based `fs.rm` script) and `npm run build` targeting `tsconfig.build.json` so the TypeScript sources under `originalCode/js/src` compile into `dist` without needing `rimraf`.
+- Phase 2 now includes Node's built-in `test` runner (`node --test test/parser.service.test.js test/state.service.test.js`) invoked via `npm run test` to validate `ParserService` and `StateService` behavior against the compiled `dist` output.
+
+## 13. Open Questions
 - Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).
 - Validate performance requirements (max file size, target FPS for plotting, acceptable parse latency).
 - Determine localization needs for UI labels and measurement units.

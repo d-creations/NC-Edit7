@@ -1,0 +1,15 @@
+{
+  "extends": "./originalCode/js/tsconfig.json",
+  "compilerOptions": {
+      "rootDir": "./src",
+    "outDir": "./dist",
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo"
+  },
+    "include": [
+      "src/**/*"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "nc-edit7",
+  "version": "0.1.0",
+  "description": "Rebuilt NC editor UI with TypeScript, ACE, and three.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "build": "tsc -p tsconfig.build.json",
+  "test": "npm run build && node --test test/parser.service.test.js test/state.service.test.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
