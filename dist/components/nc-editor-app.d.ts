@@ -1,3 +1,5 @@
+import "./channel-panel.js";
+import "./nc-code-pane.js";
 export declare class NcEditorApp extends HTMLElement {
     private subscriptions;
     private parseButton?;

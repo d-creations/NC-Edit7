@@ -1,6 +1,11 @@
 import { eventBus, updateChannelProgram } from "../app-context.js";
-import { NcChannelPanel } from "./channel-panel.js";
+import "./channel-panel.js";
+import "./nc-code-pane.js";
 import type { ChannelViewState } from "./channel-panel.js";
+
+type ChannelPanelElement = HTMLElement & {
+  channelState: ChannelViewState;
+};
 
 const CHANNEL_ID = "CH1";
 const DEFAULT_PROGRAM = `N1 G00 X0 Y0 Z0\nN2 G01 X10 Y10 Z0 M200`;
@@ -32,6 +37,12 @@ template.innerHTML = `
       background: rgba(11, 14, 31, 0.8);
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .panel-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
 
     textarea {
@@ -76,18 +87,22 @@ template.innerHTML = `
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
   </style>
-  <div class="shell">
-    <div class="editor-panel">
-      <div class="status-pills">
-        <span class="pill">Channel ${CHANNEL_ID}</span>
-        <span class="pill" id="statusLabel">Idle</span>
+    <div class="shell">
+      <div class="editor-panel">
+        <div class="status-pills">
+          <span class="pill">Channel ${CHANNEL_ID}</span>
+          <span class="pill" id="statusLabel">Idle</span>
+        </div>
+        <label for="programInput">NC Program</label>
+        <textarea id="programInput" spellcheck="false"></textarea>
+        <button id="parseButton" type="button">Parse channel</button>
       </div>
-      <label for="programInput">NC Program</label>
-      <textarea id="programInput" spellcheck="false"></textarea>
-      <button id="parseButton" type="button">Parse channel</button>
+
+      <div class="panel-stack">
+        <nc-code-pane channel-id="${CHANNEL_ID}"></nc-code-pane>
+        <nc-channel-panel></nc-channel-panel>
+      </div>
     </div>
-    <nc-channel-panel></nc-channel-panel>
-  </div>
 `;
 
 export class NcEditorApp extends HTMLElement {
@@ -151,7 +166,7 @@ export class NcEditorApp extends HTMLElement {
       this.statusLabel.textContent = "Last parsed at " + new Date(state.lastUpdated).toLocaleTimeString();
     }
 
-    const panel = this.shadowRoot?.querySelector("nc-channel-panel") as NcChannelPanel | null;
+    const panel = this.shadowRoot?.querySelector("nc-channel-panel") as ChannelPanelElement | null;
     if (panel) {
       panel.channelState = state;
     }

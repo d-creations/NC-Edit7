@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "node scripts/clean.js",
     "build": "tsc -p tsconfig.build.json",
-  "test": "npm run build && node --test test/parser.service.test.js test/state.service.test.js"
+  "test": "npm run build && node --test test/parser.service.test.js test/state.service.test.js test/app-context.test.js"
   },
   "engines": {
     "node": ">=16.0.0"

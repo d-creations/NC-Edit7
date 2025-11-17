@@ -41,5 +41,13 @@ This script rebuilds the project and then executes `node --test test/parser.serv
 The new `<nc-editor-app>` web component wires the parser and state services into a simple UI shell with a program editor on the left and a `<nc-channel-panel>` on the right that summarizes parsed state, tools, and errors. To try it manually:
 
 1. Build the project (`npm run build`).
-2. Include the compiled bundle (e.g., `<script type="module" src="dist/src/index.js"></script>`) on a page.
+2. Include the compiled bundle (e.g., `<script type="module" src="dist/index.js"></script>`) on a page.
 3. Drop `<nc-editor-app></nc-editor-app>` into the HTML body and type or paste an NC program to see the services in action.
+
+## Phase 4 prototype
+
+`<nc-code-pane>` now complements the channel panel by rendering the parsed NC lines, highlighting error rows, and surfacing line/error counts plus the most recent parse timestamp so ACE integration has a visual target. After building, load `dist/index.js` and the component will paint the latest parse whenever `channelUpdated` fires.
+
+## Demo page
+
+You can preview the current shell at `index.html` after running `npm run build`. The page loads `<nc-editor-app>` from `dist/index.js`, so any changes to the app or components will appear once the build completes.

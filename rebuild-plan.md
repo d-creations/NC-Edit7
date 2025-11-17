@@ -128,10 +128,12 @@
 2. ✅ **Parser & State Foundations** _(complete)_
    - Added `EventBus`, parser, and state services under `src/` that emit parse results and channel updates and provide `npm run test` coverage via `node --test`.
    - Implemented simple NC parser heuristics (comment stripping, keyword/timeline tracking) and `StateService` timeline management.
-3. 🔄 **Web Component Shell** _(in progress)_
+3. ✅ **Web Component Shell** _(complete)_
    - Added `<nc-editor-app>` and `<nc-channel-panel>` shells that bind to the parser/state services and surface summary metrics/errors.
-4. ⏳ **ACE Integration** _(queued)_
-   - Develop `<nc-code-pane>` with time gutter and basic markers; hook to ParserService outputs.
+4. ✅ **ACE Integration** _(complete)_
+   - Implemented a prototype `<nc-code-pane>` that renders parsed lines with error highlights, summary counts, and the last parse time; it sits beside the channel panel, reacts to `channelUpdated` events, and is available in the demo page.
+5. 🔄 **Channel Panels** _(in progress)_
+   - Implement tool list, variable list, executed code components; connect to state updates.
 5. ⏳ **Channel Panels** _(queued)_
    - Implement tool list, variable list, executed code components; connect to state updates.
 6. ⏳ **Keyword & Sync Controls** _(queued)_
@@ -161,8 +163,9 @@
 
 ## 12. Tooling notes
 - Added `package.json` with `npm run clean` (Node-based `fs.rm` script) and `npm run build` targeting `tsconfig.build.json` so the TypeScript sources under `originalCode/js/src` compile into `dist` without needing `rimraf`.
-- Phase 2 now includes Node's built-in `test` runner (`node --test test/parser.service.test.js test/state.service.test.js`) invoked via `npm run test` to validate `ParserService` and `StateService` behavior against the compiled `dist` output.
+- Phase 2 now includes Node's built-in `test` runner (`node --test test/parser.service.test.js test/state.service.test.js test/app-context.test.js`) invoked via `npm run test` to validate `ParserService`, `StateService`, and the shared app context behavior against the compiled `dist` output.
 - Phase 3 now instantiates `<nc-editor-app>` and `<nc-channel-panel>` so the parser/state services can be exercised via a Web Component shell once the scripts from `dist/src/index.js` are loaded, and the unit tests now cover parser completion events, empty programs, and cached channel states.
+- Added `index.html` at the repo root that loads `dist/src/index.js` and renders `<nc-editor-app>` so Phase 4 can be previewed in the browser after running `npm run build`.
 
 ## 13. Open Questions
 - Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).
