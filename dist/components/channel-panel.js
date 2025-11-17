@@ -86,7 +86,9 @@ export class NcChannelPanel extends HTMLElement {
         const { channelId, errors, timeline, parseResult } = this._state;
         const lineCount = parseResult?.summary.lineCount ?? 0;
         const toolCount = parseResult?.toolUsage.length ?? 0;
-        const summaryText = parseResult ? `${lineCount} lines parsed · ${parseResult.summary.parsedAt ? new Date(parseResult.summary.parsedAt).toLocaleTimeString() : "-"}` : "No parse result";
+        const summaryText = parseResult
+            ? `${lineCount} lines parsed · ${parseResult.summary.parsedAt ? new Date(parseResult.summary.parsedAt).toLocaleTimeString() : "-"}`
+            : "No parse result";
         this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <div class="panel">

@@ -132,10 +132,10 @@
    - Added `<nc-editor-app>` and `<nc-channel-panel>` shells that bind to the parser/state services and surface summary metrics/errors.
 4. ✅ **ACE Integration** _(complete)_
    - Implemented a prototype `<nc-code-pane>` that renders parsed lines with error highlights, summary counts, and the last parse time; it sits beside the channel panel, reacts to `channelUpdated` events, and is available in the demo page.
-5. 🔄 **Channel Panels** _(in progress)_
-   - Implement tool list, variable list, executed code components; connect to state updates.
-5. ⏳ **Channel Panels** _(queued)_
-   - Implement tool list, variable list, executed code components; connect to state updates.
+5. ✅ **Channel Panels & Drill-down** _(complete)_
+   - Added `<nc-tool-list>`, `<nc-variable-list>`, and `<nc-executed-list>` to display tool/time/variable summaries driven by the `ChannelState` emitted through `EventBus`.
+   - Expanded `<nc-editor-app>` layout so every panel is wired to the active channel and updates when `channelUpdated` fires.
+   - Added `code-pane-renderer` helper and DOM-free tests to verify `NcCodePane` metrics without relying on jsdom.
 6. ⏳ **Keyword & Sync Controls** _(queued)_
    - Build left panel for tools/sync codes; implement synchronization alignment commands.
 7. ⏳ **Three.js Plot** _(queued)_
@@ -168,7 +168,14 @@
 - Added `index.html` at the repo root that loads `dist/src/index.js` and renders `<nc-editor-app>` so Phase 4 can be previewed in the browser after running `npm run build`.
 
 ## 13. Open Questions
-- Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).
-- Validate performance requirements (max file size, target FPS for plotting, acceptable parse latency).
-- Determine localization needs for UI labels and measurement units.
-- Establish how machine profiles are provided (static JSON, server request, user upload).
+ - Confirm available backend endpoints for plot requests (authentication, payload format, response latency expectations).
+ - Validate performance requirements (max file size, target FPS for plotting, acceptable parse latency).
+ - Determine localization needs for UI labels and measurement units.
+ - Establish how machine profiles are provided (static JSON, server request, user upload).
+
+## 14. Plot Integration Notes
+ - The `ncplot7py/scripts/cgiserver.cgi` CGI endpoint is the existing plot calculator.
+ - Send `POST` with `Content-Type: application/json` containing either `{ "machinedata": [ ... ] }` or a direct array. Each entry needs `program`, `machineName` (one of `SB12RG_F`, `SB12RG_B`, `SR20JII_F`, `SR20JII_B`, `FANUC_T`, `ISO_MILL`) and `canalNr`. The CGI rejects parentheses/braces (and logs to MariaDB when credentials exist).
+ - The service returns `{ "canal": [...], "message": [...] }`. On errors it responds with `message_TEST`/`message_T`; the same API can list machines with `{ "action": "list_machines" }`/` { "action": "get_machines" }`.
+ - `PlotService` should wrap this call, reuse the `ChannelState` payloads, cache the latest `plotData`, and surface errors via `DiagnosticsService`.
+ - Keep the CGI URL configurable, tie new HTTP calls to `channelUpdated`, and replay the `canal` payload into the three.js renderer so plots stay aligned with the editor timeline.

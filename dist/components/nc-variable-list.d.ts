@@ -1,10 +1,10 @@
 import type { ChannelState } from "../domain/models.js";
-export declare class NcChannelPanel extends HTMLElement {
+export declare class NcVariableList extends HTMLElement {
     private _state?;
     constructor();
     set channelState(state: ChannelState | undefined);
     get channelState(): ChannelState | undefined;
-    private formatErrors;
+    private extractVariables;
     private render;
 }
-//# sourceMappingURL=channel-panel.d.ts.map
+//# sourceMappingURL=nc-variable-list.d.ts.map

@@ -1,6 +1,6 @@
 import { eventBus } from "../app-context.js";
-import type { ChannelId, NcLine, ParseError } from "../domain/models.js";
-
+import type { ChannelId, ChannelState } from "../domain/models.js";
+import { buildCodePaneRenderResult } from "./code-pane-renderer.js";
 const template = document.createElement("template");
 template.innerHTML = `
   <style>
@@ -136,7 +136,7 @@ export class NcCodePane extends HTMLElement {
     }
   }
 
-  private render(state: { parseResult?: { lines: NcLine[]; summary: { lineCount: number; parsedAt: number } }; errors: ParseError[] }) {
+  private render(state: ChannelState) {
     const content = this.shadowRoot?.getElementById("content");
     const doorHeader = this.shadowRoot?.getElementById("title");
     const lineCount = this.shadowRoot?.getElementById("lineCount");
@@ -147,30 +147,15 @@ export class NcCodePane extends HTMLElement {
       return;
     }
 
-    doorHeader.textContent = `Channel ${this.channelId}`;
+    const outputs = buildCodePaneRenderResult(state, this.channelId);
 
-    const lines = state.parseResult?.lines ?? [];
-    lineCount.textContent = `${lines.length} lines`;
-    errorCount.textContent = `${state.errors.length} errors`;
-
+    doorHeader.textContent = outputs.title;
+    lineCount.textContent = outputs.lineCountLabel;
+    errorCount.textContent = outputs.errorCountLabel;
     if (summaryText) {
-      const parsedAt = state.parseResult?.summary.parsedAt;
-      summaryText.textContent = parsedAt
-        ? `last parsed ${new Date(parsedAt).toLocaleTimeString()}`
-        : "not parsed yet";
+      summaryText.textContent = outputs.summaryText;
     }
-
-    content.innerHTML = lines
-      .map((line) => {
-        const hasError = state.errors.some((error) => error.lineNumber === line.lineNumber);
-        return `
-          <div class="line${hasError ? " error" : ""}" aria-label="Line ${line.lineNumber}">
-            <span class="line-number${hasError ? " error" : ""}">${line.lineNumber}</span>
-            <span class="line-text${hasError ? " error" : ""}">${line.rawLine.trim() || "(blank)"}</span>
-          </div>
-        `;
-      })
-      .join("\n");
+    content.innerHTML = outputs.contentHtml;
   }
 }
 

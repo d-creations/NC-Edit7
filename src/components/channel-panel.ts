@@ -1,18 +1,4 @@
-type ChannelViewError = {
-  lineNumber: number;
-  message: string;
-};
-
-type ChannelViewState = {
-  channelId: string;
-  errors: ChannelViewError[];
-  timeline: number[];
-  parseResult?: {
-    summary: { lineCount: number; parsedAt: number };
-    toolUsage: { toolNumber: number }[];
-  };
-  lastUpdated: number;
-};
+import type { ChannelState } from "../domain/models.js";
 
 const styles = `
 :host {
@@ -73,23 +59,23 @@ const styles = `
 `;
 
 export class NcChannelPanel extends HTMLElement {
-  private _state?: ChannelViewState;
+  private _state?: ChannelState;
 
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
   }
 
-  set channelState(state: ChannelViewState | undefined) {
+  set channelState(state: ChannelState | undefined) {
     this._state = state;
     this.render();
   }
 
-  get channelState(): ChannelViewState | undefined {
+  get channelState(): ChannelState | undefined {
     return this._state;
   }
 
-  private formatErrors(errors: ChannelViewError[]): string {
+  private formatErrors(errors: ChannelState["errors"]): string {
     if (!errors.length) {
       return `<li class="empty">No parser errors</li>`;
     }
@@ -112,7 +98,9 @@ export class NcChannelPanel extends HTMLElement {
     const { channelId, errors, timeline, parseResult } = this._state;
     const lineCount = parseResult?.summary.lineCount ?? 0;
     const toolCount = parseResult?.toolUsage.length ?? 0;
-    const summaryText = parseResult ? `${lineCount} lines parsed · ${parseResult.summary.parsedAt ? new Date(parseResult.summary.parsedAt).toLocaleTimeString() : "-"}` : "No parse result";
+    const summaryText = parseResult
+      ? `${lineCount} lines parsed · ${parseResult.summary.parsedAt ? new Date(parseResult.summary.parsedAt).toLocaleTimeString() : "-"}`
+      : "No parse result";
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
@@ -134,4 +122,3 @@ export class NcChannelPanel extends HTMLElement {
 }
 
 customElements.define("nc-channel-panel", NcChannelPanel);
-export type { ChannelViewState };

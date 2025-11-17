@@ -1,4 +1,5 @@
 import { eventBus } from "../app-context.js";
+import { buildCodePaneRenderResult } from "./code-pane-renderer.js";
 const template = document.createElement("template");
 template.innerHTML = `
   <style>
@@ -135,27 +136,14 @@ export class NcCodePane extends HTMLElement {
         if (!content || !doorHeader || !lineCount || !errorCount) {
             return;
         }
-        doorHeader.textContent = `Channel ${this.channelId}`;
-        const lines = state.parseResult?.lines ?? [];
-        lineCount.textContent = `${lines.length} lines`;
-        errorCount.textContent = `${state.errors.length} errors`;
+        const outputs = buildCodePaneRenderResult(state, this.channelId);
+        doorHeader.textContent = outputs.title;
+        lineCount.textContent = outputs.lineCountLabel;
+        errorCount.textContent = outputs.errorCountLabel;
         if (summaryText) {
-            const parsedAt = state.parseResult?.summary.parsedAt;
-            summaryText.textContent = parsedAt
-                ? `last parsed ${new Date(parsedAt).toLocaleTimeString()}`
-                : "not parsed yet";
+            summaryText.textContent = outputs.summaryText;
         }
-        content.innerHTML = lines
-            .map((line) => {
-            const hasError = state.errors.some((error) => error.lineNumber === line.lineNumber);
-            return `
-          <div class="line${hasError ? " error" : ""}" aria-label="Line ${line.lineNumber}">
-            <span class="line-number${hasError ? " error" : ""}">${line.lineNumber}</span>
-            <span class="line-text${hasError ? " error" : ""}">${line.rawLine.trim() || "(blank)"}</span>
-          </div>
-        `;
-        })
-            .join("\n");
+        content.innerHTML = outputs.contentHtml;
     }
 }
 customElements.define("nc-code-pane", NcCodePane);

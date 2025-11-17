@@ -1,6 +1,9 @@
 import { eventBus, updateChannelProgram } from "../app-context.js";
 import "./channel-panel.js";
 import "./nc-code-pane.js";
+import "./nc-tool-list.js";
+import "./nc-variable-list.js";
+import "./nc-executed-list.js";
 const CHANNEL_ID = "CH1";
 const DEFAULT_PROGRAM = `N1 G00 X0 Y0 Z0\nN2 G01 X10 Y10 Z0 M200`;
 const template = document.createElement("template");
@@ -35,6 +38,12 @@ template.innerHTML = `
     .panel-stack {
       display: flex;
       flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 1rem;
     }
 
@@ -93,7 +102,12 @@ template.innerHTML = `
 
       <div class="panel-stack">
         <nc-code-pane channel-id="${CHANNEL_ID}"></nc-code-pane>
-        <nc-channel-panel></nc-channel-panel>
+        <div class="panel-columns">
+          <nc-channel-panel></nc-channel-panel>
+          <nc-tool-list></nc-tool-list>
+          <nc-variable-list></nc-variable-list>
+          <nc-executed-list></nc-executed-list>
+        </div>
       </div>
     </div>
 `;
@@ -140,9 +154,23 @@ export class NcEditorApp extends HTMLElement {
         if (this.statusLabel) {
             this.statusLabel.textContent = "Last parsed at " + new Date(state.lastUpdated).toLocaleTimeString();
         }
-        const panel = this.shadowRoot?.querySelector("nc-channel-panel");
-        if (panel) {
-            panel.channelState = state;
+        this.updateChannelPanels(state);
+    }
+    updateChannelPanels(state) {
+        if (!this.shadowRoot) {
+            return;
+        }
+        const selectors = [
+            "nc-channel-panel",
+            "nc-tool-list",
+            "nc-variable-list",
+            "nc-executed-list",
+        ];
+        for (const selector of selectors) {
+            const element = this.shadowRoot.querySelector(selector);
+            if (element) {
+                element.channelState = state;
+            }
         }
     }
     dispatchInitialParse() {

@@ -5,7 +5,7 @@ The editor integrates the ACE text editor and enables the plotting of toolpaths 
 
 It is currently developed as a gui for an nc-code plot 
 
-The project is still awaiting its first release, 
+this script rebuilds the project and then executes `node --test test/parser.service.test.js test/state.service.test.js`, which loads those files from the `test` directory and reports any failures from the services under test. The parser test now covers sync/tool detection, parse completion emission, and empty-program handling, while the state test validates timeline length and cached channel states. `npm test` also runs `test/app-context.test.js`, `test/eventBus.test.js`, and `test/code-pane-renderer.test.js` so the shared services and DOM-free renderer stay verified.
 but a beta view is already available
 
 ### beta view
@@ -18,6 +18,9 @@ you will find a beta view under https://www.star-ncplot.com
 
 To rebuild the TypeScript source, install the tooling and run the clean/build scripts:
 
+## Phase 5 demo panels
+
+The `nc-editor-app` demo now renders `<nc-code-pane>` next to three new information panels. `<nc-tool-list>` shows tool numbers and the lines where they appear, `<nc-variable-list>` surfaces NC variables/registers with their most recent line references, and `<nc-executed-list>` keeps the last few timeline entries so you can trace execution progress. All panels consume the same `ChannelState` emitted via `EventBus`, so typing or pasting a program and clicking “Parse channel” updates every panel simultaneously.
 ```bash
 npm install
 npm run clean

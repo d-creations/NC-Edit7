@@ -1,10 +1,13 @@
 import { eventBus, updateChannelProgram } from "../app-context.js";
 import "./channel-panel.js";
 import "./nc-code-pane.js";
-import type { ChannelViewState } from "./channel-panel.js";
+import "./nc-tool-list.js";
+import "./nc-variable-list.js";
+import "./nc-executed-list.js";
+import type { ChannelState } from "../domain/models.js";
 
-type ChannelPanelElement = HTMLElement & {
-  channelState: ChannelViewState;
+type ChannelStateElement = HTMLElement & {
+  channelState: ChannelState | undefined;
 };
 
 const CHANNEL_ID = "CH1";
@@ -42,6 +45,12 @@ template.innerHTML = `
     .panel-stack {
       display: flex;
       flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 1rem;
     }
 
@@ -100,7 +109,12 @@ template.innerHTML = `
 
       <div class="panel-stack">
         <nc-code-pane channel-id="${CHANNEL_ID}"></nc-code-pane>
-        <nc-channel-panel></nc-channel-panel>
+        <div class="panel-columns">
+          <nc-channel-panel></nc-channel-panel>
+          <nc-tool-list></nc-tool-list>
+          <nc-variable-list></nc-variable-list>
+          <nc-executed-list></nc-executed-list>
+        </div>
       </div>
     </div>
 `;
@@ -161,14 +175,31 @@ export class NcEditorApp extends HTMLElement {
     updateChannelProgram(CHANNEL_ID, program);
   }
 
-  private renderChannelState(state: ChannelViewState) {
+  private renderChannelState(state: ChannelState) {
     if (this.statusLabel) {
       this.statusLabel.textContent = "Last parsed at " + new Date(state.lastUpdated).toLocaleTimeString();
     }
 
-    const panel = this.shadowRoot?.querySelector("nc-channel-panel") as ChannelPanelElement | null;
-    if (panel) {
-      panel.channelState = state;
+    this.updateChannelPanels(state);
+  }
+
+  private updateChannelPanels(state: ChannelState) {
+    if (!this.shadowRoot) {
+      return;
+    }
+
+    const selectors = [
+      "nc-channel-panel",
+      "nc-tool-list",
+      "nc-variable-list",
+      "nc-executed-list",
+    ];
+
+    for (const selector of selectors) {
+      const element = this.shadowRoot.querySelector(selector) as ChannelStateElement | null;
+      if (element) {
+        element.channelState = state;
+      }
     }
   }
 
