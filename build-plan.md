@@ -199,6 +199,7 @@ catch error in the console and try to catch stacking endless loops and catch if 
 - Confirm frequency for keyword list auto-refresh (per keystroke vs debounced parse results) to balance responsiveness and performance.
 - Define UX for overlapping tool geometry drawer (modal vs overlay) and whether it should pause editor input while open.
 
+
 ## 14. Server Deployment & CGI Setup
 - **Apache role**: host static frontend assets and proxy CGI calls to the Python backend. Enable `mod_cgi`/`mod_proxy_fcgi` (depending on the distribution) so that `.cgi` scripts under `ncplot7py/scripts/` execute through `/usr/bin/env python3` rather than being served as plain files.
 - **Script placement & permissions**: keep `ncplot7py/scripts/cgiserver.cgi` executable (`chmod 755`) and owned by the web user. A `ScriptAlias` or `<Directory>` block should point to that directory, e.g. `ScriptAlias /cgi-bin/ /var/www/NC-Edit7Pro/ncplot7py/scripts/` with `AddHandler cgi-script .cgi` and `Options +ExecCGI`. Add `AllowOverride None` and `Require all granted` to avoid additional authentication walls.
