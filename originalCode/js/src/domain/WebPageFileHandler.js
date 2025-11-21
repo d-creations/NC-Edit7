@@ -152,9 +152,9 @@ export class WebPageFileHandler {
                     this.IDEView.changeCanalCount(1);
                 this.editor.setTextToCanal(0, String(result).replaceAll("\r", ""));
             }
-        }
-        if (typeof window !== 'undefined') {
-            window.hasUncommittedChanges = false;
+            if (typeof window !== 'undefined') {
+                window.hasUncommittedChanges = false;
+            }
         }
     }
     formateNCTextToChanalList(result) {
