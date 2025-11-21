@@ -88,6 +88,22 @@ export class NCCodePane extends BaseComponent {
         this.loadChannelProgram();
       }
     });
+
+    // Listen for keyword clicks to scroll to line
+    this.eventBus.on('keyword:clicked', (event) => {
+      const payload = event.payload as { channelId: ChannelId; lineNumber: number };
+      if (payload.channelId === this.channelId) {
+        this.scrollToLine(payload.lineNumber);
+      }
+    });
+
+    // Listen for tool clicks to scroll to line
+    this.eventBus.on('tool:clicked', (event) => {
+      const payload = event.payload as { channelId: ChannelId; lineNumber: number };
+      if (payload.channelId === this.channelId) {
+        this.scrollToLine(payload.lineNumber);
+      }
+    });
   }
 
   private initializeEditor(): void {

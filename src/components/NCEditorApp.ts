@@ -9,6 +9,9 @@ import type { StateService } from '@services/StateService';
 import type { MachineService } from '@services/MachineService';
 import type { EventBus } from '@services/EventBus';
 import './NCCodePane';
+import './NCKeywordPanel';
+import './NCVariableList';
+import './NCToolList';
 
 /**
  * Root component that bootstraps the application layout
@@ -328,13 +331,46 @@ export class NCEditorApp extends BaseComponent {
     header.textContent = `${channel.id} - ${channel.machineId}`;
     pane.appendChild(header);
 
-    // Use the new NCCodePane component
+    const contentArea = document.createElement('div');
+    contentArea.className = 'channel-content';
+
+    // Left panel (keywords and tools)
+    const leftPanel = document.createElement('div');
+    leftPanel.className = 'left-panel';
+
+    const keywordPanel = document.createElement('nc-keyword-panel');
+    keywordPanel.setAttribute('channel-id', channel.id);
+    keywordPanel.style.flex = '1';
+    keywordPanel.style.minHeight = '0';
+    leftPanel.appendChild(keywordPanel);
+
+    const toolList = document.createElement('nc-tool-list');
+    toolList.setAttribute('channel-id', channel.id);
+    toolList.style.flex = '1';
+    toolList.style.minHeight = '0';
+    leftPanel.appendChild(toolList);
+
+    contentArea.appendChild(leftPanel);
+
+    // Center editor area
+    const editorArea = document.createElement('div');
+    editorArea.className = 'editor-area';
+
     const codePane = document.createElement('nc-code-pane');
     codePane.setAttribute('channel-id', channel.id);
     codePane.setAttribute('time-gutter-side', channel.uiConfig.timeGutterSide);
     codePane.setAttribute('active-tab', channel.uiConfig.activeTab);
     codePane.style.flex = '1';
-    pane.appendChild(codePane);
+    editorArea.appendChild(codePane);
+
+    // Variable drawer at bottom
+    const variableList = document.createElement('nc-variable-list');
+    variableList.setAttribute('channel-id', channel.id);
+    variableList.setAttribute('open', String(channel.uiConfig.variableDrawerOpen));
+    editorArea.appendChild(variableList);
+
+    contentArea.appendChild(editorArea);
+    pane.appendChild(contentArea);
 
     return pane;
   }
@@ -455,7 +491,8 @@ export class NCEditorApp extends BaseComponent {
         border-radius: 4px;
         display: flex;
         flex-direction: column;
-        min-height: 300px;
+        min-height: 400px;
+        overflow: hidden;
       }
 
       .channel-header {
@@ -463,6 +500,27 @@ export class NCEditorApp extends BaseComponent {
         background: #2d2d30;
         border-bottom: 1px solid #3e3e42;
         font-weight: 500;
+      }
+
+      .channel-content {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .left-panel {
+        width: 250px;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #3e3e42;
+        overflow: hidden;
+      }
+
+      .editor-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       .placeholder {
