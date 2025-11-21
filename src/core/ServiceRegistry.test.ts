@@ -3,6 +3,13 @@ import { ServiceRegistry, Disposable, Initializable } from './ServiceRegistry';
 
 describe('ServiceRegistry', () => {
   let registry: ServiceRegistry;
+  const TestServiceToken = Symbol('TestService');
+  const DependencyToken = Symbol('Dependency');
+  const ServiceAToken = Symbol('ServiceA');
+  const ServiceBToken = Symbol('ServiceB');
+  const Service1Token = Symbol('Service1');
+  const Service2Token = Symbol('Service2');
+  const AsyncServiceToken = Symbol('AsyncService');
 
   beforeEach(() => {
     registry = new ServiceRegistry();
@@ -11,18 +18,18 @@ describe('ServiceRegistry', () => {
   describe('register', () => {
     it('should register a service with a factory function', () => {
       const factory = () => ({ value: 42 });
-      registry.register('test-service', factory);
+      registry.register(TestServiceToken, factory);
 
-      expect(registry.has('test-service')).toBe(true);
+      expect(registry.has(TestServiceToken)).toBe(true);
     });
 
     it('should throw error when registering duplicate service', () => {
       const factory = () => ({ value: 42 });
-      registry.register('test-service', factory);
+      registry.register(TestServiceToken, factory);
 
       expect(() => {
-        registry.register('test-service', factory);
-      }).toThrow('Service already registered: test-service');
+        registry.register(TestServiceToken, factory);
+      }).toThrow('Service already registered');
     });
 
     it('should register as singleton by default', () => {
@@ -32,10 +39,10 @@ describe('ServiceRegistry', () => {
         return { value: callCount };
       };
 
-      registry.register('test-service', factory);
+      registry.register(TestServiceToken, factory);
 
-      const instance1 = registry.get('test-service');
-      const instance2 = registry.get('test-service');
+      const instance1 = registry.get(TestServiceToken);
+      const instance2 = registry.get(TestServiceToken);
 
       expect(instance1).toBe(instance2);
       expect(callCount).toBe(1);
@@ -48,10 +55,10 @@ describe('ServiceRegistry', () => {
         return { value: callCount };
       };
 
-      registry.register('test-service', factory, { singleton: false });
+      registry.register(TestServiceToken, factory, { singleton: false });
 
-      const instance1 = registry.get<{ value: number }>('test-service');
-      const instance2 = registry.get<{ value: number }>('test-service');
+      const instance1 = registry.get<{ value: number }>(TestServiceToken);
+      const instance2 = registry.get<{ value: number }>(TestServiceToken);
 
       expect(instance1).not.toBe(instance2);
       expect(instance1.value).toBe(1);
@@ -66,9 +73,9 @@ describe('ServiceRegistry', () => {
         value = 42;
       }
 
-      registry.registerClass('test-service', TestService);
+      registry.registerClass(TestServiceToken, TestService);
 
-      const instance = registry.get<TestService>('test-service');
+      const instance = registry.get<TestService>(TestServiceToken);
       expect(instance).toBeInstanceOf(TestService);
       expect(instance.value).toBe(42);
     });
@@ -82,12 +89,13 @@ describe('ServiceRegistry', () => {
         constructor(public dep: DependencyService) {}
       }
 
-      registry.registerClass('dependency', DependencyService);
-      registry.registerClass('test-service', TestService, {
-        dependencies: ['dependency'],
+      registry.registerClass(DependencyToken, DependencyService);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registry.registerClass(TestServiceToken, TestService as any, {
+        dependencies: [DependencyToken],
       });
 
-      const instance = registry.get<TestService>('test-service');
+      const instance = registry.get<TestService>(TestServiceToken);
       expect(instance.dep).toBeInstanceOf(DependencyService);
       expect(instance.dep.value).toBe(10);
     });
@@ -95,26 +103,27 @@ describe('ServiceRegistry', () => {
 
   describe('get', () => {
     it('should throw error when service is not registered', () => {
+      const NonExistentToken = Symbol('Nonexistent');
       expect(() => {
-        registry.get('nonexistent');
-      }).toThrow('Service not registered: nonexistent');
+        registry.get(NonExistentToken);
+      }).toThrow('Service not registered');
     });
 
     it('should detect circular dependencies', () => {
-      registry.register('service-a', () => registry.get('service-b'));
-      registry.register('service-b', () => registry.get('service-a'));
+      registry.register(ServiceAToken, () => registry.get(ServiceBToken));
+      registry.register(ServiceBToken, () => registry.get(ServiceAToken));
 
       expect(() => {
-        registry.get('service-a');
+        registry.get(ServiceAToken);
       }).toThrow('Circular dependency detected');
     });
 
     it('should return cached singleton instance', () => {
       const factory = vi.fn(() => ({ value: 42 }));
-      registry.register('test-service', factory);
+      registry.register(TestServiceToken, factory);
 
-      registry.get('test-service');
-      registry.get('test-service');
+      registry.get(TestServiceToken);
+      registry.get(TestServiceToken);
 
       expect(factory).toHaveBeenCalledTimes(1);
     });
@@ -122,26 +131,28 @@ describe('ServiceRegistry', () => {
 
   describe('has', () => {
     it('should return true for registered services', () => {
-      registry.register('test-service', () => ({}));
-      expect(registry.has('test-service')).toBe(true);
+      registry.register(TestServiceToken, () => ({}));
+      expect(registry.has(TestServiceToken)).toBe(true);
     });
 
     it('should return false for unregistered services', () => {
-      expect(registry.has('nonexistent')).toBe(false);
+      const NonExistentToken = Symbol('Nonexistent');
+      expect(registry.has(NonExistentToken)).toBe(false);
     });
   });
 
   describe('tryGet', () => {
     it('should return service instance if registered', () => {
-      registry.register('test-service', () => ({ value: 42 }));
-      const instance = registry.tryGet<{ value: number }>('test-service');
+      registry.register(TestServiceToken, () => ({ value: 42 }));
+      const instance = registry.tryGet<{ value: number }>(TestServiceToken);
 
       expect(instance).toBeDefined();
       expect(instance?.value).toBe(42);
     });
 
     it('should return undefined if service is not registered', () => {
-      const instance = registry.tryGet('nonexistent');
+      const NonExistentToken = Symbol('Nonexistent');
+      const instance = registry.tryGet(NonExistentToken);
       expect(instance).toBeUndefined();
     });
   });
@@ -163,8 +174,8 @@ describe('ServiceRegistry', () => {
         }
       }
 
-      registry.registerClass('service1', Service1);
-      registry.registerClass('service2', Service2);
+      registry.registerClass(Service1Token, Service1);
+      registry.registerClass(Service2Token, Service2);
 
       await registry.initializeAll();
 
@@ -182,7 +193,7 @@ describe('ServiceRegistry', () => {
         }
       }
 
-      registry.registerClass('async-service', AsyncService);
+      registry.registerClass(AsyncServiceToken, AsyncService);
 
       await registry.initializeAll();
 
@@ -198,7 +209,7 @@ describe('ServiceRegistry', () => {
         }
       }
 
-      registry.registerClass('service', Service, { singleton: false });
+      registry.registerClass(TestServiceToken, Service, { singleton: false });
 
       await registry.initializeAll();
 
@@ -223,12 +234,12 @@ describe('ServiceRegistry', () => {
         }
       }
 
-      registry.registerClass('service1', Service1);
-      registry.registerClass('service2', Service2);
+      registry.registerClass(Service1Token, Service1);
+      registry.registerClass(Service2Token, Service2);
 
       // Get instances to trigger creation
-      registry.get('service1');
-      registry.get('service2');
+      registry.get(Service1Token);
+      registry.get(Service2Token);
 
       await registry.disposeAll();
 
@@ -246,8 +257,8 @@ describe('ServiceRegistry', () => {
         }
       }
 
-      registry.registerClass('async-service', AsyncService);
-      registry.get('async-service');
+      registry.registerClass(AsyncServiceToken, AsyncService);
+      registry.get(AsyncServiceToken);
 
       await registry.disposeAll();
 
@@ -255,12 +266,12 @@ describe('ServiceRegistry', () => {
     });
 
     it('should clear all services after disposal', async () => {
-      registry.register('service', () => ({}));
-      registry.get('service');
+      registry.register(TestServiceToken, () => ({}));
+      registry.get(TestServiceToken);
 
       await registry.disposeAll();
 
-      expect(registry.has('service')).toBe(false);
+      expect(registry.has(TestServiceToken)).toBe(false);
     });
   });
 
@@ -272,35 +283,35 @@ describe('ServiceRegistry', () => {
         return { value: callCount };
       };
 
-      registry.register('test-service', factory);
+      registry.register(TestServiceToken, factory);
 
-      const instance1 = registry.get<{ value: number }>('test-service');
+      const instance1 = registry.get<{ value: number }>(TestServiceToken);
       expect(instance1.value).toBe(1);
 
-      registry.clear('test-service');
+      registry.clear(TestServiceToken);
 
-      const instance2 = registry.get<{ value: number }>('test-service');
+      const instance2 = registry.get<{ value: number }>(TestServiceToken);
       expect(instance2.value).toBe(2);
       expect(instance1).not.toBe(instance2);
     });
 
     it('should not affect registration when clearing', () => {
-      registry.register('test-service', () => ({ value: 42 }));
-      registry.clear('test-service');
+      registry.register(TestServiceToken, () => ({ value: 42 }));
+      registry.clear(TestServiceToken);
 
-      expect(registry.has('test-service')).toBe(true);
+      expect(registry.has(TestServiceToken)).toBe(true);
     });
   });
 
   describe('reset', () => {
     it('should clear all services and registrations', () => {
-      registry.register('service1', () => ({}));
-      registry.register('service2', () => ({}));
+      registry.register(Service1Token, () => ({}));
+      registry.register(Service2Token, () => ({}));
 
       registry.reset();
 
-      expect(registry.has('service1')).toBe(false);
-      expect(registry.has('service2')).toBe(false);
+      expect(registry.has(Service1Token)).toBe(false);
+      expect(registry.has(Service2Token)).toBe(false);
     });
   });
 });

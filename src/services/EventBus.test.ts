@@ -286,8 +286,8 @@ describe('EventBus', () => {
 
       const history = eventBus.getHistory(undefined, 3);
       expect(history).toHaveLength(3);
-      expect(history[0].payload).toEqual({ id: 2 });
-      expect(history[2].payload).toEqual({ id: 4 });
+      expect(history[0]?.payload).toEqual({ id: 2 });
+      expect(history[2]?.payload).toEqual({ id: 4 });
     });
   });
 

@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { StateService } from './StateService';
 import { EventBus } from './EventBus';
-import type {
-  MachineProfile,
-  ChannelState,
-  MachineChangedEvent,
-  ChannelStateChangedEvent,
-} from '@core/types';
+import type { MachineProfile } from '@core/types';
 
 describe('StateService', () => {
   let stateService: StateService;
