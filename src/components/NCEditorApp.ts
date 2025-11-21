@@ -12,6 +12,7 @@ import './NCCodePane';
 import './NCKeywordPanel';
 import './NCVariableList';
 import './NCToolList';
+import './NCToolpathPlot';
 
 /**
  * Root component that bootstraps the application layout
@@ -40,13 +41,44 @@ export class NCEditorApp extends BaseComponent {
     // Wait for machines to be loaded first
     await this.loadMachines();
 
+    // Demo NC programs for channels
+    const demoPrograms = {
+      'channel-1': `G90 G54
+G0 X0 Y0 Z10
+M3 S1000
+G1 Z-5 F100
+G1 X50 Y0 F300
+G1 X50 Y50
+G1 X0 Y50
+G1 X0 Y0
+G0 Z10
+M5
+M30`,
+      'channel-2': `G90 G55
+G0 X100 Y100 Z20
+M3 S1500
+T1
+G1 Z-10 F150
+G2 X120 Y120 I20 J0 F250
+G1 X100 Y100
+G0 Z20
+M5
+M30`,
+    };
+
     // Create default channels
     for (const channelId of this.channelIds) {
       try {
         this.stateService.createChannel(channelId);
-        // Activate first channel by default
-        if (channelId === 'channel-1') {
+        // Activate first TWO channels by default for demo
+        if (channelId === 'channel-1' || channelId === 'channel-2') {
           this.stateService.activateChannel(channelId);
+
+          // Set demo program
+          const program = demoPrograms[channelId as keyof typeof demoPrograms] || '';
+          if (program) {
+            this.stateService.updateChannel(channelId, { program });
+          }
         }
       } catch (error) {
         console.error(`Failed to create channel ${channelId}:`, error);
@@ -203,10 +235,9 @@ export class NCEditorApp extends BaseComponent {
     const channelGrid = this.createChannelGrid(channels);
     mainContent.appendChild(channelGrid);
 
-    // Plot area placeholder
-    const plotArea = document.createElement('div');
+    // Plot area with Three.js visualization
+    const plotArea = document.createElement('nc-toolpath-plot');
     plotArea.className = 'plot-area';
-    plotArea.innerHTML = '<p>Plot Area (Three.js integration pending)</p>';
     mainContent.appendChild(plotArea);
 
     container.appendChild(mainContent);
@@ -533,13 +564,9 @@ export class NCEditorApp extends BaseComponent {
       }
 
       .plot-area {
-        width: 400px;
+        width: 450px;
         background: #252526;
         border-left: 1px solid #3e3e42;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #888;
       }
 
       .status-bar {
