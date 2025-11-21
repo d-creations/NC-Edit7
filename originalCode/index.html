@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="Example">
+    <meta name="author" content="Damian">
+    <meta name="keywords" content="Star, NCEditor, NCPlot, Plot, Plotter, CNC, Editor">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' preview.plot.star-ncplot.com *.preview.plot.star-ncplot.com *.plot.star-ncplot.com *.plot.nc-editx7pro.d-creations.org plot.star-ncplot.com *.plot.star-ncplot.com *.star-ncplot.com plot.nc-editx7pro.d-creations.org plot.star-ncplot.com; script-src 'self' 'unsafe-inline'; child-src 'none'">
+
+    <title>NC-Edit7Pro Example</title>
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link type="text/css" rel="stylesheet" media="only screen and (max-width: 750pt)" href="css/stylemobil.css">
+    <link rel="stylesheet" type="text/css" media="only screen and (min-width: 750pt)" href="css/stylebigbig.css">
+    <link rel="stylesheet" type="text/css"  href="css/style.css">
+    <link rel="stylesheet" type="text/css" href="css/editor.css">
+    <link rel="stylesheet" type="text/css"  href="css/canal.css">
+    <link rel="stylesheet" type="text/css" href="css/checkbox.css">
+    <link rel="stylesheet" type="text/css" href="css/ace.css">
+</head>
+<body>
+<div class="header" id="header">
+    
+</div>
+<div class="content centerContent" id="content">
+    <div class="fileHandler" id="fileHandler"></div>
+    <div class="editorFrame" id="editorFrame">
+        <div class="editor" id="editor"></div>
+    </div>
+</div>
+<div class="tabBase DView centerContent" id="tabBase"></div>
+    <div class="footer errorMessage" id="footer"></div>
+</body>
+<script type="module">
+    import {View3D} from "./js/src/domain/view3d.js"; 
+    import {IDE} from "./js/src/domain/IDE.js";
+    import {FileHandler} from "./js/src/domain/filehandler.js";  
+    import {TorxView} from "./js/src/applications/torx/torx.js" 
+
+    import{WebPageFileHandler} from './js/src/domain/WebPageFileHandler.js'
+    import {IDEView} from "./js/src/domain/IDEView.js"  ;
+    import {IDEAdapter} from "./js/src/domain/IDEAdapter.js";  
+    import { Canal } from "./js/src/domain/canal.js";
+    import { NCToolManagerCreator } from "./js/src/domain/NCToolManager.js";
+    import {MachineAdapter} from "./js/src/domain/machines/MachineAdapter.js"
+    import {Machine_Star} from "./js/src/domain/machines/Machine_Star.js"
+    import { NCVariableManagerCreator } from "./js/src/domain/NCVariableManager.js";
+    import { MachineManager } from "./js/src/domain/MachineManager.js";
+    import { MachineManagerAdapter } from "./js/src/domain/MachineManagerAdapter.js";
+    import { UserError } from './js/src/technicalService/error/userError.js';
+    import { TabManager,TabContent } from './js/src/domain/TabManager.js';
+
+
+    window.onload = function () {
+
+        let printConsole = new UserError(document.getElementById("footer"))
+
+
+        let tabManager = new TabManager(document.getElementById("tabBase"))
+        // Create the 3D View
+        let D3ViewFrame = document.createElement("div")
+        let D3viewDiv = document.createElement("div")
+        let menuDiv = document.createElement("div")
+        menuDiv.id= "DView_Menu"
+        D3ViewFrame.id = "D3ViewFrame"
+        D3viewDiv.id = "D3iew"
+        D3ViewFrame.appendChild(menuDiv)
+        D3ViewFrame.appendChild(D3viewDiv)
+
+
+        let torxView = document.createElement("div")
+        torxView.id = "torxView"
+        let torx = new TorxView(torxView)
+        
+        //tabManager.addTab(new TabContent("TorxView",torxView))// option add the torxView to the tabManager
+        tabManager.addTab(new TabContent("D3View",D3ViewFrame))
+        try {
+            var view3d = new View3D(D3viewDiv);
+        } catch (error) {
+            console.error("WebGL initialization failed:", error);
+            document.getElementById("footer").innerText = "WebGL is not supported by your browser.";
+        }
+        var canalCreation = function(id, view3d, parentDiv,readOnly,timeLine){
+            return new Canal(id, view3d, parentDiv,readOnly,timeLine)
+        }
+        let machineAdapter = new MachineAdapter(new Machine_Star(printConsole))
+        let machineManagerAdapter = new MachineManagerAdapter(new MachineManager())
+        machineManagerAdapter.setMaschine(machineAdapter)
+        let toolManager = new NCToolManagerCreator(60,printConsole)
+        let variableManager = new NCVariableManagerCreator(60,printConsole)
+
+        let IDEcontroller = new IDE(document.getElementById("editor"),1,view3d,printConsole,canalCreation,toolManager,variableManager,machineManagerAdapter)
+        let IDEadaptar = new IDEAdapter(IDEcontroller)
+        let ideview = new IDEView(document.getElementById("editor"),IDEadaptar, 1,view3d,printConsole,menuDiv);
+        new WebPageFileHandler(IDEadaptar, document.getElementById("fileHandler"), ideview,printConsole);
+        
+        
+    }
+
+</script>
+</html>

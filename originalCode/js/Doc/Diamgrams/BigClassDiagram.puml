@@ -1,0 +1,84 @@
+@startuml BigClassDiagram
+
+
+class domain.machine.Machine_Star
+class domain.machine.Machine_Adapter
+class technicalServices.UserError
+class technicalServices.aceEditor
+class technicalServices.observer
+class technicalServices.ExampleCreator
+class technicalServices.ViewObjectCreator 
+
+class domain.Canal
+class domain.CanalAdapter
+class domain.IDEAdapter
+class domain.IDE
+class domain.IDEView
+
+interface domain.FileHandler_I
+class domain.FileHandler
+class domain.WebPageFileHandler
+
+class domain.ExampleCreator
+class domain.NCToolManager 
+class domain.MachineManagerAdapter 
+class domain.NCVariableManager 
+class domain.MachineManager
+
+domain.machine.Machine_Star ..> domain.machine.Machine_Adapter : uses
+domain.machine.Machine_Star ...> technicalServices.UserError : uses
+
+domain.machine.Machine_Adapter .> domain.machine.Machine_Star : uses
+
+domain.Canal ...> technicalServices.observer : uses
+domain.Canal ...> technicalServices.aceEditor : uses
+
+domain.CanalAdapter ...> technicalServices.observer : uses
+domain.CanalAdapter .> domain.Canal : uses
+
+domain.FileHandler .> domain.FileHandler_I : implements
+domain.FileHandler ...> technicalServices.UserError : uses
+domain.FileHandler .> domain.IDEAdapter : implements
+domain.FileHandler .> domain.IDEView : implements
+
+domain.WebPageFileHandler .> domain.FileHandler_I : implements
+domain.WebPageFileHandler ...> technicalServices.UserError : uses
+domain.WebPageFileHandler .> domain.IDEAdapter : uses
+domain.WebPageFileHandler .> domain.IDEView : uses
+
+
+domain.IDEAdapter ...> technicalServices.observer : uses
+domain.IDEAdapter .> domain.IDE : uses
+
+domain.IDE ...> technicalServices.observer : uses
+domain.IDE ...> technicalServices.UserError : uses
+domain.IDE ...> technicalServices.ExampleCreator : uses
+domain.IDE ..> domain.CanalAdapter : uses
+domain.IDE ..> domain.NCToolManager : uses
+domain.IDE ..> domain.MachineManagerAdapter : uses
+domain.IDE ..> domain.NCVariableManager : uses
+
+domain.IDEView ...> technicalServices.observer : uses
+domain.IDEView ...> technicalServices.UserError : uses
+domain.IDEView ...> technicalServices.ViewObjectCreator : uses
+domain.IDEView ..> domain.IDEAdapter : uses
+
+
+domain.MachineManager ..> domain.machine.Machine_Adapter : uses
+
+domain.MachineManagerAdapter .> domain.machine.Machine_Adapter : uses
+domain.MachineManagerAdapter .> domain.MachineManager : uses
+
+domain.NCToolManager ...> technicalServices.observer : uses
+domain.NCToolManager ...> technicalServices.UserError : uses
+domain.NCToolManager ..> domain.machine.Machine_Adapter : uses
+
+domain.NCVariableManager ...> technicalServices.observer : uses
+domain.NCVariableManager ...> technicalServices.UserError : uses
+domain.NCVariableManager ..> domain.machine.Machine_Adapter : uses
+
+
+domain.IDE  <|--- technicalServices.observable : extends
+
+
+@enduml

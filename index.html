@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NC-Edit7 Demo</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #03050c;
+      color: #f7f8ff;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+
+    .container {
+      width: min(1100px, 100vw - 2rem);
+    }
+
+    .panel-showcase {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(10, 12, 24, 0.8);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel-showcase h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+    }
+
+    .demo-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .panel-wrapper {
+      padding: 0.5rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-wrapper h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      color: #a8b4ff;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      text-align: center;
+      margin-top: 0;
+      color: #aab3ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>NC-Edit7 Phase 5 Demo</h1>
+    <p>Make sure you run <code>npm run build</code> before opening this page so the compiled components load.</p>
+    <p>The shell now renders the ACE-inspired code pane alongside tool usage, variable tracking, and executed-line history for each channel. Use the program editor to trigger `channelUpdated` events and watch every panel refresh.</p>
+    <nc-editor-app></nc-editor-app>
+    <section class="panel-showcase">
+      <h2>Standalone panels</h2>
+      <p>The channel state emitted via `EventBus` also drives these panels so you can watch tool usage and variable tracking in isolation.</p>
+      <div class="demo-panels">
+        <div class="panel-wrapper">
+          <h3>Tool list</h3>
+          <nc-tool-list id="demoToolList"></nc-tool-list>
+        </div>
+        <div class="panel-wrapper">
+          <h3>Variable list</h3>
+          <nc-variable-list id="demoVariableList"></nc-variable-list>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="./dist/index.js"></script>
+  <script type="module">
+    import { eventBus } from "./dist/app-context.js";
+
+    const toolList = document.getElementById("demoToolList");
+    const variableList = document.getElementById("demoVariableList");
+
+    eventBus.on("channelUpdated", ({ state }) => {
+      if (toolList) {
+        toolList.channelState = state;
+      }
+      if (variableList) {
+        variableList.channelState = state;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+
+.LineNumberTextArea{
+    resize: none;
+    background-color:gray;
+    width: 20pt;
+    font-size: 10pt;
+    padding: 0px;
+    margin: 0px;
+    border: none;
+    border-radius: 2pt;
+}
+
+.TimeTextArea{
+    resize: none;
+    background-color:gray;
+    width: 20pt;
+    font-size: 10pt;
+    padding: 0px;
+    margin: 0px;
+    border: none;
+    border-radius: 2pt;
+}
+
+.ace_editor, .toolbar {
+  border: 1px solid lightgray;
+  } 
+
+.ace_editor {
+  position: relative;
+  top: 0pt;
+  right: 0;
+  bottom: 0;
+  left: 0;
+ 
+  height: calc(100% - 0pt);
+  font-size: 10pt;
+  padding: 0px;
+  margin: auto;
+  border: none;
+  border-radius: 0pt;
+}
+
+
+.toolbar {
+  border: 1px solid lightgray;
+  margin: auto;
+} 
+
+ /* Hide scrollbar for Chrome, Safari and Opera */
+ .hideScroll::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .hideScroll {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  } 

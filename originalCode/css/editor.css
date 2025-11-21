@@ -1,0 +1,135 @@
+.editor{
+    
+  top: 0pt;
+  bottom: 0pt;
+  left: 0pt;
+  right: 0pt;
+  overflow: hidden;
+  position: absolute;
+}
+
+.keyWordTableParentCell{
+  overflow : "scroll";
+  vertical-align : "top";
+}
+.keyWordTable{
+  
+}
+
+.keyWordsDiv{
+  grid-column: 1;
+  grid-row: 3;
+
+  overflow: scroll;
+}
+
+
+.textareaCanal{
+  font-size: 10pt;
+  padding: 0px;
+  margin: 0px;
+  grid-row: 3;
+  overflow: scroll;
+  max-height: 9999pt;
+  border-color:   #b1cdcd;
+
+  border: solid;
+  border-width: 1px;
+}
+
+
+.canalHeadDiv{
+  grid-row: 2;
+  background-color:   #b1cdcd;
+
+}
+
+.canalTabDiv{
+  grid-row: 1;
+}
+
+.keyDivHead{
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.editorTable{
+  display: grid;
+  grid-template-rows: 25px 25px 1fr;
+  top: 30pt;
+  bottom: 10pt;
+  left: 0pt;
+  right: 0pt;
+  width: 100%;
+  height: calc(100% - 40pt);
+}
+
+.toolManagerDiv{
+  top: 0pt;
+  bottom: 0pt;
+  left: 0pt;
+  right: 0pt;
+  height: 100%;
+  width: 100%;
+  overflow: scroll;
+  position: relative;
+}
+
+.toolManagerTable{
+  
+  table-layout:fixed;
+  overflow: scroll;
+  position: absolute;
+  height: 100%;
+}
+.waitingCodeTable{
+    background-color: white;
+    vertical-align: top;
+}
+
+
+
+td, th {
+
+  padding: 0pt;
+  margin: 0pt;
+
+  border: none;
+  border-width: 0pt;
+
+};
+
+table {
+    padding: 0pt;
+    margin: 0pt;
+    
+    border: none;
+    border-width: 0pt;
+    border-collapse: collapse
+  
+  }
+
+  .tabActiv{
+    background-color:   #b1cdcd;
+   height: 25pt;
+   border-width: 0pt;
+   border-style: none;
+
+  }
+  .tabCore{
+  
+    border-color:   #b1cdcd;
+
+    border: solid;
+    border-width: 1px;
+
+  }
+
+  .tabInactiv{
+    background-color: #e0ebeb;
+    
+   height: 25pt;
+   border-width: 0pt;
+   border-style: none;
+  }
+

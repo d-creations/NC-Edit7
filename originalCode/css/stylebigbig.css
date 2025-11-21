@@ -1,0 +1,100 @@
+
+
+.editorFrame {
+    top: 10pt;
+    bottom: 0pt;
+    left: 0pt;
+    right: 0pt;
+    overflow: hidden;
+    position: absolute;
+    
+    background-color: whitesmoke;
+}
+
+
+
+
+.txt{
+}
+
+.content {
+    min-width: 200px;
+    z-index: -3;
+    position: absolute;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding-left: 10px;
+    left: 0;
+    right: 35%;
+}
+
+
+.readOnly{
+    visibility: hidden;
+} 
+
+.DView {
+    z-index: -3;
+    position: absolute;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding-left: 10px;
+    left: 65%;
+    right: 0;
+
+    border-radius: 1pt;
+    border-radius: 0;
+    border-style: solid;
+    margin: 5pt;
+    padding: 2pt;
+    border-width: 1pt;
+    border-color: black;
+    background-color: whitesmoke
+}
+.centerContent{
+    top: 5pt;
+    padding-right: 10px;
+    text-align: left;
+     opacity: 0.9;
+    bottom: 60pt;
+    border-color: black;
+
+    border-top-width: 0pt;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+.footer {
+    z-index: 2;
+    position: fixed;
+    bottom: 0;
+    padding-left: 20px;
+    left: 0;
+    right: 0;
+    height: 60pt;
+    overflow: scroll;
+
+    background: #f1e7f5 linear-gradient(to center, white, #f1e7f5);
+    border-style: none;
+    border-top: 1px solid;
+    border-color: black;
+    font-family: Arial;
+    color: turquoise;
+}
+
+
+body{
+    /*  overflow: hidden;*/
+    
+    overflow-x: hidden;
+    overflow-y: hidden;
+  } 
+
+
+
+.radio {
+    padding: 48px 64px;
+    border-radius: 24px;
+    border-style: solid;
+    border-width: 2px;
+    background: #2775b1;
+}
