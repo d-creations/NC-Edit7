@@ -1,9 +1,13 @@
 // Root Web Component for NC-Edit7 application
 
 import type { ChannelId, MachineType } from '@core/types';
-import { ServiceRegistry } from '@core/ServiceRegistry';
+import { ServiceRegistry, createServiceToken } from '@core/ServiceRegistry';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
+
+// Define service tokens
+const STATE_SERVICE_TOKEN = createServiceToken<StateService>('StateService');
+const MACHINE_SERVICE_TOKEN = createServiceToken<MachineService>('MachineService');
 
 export class NCEditorApp extends HTMLElement {
   private registry: ServiceRegistry;
@@ -16,8 +20,8 @@ export class NCEditorApp extends HTMLElement {
     this.registry = ServiceRegistry.getInstance();
 
     // Get services from registry
-    this.stateService = this.registry.get(Symbol.for('StateService')) as StateService;
-    this.machineService = this.registry.get(Symbol.for('MachineService')) as MachineService;
+    this.stateService = this.registry.get(STATE_SERVICE_TOKEN);
+    this.machineService = this.registry.get(MACHINE_SERVICE_TOKEN);
   }
 
   async connectedCallback(): Promise<void> {

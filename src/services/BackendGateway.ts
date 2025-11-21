@@ -75,9 +75,9 @@ export class BackendGateway {
           throw error;
         }
 
-        // Wait before retry
+        // Wait before retry using bit shifting for efficiency
         if (attempt < this.config.retries - 1) {
-          await this.sleep(Math.pow(2, attempt) * 1000);
+          await this.sleep((1 << attempt) * 1000);
         }
       }
     }
