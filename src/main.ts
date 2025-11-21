@@ -13,6 +13,7 @@ import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { PlotService } from '@services/PlotService';
 import { UserPreferenceService } from '@services/UserPreferenceService';
 import { DiagnosticsService } from '@services/DiagnosticsService';
+import { CloudAgentService } from '@services/CloudAgentService';
 import '@components/NCEditorApp';
 
 /**
@@ -41,6 +42,23 @@ async function bootstrap() {
       singleton: true,
     });
 
+    // Register CloudAgentService early so it can be used by other services
+    registry.register(
+      SERVICE_TOKENS.CloudAgentService,
+      () => {
+        const backendGateway = registry.get<BackendGateway>(SERVICE_TOKENS.BackendGateway);
+        const eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
+        return new CloudAgentService(backendGateway, eventBus, {
+          enabled: true,
+          autoDelegate: true,
+        });
+      },
+      {
+        singleton: true,
+        dependencies: [SERVICE_TOKENS.BackendGateway, SERVICE_TOKENS.EventBus],
+      }
+    );
+
     registry.register(
       SERVICE_TOKENS.MachineService,
       () => {
@@ -55,9 +73,15 @@ async function bootstrap() {
       SERVICE_TOKENS.ParserService,
       () => {
         const eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
-        return new ParserService(eventBus);
+        const cloudAgentService = registry.get<CloudAgentService>(
+          SERVICE_TOKENS.CloudAgentService
+        );
+        return new ParserService(eventBus, cloudAgentService);
       },
-      { singleton: true, dependencies: [SERVICE_TOKENS.EventBus] }
+      {
+        singleton: true,
+        dependencies: [SERVICE_TOKENS.EventBus, SERVICE_TOKENS.CloudAgentService],
+      }
     );
 
     registry.register(
@@ -109,6 +133,7 @@ async function bootstrap() {
       SERVICE_TOKENS.UserPreferenceService
     );
     const diagnosticsService = registry.get<DiagnosticsService>(SERVICE_TOKENS.DiagnosticsService);
+    const cloudAgentService = registry.get<CloudAgentService>(SERVICE_TOKENS.CloudAgentService);
 
     console.log('All services initialized:', {
       eventBus,
@@ -119,6 +144,7 @@ async function bootstrap() {
       plotService,
       userPrefService,
       diagnosticsService,
+      cloudAgentService,
     });
 
     // Update the loading message and mount the app

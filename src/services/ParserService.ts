@@ -12,6 +12,7 @@ import type {
   ParseCompletedEvent,
 } from '@core/types';
 import type { EventBus } from './EventBus';
+import type { CloudAgentService } from './CloudAgentService';
 
 /**
  * ParserService runs NC code parsing in the browser (optionally in a worker)
@@ -20,8 +21,11 @@ import type { EventBus } from './EventBus';
 export class ParserService {
   private workers = new Map<ChannelId, Worker | null>();
   private useWorker = false; // Set to true when worker implementation is ready
+  private cloudAgentService?: CloudAgentService;
 
-  constructor(private eventBus: EventBus) {}
+  constructor(private eventBus: EventBus, cloudAgentService?: CloudAgentService) {
+    this.cloudAgentService = cloudAgentService;
+  }
 
   /**
    * Parse NC program for a channel
@@ -33,6 +37,36 @@ export class ParserService {
     result: NcParseResult;
     artifacts: ParseArtifacts;
   }> {
+    // Check if we should delegate to cloud agent
+    if (this.cloudAgentService) {
+      const decision = this.cloudAgentService.shouldDelegateParsing(program);
+
+      if (decision.shouldDelegate) {
+        console.log(
+          `[ParserService] Delegating parsing to cloud agent: ${decision.reason}`
+        );
+
+        // Try cloud delegation
+        const cloudResponse = await this.cloudAgentService.delegateParsing({
+          channelId,
+          program,
+          machineId: 'ISO_MILL', // TODO: Get from context
+        });
+
+        if (cloudResponse.success && cloudResponse.data) {
+          console.log(
+            `[ParserService] Cloud parsing completed in ${cloudResponse.processingTime}ms`
+          );
+          return cloudResponse.data;
+        } else {
+          console.log(
+            `[ParserService] Cloud parsing failed, falling back to local: ${cloudResponse.error}`
+          );
+          // Fall through to local parsing
+        }
+      }
+    }
+
     if (this.useWorker) {
       return this.parseInWorker(channelId, program);
     }

@@ -347,6 +347,7 @@ export const SERVICE_TOKENS = {
   UserPreferenceService: Symbol('UserPreferenceService'),
   CommandService: Symbol('CommandService'),
   DiagnosticsService: Symbol('DiagnosticsService'),
+  CloudAgentService: Symbol('CloudAgentService'),
 } as const;
 
 export type ServiceToken = (typeof SERVICE_TOKENS)[keyof typeof SERVICE_TOKENS];
