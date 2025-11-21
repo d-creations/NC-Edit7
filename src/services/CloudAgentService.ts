@@ -261,7 +261,7 @@ export class CloudAgentService {
     complexityScore += Math.min(15, toolChanges * 2);
 
     // Factor in synchronization codes
-    const syncCodes = (program.match(/M[12]\d{2}/gi) || []).length;
+    const syncCodes = (program.match(/M[12]\d\d/gi) || []).length;
     complexityScore += Math.min(15, syncCodes * 5);
 
     // Factor in macro/subprogram calls
@@ -297,6 +297,7 @@ export class CloudAgentService {
 
       // TODO: Implement actual cloud API call
       // For now, this is a placeholder that would call a cloud parsing service
+      // The endpoint needs to be configured and the API contract established
 
       this.stats.cloudTasks++;
 
@@ -309,11 +310,15 @@ export class CloudAgentService {
         },
       });
 
+      console.warn(
+        '[CloudAgentService] Cloud parsing endpoint not implemented yet - falling back to local parsing'
+      );
+
       return {
         success: false,
-        error: 'Cloud parsing endpoint not implemented yet',
+        error: 'Cloud parsing endpoint not implemented yet - use local parsing',
         processingTime: Date.now() - startTime,
-        delegatedTo: 'cloud',
+        delegatedTo: 'local',
       };
     } catch (error) {
       this.stats.failedDelegations++;
@@ -353,11 +358,18 @@ export class CloudAgentService {
       // Delegate to backend gateway (which is the cloud service)
       await this.backendGateway.executePrograms(request.programs);
 
+      // TODO: Parse the backend response and convert to ExecutedProgramResult map
+      // For now, return empty result to indicate incomplete implementation
+      console.warn(
+        '[CloudAgentService] Cloud execution response parsing not implemented - ExecutedProgramService will handle via BackendGateway'
+      );
+
       return {
-        success: true,
-        data: new Map(), // TODO: Parse response into results
+        success: false,
+        error:
+          'Cloud execution response parsing not implemented - use ExecutedProgramService directly',
         processingTime: Date.now() - startTime,
-        delegatedTo: 'cloud',
+        delegatedTo: 'local',
       };
     } catch (error) {
       this.stats.failedDelegations++;

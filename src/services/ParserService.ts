@@ -51,7 +51,7 @@ export class ParserService {
         const cloudResponse = await this.cloudAgentService.delegateParsing({
           channelId,
           program,
-          machineId: 'ISO_MILL', // TODO: Get from context
+          machineId: 'ISO_MILL', // TODO: Get actual machineId from StateService/context
         });
 
         if (cloudResponse.success && cloudResponse.data) {
