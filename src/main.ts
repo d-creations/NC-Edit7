@@ -75,7 +75,7 @@ async function bootstrap() {
     // Initialize the app
     const appElement = document.createElement('nc-editor-app');
     const appContainer = document.getElementById('app');
-    
+
     if (!appContainer) {
       throw new Error('App container not found');
     }
@@ -87,7 +87,7 @@ async function bootstrap() {
     console.log('NC-Edit7 application initialized successfully');
   } catch (error) {
     console.error('Failed to bootstrap application:', error);
-    
+
     const appContainer = document.getElementById('app');
     if (appContainer) {
       appContainer.innerHTML = `

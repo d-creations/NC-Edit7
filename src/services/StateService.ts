@@ -1,11 +1,6 @@
 // StateService for central application state management
 
-import type {
-  ChannelId,
-  ChannelState,
-  MachineProfile,
-  MachineType,
-} from '@core/types';
+import type { ChannelId, ChannelState, MachineProfile, MachineType } from '@core/types';
 import { EventBus, EVENT_NAMES } from './EventBus';
 
 export interface AppState {

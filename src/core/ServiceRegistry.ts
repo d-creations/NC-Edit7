@@ -104,11 +104,7 @@ export class ServiceRegistry {
   }
 
   private hasLifecycleHooks(obj: unknown): obj is LifecycleHooks {
-    return (
-      typeof obj === 'object' &&
-      obj !== null &&
-      ('init' in obj || 'dispose' in obj)
-    );
+    return typeof obj === 'object' && obj !== null && ('init' in obj || 'dispose' in obj);
   }
 }
 

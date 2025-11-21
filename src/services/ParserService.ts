@@ -30,15 +30,16 @@ export class ParserService {
       const toolRegisters: ToolRegisterEntry[] = [];
       const timingMetadata: TimingMetadata[] = [];
       const variableSnapshot = new Map<number, number>();
-      const faults: Array<{ lineNumber: number; message: string; severity: 'error' | 'warning' }> = [];
+      const faults: Array<{ lineNumber: number; message: string; severity: 'error' | 'warning' }> =
+        [];
 
       // Simple keyword detection
       const keywordPatterns = /\b(G0|G1|G2|G3|M3|M5|M30|M0|M1)\b/gi;
       const toolPattern = /T(\d+)/i;
-      
+
       lines.forEach((line, index) => {
         const lineNumber = index + 1;
-        
+
         // Find keywords
         let match;
         while ((match = keywordPatterns.exec(line)) !== null) {

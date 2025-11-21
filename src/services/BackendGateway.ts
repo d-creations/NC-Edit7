@@ -62,7 +62,7 @@ export class BackendGateway {
         }
 
         const result = await response.json();
-        
+
         if (requestId) {
           this.abortControllers.delete(requestId);
         }
@@ -70,7 +70,7 @@ export class BackendGateway {
         return result as T;
       } catch (error) {
         lastError = error as Error;
-        
+
         if (error instanceof Error && error.name === 'AbortError') {
           throw error;
         }

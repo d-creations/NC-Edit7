@@ -14,7 +14,7 @@ export class NCEditorApp extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.registry = ServiceRegistry.getInstance();
-    
+
     // Get services from registry
     this.stateService = this.registry.get(Symbol.for('StateService')) as StateService;
     this.machineService = this.registry.get(Symbol.for('MachineService')) as MachineService;
@@ -29,7 +29,7 @@ export class NCEditorApp extends HTMLElement {
     try {
       // Initialize machine service
       await this.machineService.init();
-      
+
       // Set up initial machine
       const machines = this.machineService.getMachines();
       if (machines.length > 0) {
@@ -236,7 +236,7 @@ export class NCEditorApp extends HTMLElement {
         const button = e.target as HTMLButtonElement;
         const channelId = button.dataset.channel as ChannelId;
         const channel = this.stateService.getChannel(channelId);
-        
+
         if (channel?.active) {
           this.stateService.deactivateChannel(channelId);
           button.classList.add('inactive');
@@ -244,7 +244,7 @@ export class NCEditorApp extends HTMLElement {
           this.stateService.activateChannel(channelId);
           button.classList.remove('inactive');
         }
-        
+
         this.updateChannelDisplay();
       });
     });
@@ -256,7 +256,7 @@ export class NCEditorApp extends HTMLElement {
 
     const machines = this.machineService.getMachines();
     selector.innerHTML = '<option value="">Select Machine...</option>';
-    
+
     machines.forEach((machine) => {
       const option = document.createElement('option');
       option.value = machine.machineName;
@@ -270,7 +270,7 @@ export class NCEditorApp extends HTMLElement {
     if (!channelsContainer) return;
 
     const activeChannels = this.stateService.getActiveChannels();
-    
+
     // Hide all channel panes first
     const panes = this.shadowRoot?.querySelectorAll('.channel-pane');
     panes?.forEach((pane) => {
