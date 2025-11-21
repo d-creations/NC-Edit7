@@ -23,7 +23,10 @@ export class ParserService {
   private useWorker = false; // Set to true when worker implementation is ready
   private cloudAgentService?: CloudAgentService;
 
-  constructor(private eventBus: EventBus, cloudAgentService?: CloudAgentService) {
+  constructor(
+    private eventBus: EventBus,
+    cloudAgentService?: CloudAgentService
+  ) {
     this.cloudAgentService = cloudAgentService;
   }
 
@@ -42,9 +45,7 @@ export class ParserService {
       const decision = this.cloudAgentService.shouldDelegateParsing(program);
 
       if (decision.shouldDelegate) {
-        console.log(
-          `[ParserService] Delegating parsing to cloud agent: ${decision.reason}`
-        );
+        console.log(`[ParserService] Delegating parsing to cloud agent: ${decision.reason}`);
 
         // Try cloud delegation
         const cloudResponse = await this.cloudAgentService.delegateParsing({

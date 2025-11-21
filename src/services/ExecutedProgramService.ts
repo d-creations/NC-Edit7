@@ -12,16 +12,22 @@ import type {
 import type { BackendGateway } from './BackendGateway';
 import type { EventBus } from './EventBus';
 import type { StateService } from './StateService';
+import type { CloudAgentService } from './CloudAgentService';
 
 /**
  * ExecutedProgramService posts programs to the CGI endpoint and processes results
  */
 export class ExecutedProgramService {
+  private cloudAgentService?: CloudAgentService;
+
   constructor(
     private backendGateway: BackendGateway,
     private stateService: StateService,
-    private eventBus: EventBus
-  ) {}
+    private eventBus: EventBus,
+    cloudAgentService?: CloudAgentService
+  ) {
+    this.cloudAgentService = cloudAgentService;
+  }
 
   /**
    * Execute a single channel's program
@@ -115,6 +121,49 @@ export class ExecutedProgramService {
     primaryChannelId: ChannelId
   ): Promise<ExecutedProgramResult> {
     try {
+      // Check if we should delegate to cloud agent
+      if (this.cloudAgentService) {
+        const decision = this.cloudAgentService.shouldDelegateExecution(programs);
+
+        if (decision.shouldDelegate) {
+          console.log(`[ExecutedProgramService] Delegating execution to cloud: ${decision.reason}`);
+
+          const cloudResponse = await this.cloudAgentService.delegateExecution({ programs });
+
+          if (cloudResponse.success && cloudResponse.data) {
+            console.log(
+              `[ExecutedProgramService] Cloud execution completed in ${cloudResponse.processingTime}ms`
+            );
+
+            // Get result for the primary channel
+            const result = cloudResponse.data.get(primaryChannelId);
+            if (result) {
+              // Emit completion event
+              this.eventBus.emit<ExecutionCompletedEvent>({
+                type: 'execution:completed',
+                timestamp: Date.now(),
+                payload: {
+                  channelId: primaryChannelId,
+                  result,
+                },
+              });
+
+              // Update channel state
+              this.stateService.updateChannel(primaryChannelId, {
+                executedResult: result,
+              });
+
+              return result;
+            }
+          } else {
+            console.log(
+              `[ExecutedProgramService] Cloud execution failed, using backend gateway: ${cloudResponse.error}`
+            );
+            // Fall through to backend gateway
+          }
+        }
+      }
+
       const serverResponse = await this.backendGateway.executePrograms(programs);
       const result = this.processServerResponse(serverResponse, primaryChannelId);
 

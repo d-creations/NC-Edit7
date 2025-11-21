@@ -73,9 +73,7 @@ async function bootstrap() {
       SERVICE_TOKENS.ParserService,
       () => {
         const eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
-        const cloudAgentService = registry.get<CloudAgentService>(
-          SERVICE_TOKENS.CloudAgentService
-        );
+        const cloudAgentService = registry.get<CloudAgentService>(SERVICE_TOKENS.CloudAgentService);
         return new ParserService(eventBus, cloudAgentService);
       },
       {
@@ -90,7 +88,13 @@ async function bootstrap() {
         const backendGateway = registry.get<BackendGateway>(SERVICE_TOKENS.BackendGateway);
         const stateService = registry.get<StateService>(SERVICE_TOKENS.StateService);
         const eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
-        return new ExecutedProgramService(backendGateway, stateService, eventBus);
+        const cloudAgentService = registry.get<CloudAgentService>(SERVICE_TOKENS.CloudAgentService);
+        return new ExecutedProgramService(
+          backendGateway,
+          stateService,
+          eventBus,
+          cloudAgentService
+        );
       },
       {
         singleton: true,
@@ -98,6 +102,7 @@ async function bootstrap() {
           SERVICE_TOKENS.BackendGateway,
           SERVICE_TOKENS.StateService,
           SERVICE_TOKENS.EventBus,
+          SERVICE_TOKENS.CloudAgentService,
         ],
       }
     );
