@@ -4,7 +4,7 @@
 
 import { BaseComponent } from './BaseComponent';
 import { getServiceRegistry } from '@core/ServiceRegistry';
-import { SERVICE_TOKENS, type ChannelId } from '@core/types';
+import { SERVICE_TOKENS, type ChannelId, type ChannelState } from '@core/types';
 import type { StateService } from '@services/StateService';
 import type { MachineService } from '@services/MachineService';
 import type { EventBus } from '@services/EventBus';
@@ -22,6 +22,13 @@ export class NCEditorApp extends BaseComponent {
   private machineService!: MachineService;
   private eventBus!: EventBus;
   private channelIds: ChannelId[] = ['channel-1', 'channel-2', 'channel-3'];
+  private channelStateCache = new Map<ChannelId, ChannelState>();
+  private plotPanelWidth = 450;
+  private readonly plotPanelMinWidth = 320;
+  private readonly plotPanelMaxWidth = 900;
+  private plotPanelVisible = true;
+  private plotWrapperElement?: HTMLElement;
+  private mainContentElement?: HTMLElement;
 
   protected onConnected(): void {
     // Get services from registry
@@ -90,8 +97,18 @@ M30`,
 
   private setupEventListeners(): void {
     // Listen for state changes
-    this.eventBus.on('channel:state-changed', () => {
-      this.requestRender();
+    this.eventBus.on('channel:state-changed', (event) => {
+      const payload = event.payload as {
+        channelId: ChannelId;
+        state: ChannelState;
+      };
+
+      const prevState = this.channelStateCache.get(payload.channelId);
+      this.channelStateCache.set(payload.channelId, this.cloneChannelState(payload.state));
+
+      if (this.shouldRenderForChannelStateChange(prevState, payload.state)) {
+        this.requestRender();
+      }
     });
 
     this.eventBus.on('machine:changed', () => {
@@ -226,19 +243,46 @@ M30`,
     // Main content area
     const mainContent = document.createElement('div');
     mainContent.className = 'main-content';
+    this.mainContentElement = mainContent;
 
     // Channel task list
     const taskList = this.createChannelTaskList(channels);
     mainContent.appendChild(taskList);
 
-    // Channel grid
+    const channelArea = document.createElement('div');
+    channelArea.className = 'channel-area';
     const channelGrid = this.createChannelGrid(channels);
-    mainContent.appendChild(channelGrid);
+    channelArea.appendChild(channelGrid);
+    mainContent.appendChild(channelArea);
 
-    // Plot area with Three.js visualization
+    const plotResizer = document.createElement('div');
+    plotResizer.className = 'plot-resizer';
+    plotResizer.addEventListener('mousedown', (event) => this.startPlotResize(event));
+
+    const plotToggle = document.createElement('button');
+    plotToggle.type = 'button';
+    plotToggle.className = 'plot-toggle';
+    plotToggle.textContent = this.plotPanelVisible ? 'Hide plot ≡' : 'Show plot ≡';
+    plotToggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.plotPanelVisible = !this.plotPanelVisible;
+      this.requestRender();
+    });
+    plotResizer.appendChild(plotToggle);
+    mainContent.appendChild(plotResizer);
+
+    const plotWrapper = document.createElement('div');
+    plotWrapper.className = 'plot-wrapper';
+    if (!this.plotPanelVisible) {
+      plotWrapper.classList.add('collapsed');
+    }
+    plotWrapper.style.width = this.plotPanelVisible ? `${this.plotPanelWidth}px` : '0';
+    this.plotWrapperElement = plotWrapper;
+
     const plotArea = document.createElement('nc-toolpath-plot');
     plotArea.className = 'plot-area';
-    mainContent.appendChild(plotArea);
+    plotWrapper.appendChild(plotArea);
+    mainContent.appendChild(plotWrapper);
 
     container.appendChild(mainContent);
 
@@ -247,6 +291,8 @@ M30`,
     container.appendChild(statusBar);
 
     this.shadow.appendChild(container);
+
+    this.cacheInitialChannelStates(channels);
   }
 
   private createTopBar(
@@ -327,6 +373,56 @@ M30`,
     return taskList;
   }
 
+  private shouldRenderForChannelStateChange(
+    prevState: ChannelState | undefined,
+    nextState: ChannelState
+  ): boolean {
+    if (!prevState) {
+      return true;
+    }
+
+    if (prevState.isActive !== nextState.isActive) {
+      return true;
+    }
+
+    if (prevState.machineId !== nextState.machineId) {
+      return true;
+    }
+
+    if (prevState.executedResult !== nextState.executedResult) {
+      return true;
+    }
+
+    if (!this.areUiConfigsEqual(prevState.uiConfig, nextState.uiConfig)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private areUiConfigsEqual(a: ChannelState['uiConfig'], b: ChannelState['uiConfig']): boolean {
+    return (
+      a.keywordPanelSide === b.keywordPanelSide &&
+      a.timeGutterSide === b.timeGutterSide &&
+      a.variableDrawerOpen === b.variableDrawerOpen &&
+      a.toolOverlayOpen === b.toolOverlayOpen &&
+      a.activeTab === b.activeTab
+    );
+  }
+
+  private cacheInitialChannelStates(channels: ChannelState[]): void {
+    for (const channel of channels) {
+      this.channelStateCache.set(channel.id, this.cloneChannelState(channel));
+    }
+  }
+
+  private cloneChannelState(state: ChannelState): ChannelState {
+    return {
+      ...state,
+      uiConfig: { ...state.uiConfig },
+    };
+  }
+
   private createChannelGrid(
     channels: ReturnType<typeof this.stateService.getAllChannels>
   ): HTMLElement {
@@ -389,7 +485,6 @@ M30`,
 
     const codePane = document.createElement('nc-code-pane');
     codePane.setAttribute('channel-id', channel.id);
-    codePane.setAttribute('time-gutter-side', channel.uiConfig.timeGutterSide);
     codePane.setAttribute('active-tab', channel.uiConfig.activeTab);
     codePane.style.flex = '1';
     editorArea.appendChild(codePane);
@@ -411,6 +506,42 @@ M30`,
     statusBar.className = 'status-bar';
     statusBar.textContent = 'Ready';
     return statusBar;
+  }
+
+  private startPlotResize(event: MouseEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    this.plotPanelVisible = true;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!this.mainContentElement) {
+        return;
+      }
+
+      const mainRect = this.mainContentElement.getBoundingClientRect();
+      const newWidth = mainRect.right - moveEvent.clientX;
+      this.setPlotPanelWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  private setPlotPanelWidth(width: number): void {
+    const clamped = Math.max(this.plotPanelMinWidth, Math.min(this.plotPanelMaxWidth, width));
+    this.plotPanelWidth = clamped;
+    if (this.plotWrapperElement) {
+      this.plotWrapperElement.style.width = `${clamped}px`;
+      this.plotWrapperElement.classList.remove('collapsed');
+    }
   }
 
   private getStyles(): string {
@@ -474,6 +605,13 @@ M30`,
         background: #252526;
         border-right: 1px solid #3e3e42;
         overflow-y: auto;
+      }
+
+      .channel-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       .channel-task-list h3 {
@@ -563,8 +701,48 @@ M30`,
         font-size: 16px;
       }
 
+      .plot-resizer {
+        width: 32px;
+        min-width: 32px;
+        cursor: ew-resize;
+        background: #151515;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-left: 1px solid #3e3e42;
+        border-right: 1px solid #3e3e42;
+        position: relative;
+      }
+
+      .plot-toggle {
+        background: #2d2d30;
+        border: 1px solid #3e3e42;
+        border-radius: 4px;
+        color: #d4d4d4;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .plot-resizer:hover .plot-toggle {
+        background: #3c3c3c;
+      }
+
+      .plot-wrapper {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .plot-wrapper.collapsed {
+        width: 0 !important;
+      }
+
       .plot-area {
-        width: 450px;
+        flex: 1;
+        min-width: 300px;
         background: #252526;
         border-left: 1px solid #3e3e42;
       }

@@ -10,6 +10,8 @@ import type { StateService } from '@services/StateService';
 import type { ParserService } from '@services/ParserService';
 import type { EventBus } from '@services/EventBus';
 import ace from 'ace-builds';
+import { registerNcMode } from '../ace/mode-nc';
+import { TimeGutter } from '../ace/TimeGutter';
 
 // Import ACE modules
 import 'ace-builds/src-noconflict/mode-text';
@@ -19,12 +21,21 @@ import 'ace-builds/src-noconflict/ext-language_tools';
 export class NCCodePane extends BaseComponent {
   private channelId!: ChannelId;
   private editor?: ace.Ace.Editor;
+  private programSession?: ace.Ace.EditSession;
+  private executedSession?: ace.Ace.EditSession;
   private stateService!: StateService;
   private parserService!: ParserService;
   private eventBus!: EventBus;
   private parseDebounceTimer?: number;
   private timeGutterSide: 'left' | 'right' = 'right';
   private activeTab: 'program' | 'executed' = 'program';
+  private suppressProgramChange = false;
+  private timeGutter: TimeGutter;
+
+  constructor() {
+    super();
+    this.timeGutter = new TimeGutter();
+  }
 
   static get observedAttributes() {
     return ['channel-id', 'time-gutter-side', 'active-tab'];
@@ -40,7 +51,7 @@ export class NCCodePane extends BaseComponent {
         break;
       case 'time-gutter-side':
         this.timeGutterSide = (newValue as 'left' | 'right') || 'right';
-        this.updateTimeGutter();
+        this.updateTimeGutterPosition();
         break;
       case 'active-tab':
         this.activeTab = (newValue as 'program' | 'executed') || 'program';
@@ -58,6 +69,7 @@ export class NCCodePane extends BaseComponent {
     this.channelId = this.getAttribute('channel-id') || 'channel-1';
     this.timeGutterSide = (this.getAttribute('time-gutter-side') as 'left' | 'right') || 'right';
 
+    registerNcMode();
     this.setupEventListeners();
     this.initializeEditor();
   }
@@ -76,9 +88,14 @@ export class NCCodePane extends BaseComponent {
       const payload = event.payload as {
         channelId: ChannelId;
         result: { faultDetected: boolean; faults?: FaultDetail[] };
+        artifacts?: any;
       };
       if (payload.channelId === this.channelId) {
         this.updateMarkers(payload.result.faults);
+        if (payload.artifacts?.timingMetadata) {
+             this.timeGutter.updateTimes(payload.artifacts.timingMetadata);
+             this.programSession?.bgTokenizer.fireUpdateEvent(0, this.programSession.getLength());
+        }
       }
     });
 
@@ -112,7 +129,6 @@ export class NCCodePane extends BaseComponent {
 
     // Initialize ACE editor
     this.editor = ace.edit(editorContainer, {
-      mode: 'ace/mode/text',
       theme: 'ace/theme/monokai',
       fontSize: 14,
       showPrintMargin: false,
@@ -121,35 +137,57 @@ export class NCCodePane extends BaseComponent {
       enableLiveAutocompletion: false,
     });
 
-    // Set up event handlers
-    this.editor.on('change', () => {
-      this.handleProgramChange();
+    // Create sessions
+    const EditSession = ace.require('ace/edit_session').EditSession;
+    this.programSession = new EditSession('', 'ace/mode/nc');
+    (this.programSession as any).gutterRenderer = this.timeGutter;
+    this.executedSession = new EditSession('', 'ace/mode/nc');
+
+    // Set up event handlers for program session
+    this.programSession!.on('change', () => {
+        if (this.activeTab === 'program') {
+            this.handleProgramChange();
+        }
     });
 
-    this.editor.on('changeSelection', () => {
-      this.handleSelectionChange();
+    this.programSession!.on('changeSelection', () => {
+         if (this.activeTab === 'program') {
+            this.handleSelectionChange();
+         }
     });
 
     // Load initial program
     this.loadChannelProgram();
+    this.switchTab();
   }
 
   private loadChannelProgram(): void {
-    if (!this.editor || !this.channelId) return;
+    if (!this.programSession || !this.channelId) return;
 
     const channel = this.stateService.getChannel(this.channelId);
     if (channel) {
-      const currentValue = this.editor.getValue();
+      const currentValue = this.programSession.getValue();
       if (currentValue !== channel.program) {
-        this.editor.setValue(channel.program || '', -1); // -1 moves cursor to start
+        this.suppressProgramChange = true;
+        this.programSession.setValue(channel.program || '');
+        this.suppressProgramChange = false;
+      }
+      
+      if (channel.executedResult && this.executedSession) {
+          // TODO: Format executed result properly
+          // this.executedSession.setValue(channel.executedResult.program);
       }
     }
   }
 
   private handleProgramChange(): void {
-    if (!this.editor) return;
+    if (!this.programSession) return;
 
-    const program = this.editor.getValue();
+    const program = this.programSession.getValue();
+
+    if (this.suppressProgramChange) {
+      return;
+    }
 
     // Update channel state
     this.stateService.updateChannel(this.channelId, { program });
@@ -197,9 +235,9 @@ export class NCCodePane extends BaseComponent {
   }
 
   private updateMarkers(faults?: FaultDetail[]): void {
-    if (!this.editor) return;
+    if (!this.programSession) return;
 
-    const session = this.editor.getSession();
+    const session = this.programSession;
 
     // Clear existing markers
     const markers = session.getMarkers(false);
@@ -238,29 +276,37 @@ export class NCCodePane extends BaseComponent {
     session.setAnnotations(annotations);
   }
 
-  private updateTimeGutter(): void {
+  private updateTimeGutterPosition(): void {
     // TODO: Implement custom time gutter renderer
     // This will show cycle times on the left or right side
     console.log('Time gutter position:', this.timeGutterSide);
   }
 
   private switchTab(): void {
-    if (!this.editor) return;
+    if (!this.editor || !this.programSession || !this.executedSession) return;
 
     if (this.activeTab === 'executed') {
       // Load executed program
-      const channel = this.stateService.getChannel(this.channelId);
-      if (channel?.executedResult) {
-        // TODO: Load executed program content from server result
-        this.editor.setReadOnly(true);
-      }
+      this.editor.setSession(this.executedSession);
+      this.editor.setReadOnly(true);
     } else {
       // Load program for editing
+      this.editor.setSession(this.programSession);
       this.editor.setReadOnly(false);
-      this.loadChannelProgram();
     }
 
-    this.requestRender();
+    this.updateTabStyles();
+  }
+
+  private updateTabStyles() {
+      const tabs = this.shadow.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+          if (tab.getAttribute('data-tab') === this.activeTab) {
+              tab.classList.add('active');
+          } else {
+              tab.classList.remove('active');
+          }
+      });
   }
 
   /**
@@ -279,15 +325,15 @@ export class NCCodePane extends BaseComponent {
    * Get current program content
    */
   getValue(): string {
-    return this.editor?.getValue() || '';
+    return this.programSession?.getValue() || '';
   }
 
   /**
    * Set program content
    */
   setValue(value: string): void {
-    if (this.editor) {
-      this.editor.setValue(value, -1);
+    if (this.programSession) {
+      this.programSession.setValue(value);
     }
   }
 
@@ -324,6 +370,7 @@ export class NCCodePane extends BaseComponent {
     const programTab = document.createElement('button');
     programTab.className = `tab ${this.activeTab === 'program' ? 'active' : ''}`;
     programTab.textContent = 'Program';
+    programTab.setAttribute('data-tab', 'program');
     programTab.addEventListener('click', () => {
       this.setAttribute('active-tab', 'program');
     });
@@ -331,6 +378,7 @@ export class NCCodePane extends BaseComponent {
     const executedTab = document.createElement('button');
     executedTab.className = `tab ${this.activeTab === 'executed' ? 'active' : ''}`;
     executedTab.textContent = 'Executed';
+    executedTab.setAttribute('data-tab', 'executed');
     executedTab.addEventListener('click', () => {
       this.setAttribute('active-tab', 'executed');
     });

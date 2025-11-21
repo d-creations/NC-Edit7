@@ -12,9 +12,9 @@ import type { EventBus } from './EventBus';
  */
 export class MachineService {
   private machines = new Map<MachineId, MachineProfile>();
-  private loading = false;
   private lastFetch: number = 0;
   private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+  private loadingPromise: Promise<MachineProfile[]> | null = null;
 
   constructor(
     private backendGateway: BackendGateway,
@@ -39,34 +39,28 @@ export class MachineService {
       return Array.from(this.machines.values());
     }
 
-    if (this.loading) {
-      // Wait for existing fetch to complete
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!this.loading) {
-            clearInterval(checkInterval);
-            resolve(Array.from(this.machines.values()));
-          }
-        }, 100);
-      });
+    if (this.loadingPromise) {
+      return this.loadingPromise;
     }
 
-    this.loading = true;
+    this.loadingPromise = (async () => {
+      try {
+        const serverMachines = await this.backendGateway.listMachines();
+        this.machines.clear();
 
-    try {
-      const serverMachines = await this.backendGateway.listMachines();
-      this.machines.clear();
+        for (const serverMachine of serverMachines) {
+          const profile = this.convertToMachineProfile(serverMachine);
+          this.machines.set(profile.id, profile);
+        }
 
-      for (const serverMachine of serverMachines) {
-        const profile = this.convertToMachineProfile(serverMachine);
-        this.machines.set(profile.id, profile);
+        this.lastFetch = now;
+        return Array.from(this.machines.values());
+      } finally {
+        this.loadingPromise = null;
       }
+    })();
 
-      this.lastFetch = now;
-      return Array.from(this.machines.values());
-    } finally {
-      this.loading = false;
-    }
+    return this.loadingPromise;
   }
 
   /**

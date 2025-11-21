@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && npm run copy-ncplot7py",
+    "copy-ncplot7py": "rm -rf dist/ncplot7py && cp -r ncplot7py dist/ncplot7py",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
