@@ -87,7 +87,7 @@
 - **ACE Wrapper** `<nc-code-pane>`
   - Encapsulates ACE instantiation, binding to ParserService for markers/time gutter.
   - Emits events for selection changes, scroll sync, command triggers.
-   - Supports twin sessions (input vs executed program) that the channel tab bar can swap without losing scroll positions.
+   
 - **Tool List** `<nc-tool-list>`
   - Displays tool geometry offsets and status; updates when ParserService reports changes.
    - Provides “overlay” mode so the drawer can float above the editor when opened from below.
@@ -133,6 +133,7 @@
 - Provide controls for playback speed, zoom/pan, and toggling channel overlays.
 - Highlight current execution line by mapping ParserService timeline to plot animation.
  - Accept plot point payloads returned alongside executed program data to keep channel views synchronized with the 3D scene.
+ open and close the plot by a toggle in the UI make the width resizeable
 
 ## 10. Workflow & Data Flow
 1. User selects machine/channels → `StateService` updates configuration.
