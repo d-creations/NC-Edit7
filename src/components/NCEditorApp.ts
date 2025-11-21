@@ -8,6 +8,7 @@ import { SERVICE_TOKENS, type ChannelId } from '@core/types';
 import type { StateService } from '@services/StateService';
 import type { MachineService } from '@services/MachineService';
 import type { EventBus } from '@services/EventBus';
+import './NCCodePane';
 
 /**
  * Root component that bootstraps the application layout
@@ -327,13 +328,13 @@ export class NCEditorApp extends BaseComponent {
     header.textContent = `${channel.id} - ${channel.machineId}`;
     pane.appendChild(header);
 
-    const editorPlaceholder = document.createElement('div');
-    editorPlaceholder.className = 'editor-placeholder';
-    editorPlaceholder.innerHTML = `
-      <p>Editor Pane</p>
-      <p style="font-size: 12px; color: #888;">ACE editor integration pending</p>
-    `;
-    pane.appendChild(editorPlaceholder);
+    // Use the new NCCodePane component
+    const codePane = document.createElement('nc-code-pane');
+    codePane.setAttribute('channel-id', channel.id);
+    codePane.setAttribute('time-gutter-side', channel.uiConfig.timeGutterSide);
+    codePane.setAttribute('active-tab', channel.uiConfig.activeTab);
+    codePane.style.flex = '1';
+    pane.appendChild(codePane);
 
     return pane;
   }
@@ -462,15 +463,6 @@ export class NCEditorApp extends BaseComponent {
         background: #2d2d30;
         border-bottom: 1px solid #3e3e42;
         font-weight: 500;
-      }
-
-      .editor-placeholder {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: #888;
       }
 
       .placeholder {
