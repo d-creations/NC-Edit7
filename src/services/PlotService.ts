@@ -2,12 +2,7 @@
  * PlotService - Converts parser output into three.js scene elements
  */
 
-import type {
-  ChannelId,
-  MachineId,
-  PlotResponse,
-  PlotSegment,
-} from '@core/types';
+import type { ChannelId, MachineId, PlotResponse, PlotSegment } from '@core/types';
 
 /**
  * PlotService manages plot data and caching for three.js rendering
@@ -25,11 +20,7 @@ export class PlotService {
   /**
    * Store plot data in cache
    */
-  setPlotData(
-    channelId: ChannelId,
-    machineId: MachineId,
-    plotData: PlotResponse
-  ): void {
+  setPlotData(channelId: ChannelId, machineId: MachineId, plotData: PlotResponse): void {
     const key = this.getCacheKey(channelId, machineId);
     this.plotCache.set(key, plotData);
   }
@@ -47,7 +38,7 @@ export class PlotService {
    */
   clearChannel(channelId: ChannelId): void {
     const keysToDelete: string[] = [];
-    
+
     for (const key of this.plotCache.keys()) {
       if (key.startsWith(`${channelId}:`)) {
         keysToDelete.push(key);
@@ -69,11 +60,7 @@ export class PlotService {
   /**
    * Get segments for a specific tool
    */
-  getSegmentsByTool(
-    channelId: ChannelId,
-    machineId: MachineId,
-    toolNumber: number
-  ): PlotSegment[] {
+  getSegmentsByTool(channelId: ChannelId, machineId: MachineId, toolNumber: number): PlotSegment[] {
     const plotData = this.getPlotData(channelId, machineId);
     if (!plotData) {
       return [];
@@ -152,7 +139,7 @@ export class PlotService {
     for (const segment of plotData.segments) {
       tools.add(segment.toolNumber);
       totalPoints += segment.points.length;
-      
+
       const count = segmentTypes.get(segment.type) || 0;
       segmentTypes.set(segment.type, count + 1);
     }

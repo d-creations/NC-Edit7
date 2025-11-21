@@ -66,10 +66,13 @@ export class UserPreferenceService {
    */
   private validateSettings(settings: Partial<UserSettings>): UserSettings {
     const defaults = this.getDefaultSettings();
-    
+
     return {
       theme: settings.theme === 'dark' ? 'dark' : 'light',
-      editorFontSize: typeof settings.editorFontSize === 'number' ? settings.editorFontSize : defaults.editorFontSize,
+      editorFontSize:
+        typeof settings.editorFontSize === 'number'
+          ? settings.editorFontSize
+          : defaults.editorFontSize,
       autoSave: typeof settings.autoSave === 'boolean' ? settings.autoSave : defaults.autoSave,
       defaultMachine: settings.defaultMachine,
       layoutPreferences: {
@@ -111,7 +114,7 @@ export class UserPreferenceService {
   setTheme(theme: 'light' | 'dark'): void {
     this.settings.theme = theme;
     this.saveSettings();
-    
+
     // Apply theme to document
     document.documentElement.setAttribute('data-theme', theme);
   }

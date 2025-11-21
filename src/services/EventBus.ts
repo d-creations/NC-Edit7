@@ -103,7 +103,7 @@ export class EventBus {
    */
   getHistory(eventType?: string, limit?: number): AppEvent[] {
     let history = this.eventHistory;
-    
+
     if (eventType) {
       history = history.filter((e) => e.type === eventType);
     }

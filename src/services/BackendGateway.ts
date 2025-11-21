@@ -67,10 +67,7 @@ export class BackendGateway {
   /**
    * Generic POST request with retry logic
    */
-  private async post<T>(
-    data: ServerMachineDataRequest,
-    requestId: string
-  ): Promise<T> {
+  private async post<T>(data: ServerMachineDataRequest, requestId: string): Promise<T> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.config.retryAttempts; attempt++) {
@@ -79,7 +76,7 @@ export class BackendGateway {
         return response as T;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         // Don't retry on abort or validation errors
         if (error instanceof DOMException && error.name === 'AbortError') {
           throw error;
@@ -130,7 +127,7 @@ export class BackendGateway {
       }
 
       const result = await response.json();
-      
+
       // Check for server-side errors
       if (result.message_TEST) {
         throw new Error(`Server error: ${result.message_TEST.join(', ')}`);
@@ -153,14 +150,7 @@ export class BackendGateway {
       .trim();
 
     // Validate machine name
-    const validMachines = [
-      'SB12RG_F',
-      'FANUC_T',
-      'SR20JII_F',
-      'SB12RG_B',
-      'SR20JII_B',
-      'ISO_MILL',
-    ];
+    const validMachines = ['SB12RG_F', 'FANUC_T', 'SR20JII_F', 'SB12RG_B', 'SR20JII_B', 'ISO_MILL'];
 
     if (!validMachines.includes(program.machineName)) {
       throw new Error(

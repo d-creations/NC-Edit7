@@ -89,7 +89,7 @@ export class StateService {
    */
   setGlobalMachine(machineId: MachineId): void {
     this.state.globalMachineId = machineId;
-    
+
     // Update all channels that don't have a specific machine override
     for (const [channelId, channel] of this.state.channels) {
       if (!channel.machineId || channel.machineId === this.state.globalMachineId) {

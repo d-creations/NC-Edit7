@@ -2,11 +2,7 @@
  * MachineService - Retrieves and manages machine profiles
  */
 
-import type {
-  MachineId,
-  MachineProfile,
-  ServerMachineInfo,
-} from '@core/types';
+import type { MachineId, MachineProfile, ServerMachineInfo } from '@core/types';
 import type { BackendGateway } from './BackendGateway';
 import type { EventBus } from './EventBus';
 
@@ -37,7 +33,7 @@ export class MachineService {
    */
   async fetchMachines(force = false): Promise<MachineProfile[]> {
     const now = Date.now();
-    
+
     // Use cache if available and not expired
     if (!force && this.machines.size > 0 && now - this.lastFetch < this.cacheDuration) {
       return Array.from(this.machines.values());
@@ -119,7 +115,11 @@ export class MachineService {
     let type: 'MILL' | 'TURN' | 'MULTI_AXIS' = 'MILL';
     if (controlType.includes('TURN') || machineName.includes('_T')) {
       type = 'TURN';
-    } else if (controlType.includes('MILL') || machineName.includes('_F') || machineName.includes('_B')) {
+    } else if (
+      controlType.includes('MILL') ||
+      machineName.includes('_F') ||
+      machineName.includes('_B')
+    ) {
       type = 'MILL';
     }
 
@@ -149,16 +149,52 @@ export class MachineService {
   private getDefaultAxes(type: 'MILL' | 'TURN' | 'MULTI_AXIS') {
     if (type === 'TURN') {
       return [
-        { name: 'X', type: 'LINEAR' as const, minPosition: -200, maxPosition: 200, units: 'MM' as const },
-        { name: 'Z', type: 'LINEAR' as const, minPosition: -500, maxPosition: 0, units: 'MM' as const },
-        { name: 'C', type: 'ROTARY' as const, minPosition: 0, maxPosition: 360, units: 'DEGREE' as const },
+        {
+          name: 'X',
+          type: 'LINEAR' as const,
+          minPosition: -200,
+          maxPosition: 200,
+          units: 'MM' as const,
+        },
+        {
+          name: 'Z',
+          type: 'LINEAR' as const,
+          minPosition: -500,
+          maxPosition: 0,
+          units: 'MM' as const,
+        },
+        {
+          name: 'C',
+          type: 'ROTARY' as const,
+          minPosition: 0,
+          maxPosition: 360,
+          units: 'DEGREE' as const,
+        },
       ];
     }
 
     return [
-      { name: 'X', type: 'LINEAR' as const, minPosition: -500, maxPosition: 500, units: 'MM' as const },
-      { name: 'Y', type: 'LINEAR' as const, minPosition: -500, maxPosition: 500, units: 'MM' as const },
-      { name: 'Z', type: 'LINEAR' as const, minPosition: -300, maxPosition: 300, units: 'MM' as const },
+      {
+        name: 'X',
+        type: 'LINEAR' as const,
+        minPosition: -500,
+        maxPosition: 500,
+        units: 'MM' as const,
+      },
+      {
+        name: 'Y',
+        type: 'LINEAR' as const,
+        minPosition: -500,
+        maxPosition: 500,
+        units: 'MM' as const,
+      },
+      {
+        name: 'Z',
+        type: 'LINEAR' as const,
+        minPosition: -300,
+        maxPosition: 300,
+        units: 'MM' as const,
+      },
     ];
   }
 

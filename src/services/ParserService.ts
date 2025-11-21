@@ -26,7 +26,10 @@ export class ParserService {
   /**
    * Parse NC program for a channel
    */
-  async parse(channelId: ChannelId, program: string): Promise<{
+  async parse(
+    channelId: ChannelId,
+    program: string
+  ): Promise<{
     result: NcParseResult;
     artifacts: ParseArtifacts;
   }> {
@@ -40,13 +43,16 @@ export class ParserService {
   /**
    * Parse synchronously in main thread
    */
-  private async parseSync(channelId: ChannelId, program: string): Promise<{
+  private async parseSync(
+    channelId: ChannelId,
+    program: string
+  ): Promise<{
     result: NcParseResult;
     artifacts: ParseArtifacts;
   }> {
     // TODO: Implement actual NC parsing logic
     // This is a placeholder that extracts basic information
-    
+
     const lines = program.split('\n');
     const keywords: KeywordEntry[] = [];
     const toolRegisters: ToolRegisterEntry[] = [];
@@ -54,14 +60,11 @@ export class ParserService {
     const faults: NcParseResult['faults'] = [];
 
     // Simple keyword extraction (placeholder)
-    const keywordPatterns = [
-      /\b(G0|G1|G2|G3|G4|G90|G91|M3|M4|M5|M6|M30)\b/gi,
-      /\b(T\d+)\b/gi,
-    ];
+    const keywordPatterns = [/\b(G0|G1|G2|G3|G4|G90|G91|M3|M4|M5|M6|M30)\b/gi, /\b(T\d+)\b/gi];
 
     lines.forEach((line, index) => {
       const lineNumber = index + 1;
-      
+
       // Extract keywords
       keywordPatterns.forEach((pattern) => {
         const matches = line.matchAll(pattern);
@@ -78,11 +81,11 @@ export class ParserService {
       const toolMatch = line.match(/T(\d+)/i);
       if (toolMatch && toolMatch[1]) {
         const toolNumber = parseInt(toolMatch[1], 10);
-        
+
         // Look for Q and R parameters
         const qMatch = line.match(/Q([\d.-]+)/i);
         const rMatch = line.match(/R([\d.-]+)/i);
-        
+
         toolRegisters.push({
           toolNumber,
           qParameter: qMatch && qMatch[1] ? parseFloat(qMatch[1]) : undefined,
@@ -103,7 +106,10 @@ export class ParserService {
       }
 
       // Basic error detection (empty lines, invalid characters, etc.)
-      if (line.trim() && !line.match(/^[NGMTXYZIJKFRQPSabcdefghijklmnopqrstuvwxyz0-9\s.;()+-]+$/i)) {
+      if (
+        line.trim() &&
+        !line.match(/^[NGMTXYZIJKFRQPSabcdefghijklmnopqrstuvwxyz0-9\s.;()+-]+$/i)
+      ) {
         faults.push({
           lineNumber,
           column: 0,
@@ -150,7 +156,10 @@ export class ParserService {
   /**
    * Parse in a web worker (to be implemented)
    */
-  private async parseInWorker(channelId: ChannelId, program: string): Promise<{
+  private async parseInWorker(
+    channelId: ChannelId,
+    program: string
+  ): Promise<{
     result: NcParseResult;
     artifacts: ParseArtifacts;
   }> {

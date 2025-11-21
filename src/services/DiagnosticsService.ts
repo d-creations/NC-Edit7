@@ -2,11 +2,7 @@
  * DiagnosticsService - Aggregates and manages errors and diagnostics
  */
 
-import type {
-  ChannelId,
-  FaultDetail,
-  ErrorEvent,
-} from '@core/types';
+import type { ChannelId, FaultDetail, ErrorEvent } from '@core/types';
 import type { EventBus } from './EventBus';
 
 export interface Diagnostic {
@@ -95,7 +91,7 @@ export class DiagnosticsService {
    */
   clearChannel(channelId: ChannelId): void {
     const idsToDelete: string[] = [];
-    
+
     for (const [id, diag] of this.diagnostics) {
       if (diag.channelId === channelId) {
         idsToDelete.push(id);
@@ -118,9 +114,7 @@ export class DiagnosticsService {
    * Get all diagnostics
    */
   getAllDiagnostics(): Diagnostic[] {
-    return Array.from(this.diagnostics.values()).sort(
-      (a, b) => b.timestamp - a.timestamp
-    );
+    return Array.from(this.diagnostics.values()).sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /**

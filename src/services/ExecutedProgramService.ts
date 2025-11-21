@@ -51,7 +51,9 @@ export class ExecutedProgramService {
   /**
    * Execute multiple channels' programs
    */
-  async executeMultipleChannels(channelIds: ChannelId[]): Promise<Map<ChannelId, ExecutedProgramResult>> {
+  async executeMultipleChannels(
+    channelIds: ChannelId[]
+  ): Promise<Map<ChannelId, ExecutedProgramResult>> {
     const programs: ServerProgramEntry[] = [];
 
     for (const channelId of channelIds) {
@@ -76,7 +78,7 @@ export class ExecutedProgramService {
 
     try {
       const serverResponse = await this.backendGateway.executePrograms(programs);
-      
+
       // Process response for each channel
       for (const channelId of channelIds) {
         const result = this.processServerResponse(serverResponse, channelId);
@@ -147,7 +149,7 @@ export class ExecutedProgramService {
   ): ExecutedProgramResult {
     // TODO: Parse the actual server response structure
     // The server returns { canal: <engine_result>, message: <message_stack> }
-    
+
     // For now, create a placeholder result
     const result: ExecutedProgramResult = {
       channel: channelId,
