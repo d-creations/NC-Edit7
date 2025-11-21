@@ -112,6 +112,9 @@ export class FileHandler {
             }
         }
         this.setChooseFileButton();
+        if (typeof window !== 'undefined') {
+            window.hasUncommittedChanges = false;
+        }
     }
     uploadFile() {
         if (this.input.files != null) {

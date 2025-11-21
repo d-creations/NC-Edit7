@@ -185,6 +185,10 @@ export class FileHandler implements FileHandler_I {
         }
 
         this.setChooseFileButton()
+        // Clear uncommitted changes flag after loading a file
+        if (typeof window !== 'undefined') {
+            (window as any).hasUncommittedChanges = false;
+        }
     }
 
     uploadFile(this: FileHandler): void {

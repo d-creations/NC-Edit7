@@ -51,6 +51,19 @@
     import { TabManager,TabContent } from './js/src/domain/TabManager.js';
 
 
+    // Global flag to track uncommitted changes
+    window.hasUncommittedChanges = false;
+
+    // Warn user before leaving with uncommitted changes
+    window.addEventListener('beforeunload', function (e) {
+        if (window.hasUncommittedChanges) {
+            const confirmationMessage = 'You have uncommitted changes. Are you sure you want to leave?';
+            e.preventDefault();
+            e.returnValue = confirmationMessage;
+            return confirmationMessage;
+        }
+    });
+
     window.onload = function () {
 
         let printConsole = new UserError(document.getElementById("footer"))

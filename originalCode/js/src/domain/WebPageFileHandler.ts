@@ -129,6 +129,10 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
         };
         this.comunicationPort.postMessage(retObject);
         this.closeSaveDialog();
+        // Clear uncommitted changes flag after saving
+        if (typeof window !== 'undefined') {
+            (window as any).hasUncommittedChanges = false;
+        }
     }
     getCanalOfEditor(editor: IDEAdapter) {
         let canals = editor.getCanalsCount();
@@ -201,6 +205,10 @@ export class WebPageFileHandler implements FileHandler_I,Observer {
                 if(this.editor.getCanalsCount()<1)this.IDEView.changeCanalCount(1)    
                 this.editor.setTextToCanal(0,String(result).replaceAll("\r",""))               
             }
+        }
+        // Clear uncommitted changes flag after loading text
+        if (typeof window !== 'undefined') {
+            (window as any).hasUncommittedChanges = false;
         }
     }
 

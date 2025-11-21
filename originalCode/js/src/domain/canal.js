@@ -91,7 +91,10 @@ export class Canal extends Observable {
                 canal._keyElementList = canal.parseKeyWords(editor.getValue().split(("\n")));
                 canal.updated();
                 canal.sessionStorageSetText(editor.getValue());
-                
+                // Mark as having uncommitted changes when editor content changes
+                if (typeof window !== 'undefined') {
+                    window.hasUncommittedChanges = true;
+                }
             }
             this._editor.session.on('change',f);
 

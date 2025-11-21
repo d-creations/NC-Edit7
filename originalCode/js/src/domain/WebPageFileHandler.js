@@ -75,6 +75,9 @@ export class WebPageFileHandler {
         };
         this.comunicationPort.postMessage(retObject);
         this.closeSaveDialog();
+        if (typeof window !== 'undefined') {
+            window.hasUncommittedChanges = false;
+        }
     }
     getCanalOfEditor(editor) {
         let canals = editor.getCanalsCount();
@@ -149,6 +152,9 @@ export class WebPageFileHandler {
                     this.IDEView.changeCanalCount(1);
                 this.editor.setTextToCanal(0, String(result).replaceAll("\r", ""));
             }
+        }
+        if (typeof window !== 'undefined') {
+            window.hasUncommittedChanges = false;
         }
     }
     formateNCTextToChanalList(result) {
