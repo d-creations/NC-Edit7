@@ -196,10 +196,8 @@ export class ExecutedProgramService {
     serverResponse: ServerResponse,
     channelId: ChannelId
   ): ExecutedProgramResult {
-    // TODO: Parse the actual server response structure
     // The server returns { canal: <engine_result>, message: <message_stack> }
-
-    // For now, create a placeholder result
+    
     const result: ExecutedProgramResult = {
       channel: channelId,
       executedLines: [],
@@ -222,21 +220,80 @@ export class ExecutedProgramService {
       timestamp: Date.now(),
     };
 
-    // TODO: Parse canal data and extract:
-    // - Executed line numbers and timing
-    // - Variable register updates
-    // - Plot point data
-
+    // Parse canal data and extract execution results
     if (serverResponse.canal) {
-      // Parse canal data structure here
-      console.log('Canal data received:', serverResponse.canal);
+      const canalData = (serverResponse.canal as any)[channelId];
+      
+      if (canalData) {
+        // Extract executed lines
+        if (canalData.executedLines && Array.isArray(canalData.executedLines)) {
+          result.executedLines = canalData.executedLines;
+        }
+
+        // Extract segments for plotting
+        if (canalData.segments && Array.isArray(canalData.segments)) {
+          result.plotData.segments = canalData.segments;
+          
+          // Calculate bounds from segments
+          const bounds = this.calculateBounds(canalData.segments);
+          result.plotData.metadata.bounds = bounds;
+        }
+
+        // Extract variable updates
+        if (canalData.variables) {
+          Object.entries(canalData.variables).forEach(([key, value]) => {
+            result.variableDeltas.registers.set(parseInt(key), value as number);
+          });
+        }
+
+        // Extract timing data
+        if (canalData.timing && Array.isArray(canalData.timing)) {
+          const totalTime = canalData.timing.reduce((sum: number, t: number) => sum + t, 0);
+          result.plotData.metadata.totalTime = totalTime;
+        }
+      }
     }
 
+    // Log server messages
     if (serverResponse.message && serverResponse.message.length > 0) {
       console.log('Server messages:', serverResponse.message);
     }
 
     return result;
+  }
+
+  /**
+   * Calculate bounding box from segments
+   */
+  private calculateBounds(segments: any[]) {
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+    for (const segment of segments) {
+      if (segment.points && Array.isArray(segment.points)) {
+        for (const point of segment.points) {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          minZ = Math.min(minZ, point.z);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+          maxZ = Math.max(maxZ, point.z);
+        }
+      }
+    }
+
+    // Handle empty segments
+    if (!isFinite(minX)) {
+      return {
+        min: { x: 0, y: 0, z: 0 },
+        max: { x: 0, y: 0, z: 0 },
+      };
+    }
+
+    return {
+      min: { x: minX, y: minY, z: minZ },
+      max: { x: maxX, y: maxY, z: maxZ },
+    };
   }
 
   /**
