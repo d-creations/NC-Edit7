@@ -592,7 +592,8 @@ M30`,
       this.updateStatusBar(`${channelId} execution completed`);
     } catch (error) {
       console.error(`Failed to execute ${channelId}:`, error);
-      this.updateStatusBar(`${channelId} execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.updateStatusBar(`${channelId} execution failed: ${errorMessage}`);
     } finally {
       this.executingChannels.delete(channelId);
     }

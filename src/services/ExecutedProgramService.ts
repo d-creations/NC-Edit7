@@ -221,17 +221,17 @@ export class ExecutedProgramService {
     };
 
     // Parse canal data and extract execution results
-    if (serverResponse.canal) {
-      const canalData = (serverResponse.canal as any)[channelId];
+    if (serverResponse.canal && typeof serverResponse.canal === 'object') {
+      const canalData = (serverResponse.canal as Record<string, any>)[channelId];
       
-      if (canalData) {
+      if (canalData && typeof canalData === 'object') {
         // Extract executed lines
-        if (canalData.executedLines && Array.isArray(canalData.executedLines)) {
-          result.executedLines = canalData.executedLines;
+        if (Array.isArray(canalData.executedLines)) {
+          result.executedLines = canalData.executedLines.filter((line: any): line is number => typeof line === 'number');
         }
 
         // Extract segments for plotting
-        if (canalData.segments && Array.isArray(canalData.segments)) {
+        if (Array.isArray(canalData.segments)) {
           result.plotData.segments = canalData.segments;
           
           // Calculate bounds from segments
@@ -240,15 +240,20 @@ export class ExecutedProgramService {
         }
 
         // Extract variable updates
-        if (canalData.variables) {
+        if (canalData.variables && typeof canalData.variables === 'object') {
           Object.entries(canalData.variables).forEach(([key, value]) => {
-            result.variableDeltas.registers.set(parseInt(key), value as number);
+            const registerNum = parseInt(key, 10);
+            if (!isNaN(registerNum) && typeof value === 'number') {
+              result.variableDeltas.registers.set(registerNum, value);
+            }
           });
         }
 
         // Extract timing data
-        if (canalData.timing && Array.isArray(canalData.timing)) {
-          const totalTime = canalData.timing.reduce((sum: number, t: number) => sum + t, 0);
+        if (Array.isArray(canalData.timing)) {
+          const totalTime = canalData.timing
+            .filter((t: any): t is number => typeof t === 'number')
+            .reduce((sum: number, t: number) => sum + t, 0);
           result.plotData.metadata.totalTime = totalTime;
         }
       }
