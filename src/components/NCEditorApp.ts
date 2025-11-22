@@ -40,7 +40,7 @@ export class NCEditorApp extends HTMLElement {
         this.stateService.setMachines(machines);
         this.stateService.setGlobalMachine(machines[0].machineName);
       }
-      
+
       // No need to update selector manually, component handles it
     } catch (error) {
       console.error('Failed to initialize app:', error);
@@ -229,6 +229,5 @@ export class NCEditorApp extends HTMLElement {
     mainContent.prepend(errorDiv);
   }
 }
-
 
 customElements.define('nc-editor-app', NCEditorApp);
