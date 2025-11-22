@@ -22,7 +22,7 @@ export class ParserService {
     // For now, we'll do basic parsing on the main thread
   }
 
-  async parse(program: string): Promise<{ result: NcParseResult; artifacts: ParseArtifacts }> {
+  async parse(program: string, channelId: string): Promise<{ result: NcParseResult; artifacts: ParseArtifacts }> {
     try {
       // Basic parsing logic - in production this would be in a worker
       const lines = program.split('\n');
@@ -77,7 +77,7 @@ export class ParserService {
         timingMetadata,
       };
 
-      this.eventBus.publish(EVENT_NAMES.PARSE_COMPLETED, { result, artifacts });
+      this.eventBus.publish(EVENT_NAMES.PARSE_COMPLETED, { channelId, result, artifacts });
 
       return { result, artifacts };
     } catch (error) {
@@ -92,7 +92,7 @@ export class ParserService {
         ],
       };
 
-      this.eventBus.publish(EVENT_NAMES.PARSE_ERROR, { error });
+      this.eventBus.publish(EVENT_NAMES.PARSE_ERROR, { channelId, error });
 
       return {
         result: errorResult,

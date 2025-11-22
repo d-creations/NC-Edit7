@@ -19,7 +19,7 @@ export class BackendGateway {
 
   constructor(config?: Partial<BackendConfig>) {
     this.config = {
-      baseUrl: '/cgi-bin/cgiserver.cgi',
+      baseUrl: '/ncplot7py/scripts/cgiserver.cgi',
       timeout: 30000,
       retries: 3,
       ...config,

@@ -208,3 +208,9 @@ catch error in the console and try to catch stacking endless loops and catch if 
 - **Health & monitoring**: tail Apache logs (`access.log` + `error.log`) for CGI failures (e.g., permission errors or JSON parsing exceptions) and capture the `message_T`/`program` payload returned on error. Optionally configure `LogFormat`/`CustomLog` per virtual host to include `%a` for client IP so it aligns with the script’s internal logging and to monitor request sizes.
 - **Frontend routing**: proxy or redirect `fetch` calls from the client to `/cgi-bin/cgiserver.cgi`; ensure CORS headers are set if the frontend is served from another host, and keep the endpoint path consistent with the runtime `fetch` URLs used in `src/services/BackendGateway.ts` (or similar modules).
 - **Artifact sync**: the `dist/ncplot7py` tree must mirror `ncplot7py/` so that built deployments include the same CGI script and helpers; use the existing copy helper (e.g., run `npm run copy-ncplot7py` before packaging) any time the script changes so Apache serves the new logic.
+
+## 15. Technical Lessons Learned
+- **ACE Editor & Shadow DOM**: The ACE editor library (`ace-builds`) has significant compatibility issues when running inside a Shadow DOM. It relies on global document queries and style injection that fail or misbehave when encapsulated.
+  - **Solution**: Components wrapping ACE (like `<nc-code-pane>`) and their containers (like `<nc-channel-pane>` and `<nc-editor-app>`) must render to the **Light DOM** (avoid `this.attachShadow`).
+  - **Styling**: Since Shadow DOM encapsulation is lost for these components, styles must be scoped manually (e.g., using unique class names or BEM) or injected globally.
+  - **Layout**: Explicit dimensions are critical. The editor container must have a non-zero height/width before ACE is initialized. `ResizeObserver` is required to trigger `editor.resize()` when the container dimensions change.

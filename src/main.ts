@@ -1,19 +1,19 @@
 // Main entry point for NC-Edit7 application
 
-import { ServiceRegistry, ServiceScope, createServiceToken } from '@core/ServiceRegistry';
+import { ServiceRegistry, ServiceScope } from '@core/ServiceRegistry';
+import {
+  EVENT_BUS_TOKEN,
+  STATE_SERVICE_TOKEN,
+  BACKEND_GATEWAY_TOKEN,
+  MACHINE_SERVICE_TOKEN,
+  PARSER_SERVICE_TOKEN,
+} from '@core/ServiceTokens';
 import { EventBus } from '@services/EventBus';
 import { StateService } from '@services/StateService';
 import { BackendGateway } from '@services/BackendGateway';
 import { MachineService } from '@services/MachineService';
 import { ParserService } from '@services/ParserService';
 import '@components/NCEditorApp';
-
-// Define service tokens
-const EVENT_BUS_TOKEN = createServiceToken<EventBus>('EventBus');
-const STATE_SERVICE_TOKEN = createServiceToken<StateService>('StateService');
-const BACKEND_GATEWAY_TOKEN = createServiceToken<BackendGateway>('BackendGateway');
-const MACHINE_SERVICE_TOKEN = createServiceToken<MachineService>('MachineService');
-const PARSER_SERVICE_TOKEN = createServiceToken<ParserService>('ParserService');
 
 // Bootstrap application
 async function bootstrap() {

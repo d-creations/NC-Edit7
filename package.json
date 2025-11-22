@@ -15,7 +15,7 @@
     "copy-ncplot7py": "node scripts/copy-ncplot7py.js"
   },
   "dependencies": {
-    "ace-builds": "^1.32.0",
+    "ace-builds": "^1.43.4",
     "three": "^0.161.0"
   },
   "devDependencies": {
