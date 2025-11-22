@@ -37,6 +37,10 @@ export class NCCodePane extends BaseComponent {
     this.timeGutter = new TimeGutter();
   }
 
+  static get useShadow() {
+    return false;
+  }
+
   static get observedAttributes() {
     return ['channel-id', 'time-gutter-side', 'active-tab'];
   }
@@ -299,7 +303,7 @@ export class NCCodePane extends BaseComponent {
   }
 
   private updateTabStyles() {
-      const tabs = this.shadow.querySelectorAll('.tab');
+      const tabs = this.root.querySelectorAll('.tab');
       tabs.forEach(tab => {
           if (tab.getAttribute('data-tab') === this.activeTab) {
               tab.classList.add('active');
@@ -338,8 +342,8 @@ export class NCCodePane extends BaseComponent {
   }
 
   protected render(): void {
-    this.shadow.innerHTML = '';
-    this.shadow.appendChild(this.createStyles(this.getStyles()));
+    this.root.innerHTML = '';
+    this.root.appendChild(this.createStyles(this.getStyles()));
 
     const container = document.createElement('div');
     container.className = 'nc-code-pane';
@@ -353,7 +357,7 @@ export class NCCodePane extends BaseComponent {
     editorContainer.className = 'ace-editor-container';
     container.appendChild(editorContainer);
 
-    this.shadow.appendChild(container);
+    this.root.appendChild(container);
 
     // Initialize editor after rendering
     setTimeout(() => {
@@ -391,13 +395,13 @@ export class NCCodePane extends BaseComponent {
 
   private getStyles(): string {
     return `
-      :host {
+      nc-code-pane {
         display: block;
         width: 100%;
         height: 100%;
       }
 
-      .nc-code-pane {
+      nc-code-pane .nc-code-pane {
         display: flex;
         flex-direction: column;
         width: 100%;
@@ -405,13 +409,13 @@ export class NCCodePane extends BaseComponent {
         background: #272822;
       }
 
-      .tab-bar {
+      nc-code-pane .tab-bar {
         display: flex;
         background: #1e1e1e;
         border-bottom: 1px solid #3e3e42;
       }
 
-      .tab {
+      nc-code-pane .tab {
         padding: 8px 16px;
         background: transparent;
         border: none;
@@ -423,17 +427,17 @@ export class NCCodePane extends BaseComponent {
         transition: all 0.2s;
       }
 
-      .tab:hover {
+      nc-code-pane .tab:hover {
         background: #2a2a2a;
         color: #d4d4d4;
       }
 
-      .tab.active {
+      nc-code-pane .tab.active {
         color: #569cd6;
         border-bottom-color: #569cd6;
       }
 
-      .ace-editor-container {
+      nc-code-pane .ace-editor-container {
         flex: 1;
         width: 100%;
         height: 100%;
@@ -441,13 +445,13 @@ export class NCCodePane extends BaseComponent {
       }
 
       /* Custom marker styles */
-      :host ::ng-deep .ace-error-marker {
+      nc-code-pane .ace-error-marker {
         position: absolute;
         background-color: rgba(255, 0, 0, 0.1);
         border-left: 3px solid #f44336;
       }
 
-      :host ::ng-deep .ace-warning-marker {
+      nc-code-pane .ace-warning-marker {
         position: absolute;
         background-color: rgba(255, 152, 0, 0.1);
         border-left: 3px solid #ff9800;

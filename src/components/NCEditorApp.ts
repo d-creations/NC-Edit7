@@ -30,6 +30,10 @@ export class NCEditorApp extends BaseComponent {
   private plotWrapperElement?: HTMLElement;
   private mainContentElement?: HTMLElement;
 
+  static get useShadow() {
+    return false;
+  }
+
   protected onConnected(): void {
     // Get services from registry
     const registry = getServiceRegistry();
@@ -219,7 +223,7 @@ M30`,
   protected render(): void {
     // Safety check - ensure services are initialized
     if (!this.stateService) {
-      this.shadow.innerHTML = '<div style="padding: 20px; color: #888;">Initializing...</div>';
+      this.root.innerHTML = '<div style="padding: 20px; color: #888;">Initializing...</div>';
       return;
     }
 
@@ -227,10 +231,10 @@ M30`,
     const machines = this.stateService.getAllMachines();
     const globalMachine = this.stateService.getGlobalMachine();
 
-    this.shadow.innerHTML = '';
+    this.root.innerHTML = '';
 
     // Add styles
-    this.shadow.appendChild(this.createStyles(this.getStyles()));
+    this.root.appendChild(this.createStyles(this.getStyles()));
 
     // Create container
     const container = document.createElement('div');
@@ -290,7 +294,7 @@ M30`,
     const statusBar = this.createStatusBar();
     container.appendChild(statusBar);
 
-    this.shadow.appendChild(container);
+    this.root.appendChild(container);
 
     this.cacheInitialChannelStates(channels);
   }
@@ -546,13 +550,13 @@ M30`,
 
   private getStyles(): string {
     return `
-      :host {
+      nc-editor-app {
         display: block;
         width: 100%;
         height: 100%;
       }
 
-      .nc-editor-app {
+      nc-editor-app .nc-editor-app {
         display: flex;
         flex-direction: column;
         width: 100%;
@@ -562,7 +566,7 @@ M30`,
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
 
-      .top-bar {
+      nc-editor-app .top-bar {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -571,19 +575,19 @@ M30`,
         border-bottom: 1px solid #3e3e42;
       }
 
-      .top-bar h1 {
+      nc-editor-app .top-bar h1 {
         font-size: 20px;
         margin: 0;
         color: #569cd6;
       }
 
-      .machine-selector {
+      nc-editor-app .machine-selector {
         display: flex;
         align-items: center;
         gap: 10px;
       }
 
-      .machine-select {
+      nc-editor-app .machine-select {
         padding: 5px 10px;
         background: #3c3c3c;
         color: #d4d4d4;
@@ -593,13 +597,13 @@ M30`,
         cursor: pointer;
       }
 
-      .main-content {
+      nc-editor-app .main-content {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
 
-      .channel-task-list {
+      nc-editor-app .channel-task-list {
         width: 200px;
         padding: 15px;
         background: #252526;
@@ -607,27 +611,27 @@ M30`,
         overflow-y: auto;
       }
 
-      .channel-area {
+      nc-editor-app .channel-area {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
       }
 
-      .channel-task-list h3 {
+      nc-editor-app .channel-task-list h3 {
         margin: 0 0 15px 0;
         font-size: 14px;
         text-transform: uppercase;
         color: #888;
       }
 
-      .channel-toggles {
+      nc-editor-app .channel-toggles {
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
 
-      .channel-toggle {
+      nc-editor-app .channel-toggle {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -637,15 +641,15 @@ M30`,
         transition: background 0.2s;
       }
 
-      .channel-toggle:hover {
+      nc-editor-app .channel-toggle:hover {
         background: #2a2d2e;
       }
 
-      .channel-toggle input[type="checkbox"] {
+      nc-editor-app .channel-toggle input[type="checkbox"] {
         cursor: pointer;
       }
 
-      .channel-grid {
+      nc-editor-app .channel-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
         gap: 15px;
@@ -654,7 +658,7 @@ M30`,
         overflow: auto;
       }
 
-      .channel-pane {
+      nc-editor-app .channel-pane {
         background: #1e1e1e;
         border: 1px solid #3e3e42;
         border-radius: 4px;
@@ -664,20 +668,20 @@ M30`,
         overflow: hidden;
       }
 
-      .channel-header {
+      nc-editor-app .channel-header {
         padding: 10px 15px;
         background: #2d2d30;
         border-bottom: 1px solid #3e3e42;
         font-weight: 500;
       }
 
-      .channel-content {
+      nc-editor-app .channel-content {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
 
-      .left-panel {
+      nc-editor-app .left-panel {
         width: 250px;
         display: flex;
         flex-direction: column;
@@ -685,14 +689,14 @@ M30`,
         overflow: hidden;
       }
 
-      .editor-area {
+      nc-editor-app .editor-area {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
       }
 
-      .placeholder {
+      nc-editor-app .placeholder {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -701,7 +705,7 @@ M30`,
         font-size: 16px;
       }
 
-      .plot-resizer {
+      nc-editor-app .plot-resizer {
         width: 32px;
         min-width: 32px;
         cursor: ew-resize;
@@ -714,7 +718,7 @@ M30`,
         position: relative;
       }
 
-      .plot-toggle {
+      nc-editor-app .plot-toggle {
         background: #2d2d30;
         border: 1px solid #3e3e42;
         border-radius: 4px;
@@ -724,11 +728,11 @@ M30`,
         cursor: pointer;
       }
 
-      .plot-resizer:hover .plot-toggle {
+      nc-editor-app .plot-resizer:hover .plot-toggle {
         background: #3c3c3c;
       }
 
-      .plot-wrapper {
+      nc-editor-app .plot-wrapper {
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -736,18 +740,18 @@ M30`,
         flex-shrink: 0;
       }
 
-      .plot-wrapper.collapsed {
+      nc-editor-app .plot-wrapper.collapsed {
         width: 0 !important;
       }
 
-      .plot-area {
+      nc-editor-app .plot-area {
         flex: 1;
         min-width: 300px;
         background: #252526;
         border-left: 1px solid #3e3e42;
       }
 
-      .status-bar {
+      nc-editor-app .status-bar {
         padding: 5px 20px;
         background: #007acc;
         color: white;

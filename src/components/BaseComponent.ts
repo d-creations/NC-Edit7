@@ -3,12 +3,22 @@
  */
 
 export abstract class BaseComponent extends HTMLElement {
-  protected shadow: ShadowRoot;
+  protected shadow!: ShadowRoot;
+  protected root: ShadowRoot | HTMLElement;
   private _isConnected = false;
+
+  static get useShadow(): boolean {
+    return true;
+  }
 
   constructor() {
     super();
-    this.shadow = this.attachShadow({ mode: 'open' });
+    if ((this.constructor as typeof BaseComponent).useShadow) {
+      this.shadow = this.attachShadow({ mode: 'open' });
+      this.root = this.shadow;
+    } else {
+      this.root = this;
+    }
   }
 
   connectedCallback() {
@@ -65,13 +75,13 @@ export abstract class BaseComponent extends HTMLElement {
    * Query element within shadow root
    */
   protected query<T extends Element>(selector: string): T | null {
-    return this.shadow.querySelector<T>(selector);
+    return this.root.querySelector<T>(selector);
   }
 
   /**
    * Query all elements within shadow root
    */
   protected queryAll<T extends Element>(selector: string): NodeListOf<T> {
-    return this.shadow.querySelectorAll<T>(selector);
+    return this.root.querySelectorAll<T>(selector);
   }
 }
