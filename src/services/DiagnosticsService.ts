@@ -59,7 +59,7 @@ export class DiagnosticsService {
   addDiagnostic(diagnostic: Omit<Diagnostic, 'id' | 'timestamp'>): void {
     const newDiagnostic: Diagnostic = {
       ...diagnostic,
-      id: `diag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `diag-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       timestamp: Date.now(),
     };
 

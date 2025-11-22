@@ -148,8 +148,16 @@ export class ExecutedProgramService {
   }
 
   private getCacheKey(request: ExecutionRequest): string {
-    // Create a simple hash of the request
-    return `${request.channelId}-${request.machineName}-${request.program.length}`;
+    // Create a simple hash of the request content
+    // Using a basic string hash for cache key generation
+    const content = `${request.channelId}-${request.machineName}-${request.program}`;
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return `${request.channelId}-${request.machineName}-${Math.abs(hash)}`;
   }
 
   getCachedResult(request: ExecutionRequest): ExecutedProgramResult | undefined {

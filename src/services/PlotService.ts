@@ -73,7 +73,8 @@ export class PlotService {
 
     return new THREE.LineBasicMaterial({
       color,
-      linewidth: 2,
+      // Note: linewidth is deprecated in WebGL and has no effect in most contexts
+      // For thicker lines, consider using LineSegments2 from three/examples
     });
   }
 
