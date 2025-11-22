@@ -31,6 +31,15 @@ export class NCCodePane extends HTMLElement {
   connectedCallback() {
     this.render();
     this.initEditor();
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    // Listen for keyword clicks
+    this.addEventListener('keyword-click', ((e: CustomEvent) => {
+      const lineNumber = e.detail.lineNumber;
+      this.scrollToLine(lineNumber);
+    }) as EventListener);
   }
 
   disconnectedCallback() {
@@ -122,6 +131,34 @@ export class NCCodePane extends HTMLElement {
 
   getValue(): string {
     return this.editor?.getValue() || '';
+  }
+
+  scrollToLine(lineNumber: number): void {
+    if (!this.editor) return;
+
+    // Convert to 0-based index
+    const line = lineNumber - 1;
+
+    // Scroll to line
+    this.editor.scrollToLine(line, true, true, () => {
+      // Callback after scroll
+    });
+
+    // Select the line
+    this.editor.gotoLine(lineNumber, 0, true);
+
+    // Highlight the line temporarily
+    const Range = ace.require('ace/range').Range;
+    const marker = this.editor.session.addMarker(
+      new Range(line, 0, line, 1),
+      'ace_active-line',
+      'fullLine',
+    );
+
+    // Remove highlight after 2 seconds
+    setTimeout(() => {
+      this.editor?.session.removeMarker(marker);
+    }, 2000);
   }
 }
 

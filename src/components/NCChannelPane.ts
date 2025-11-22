@@ -24,6 +24,22 @@ export class NCChannelPane extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    // Forward keyword-click events to the code pane
+    this.addEventListener('keyword-click', ((e: CustomEvent) => {
+      const codePaneElement = this.querySelector('nc-code-pane');
+      if (codePaneElement) {
+        codePaneElement.dispatchEvent(
+          new CustomEvent('keyword-click', {
+            detail: e.detail,
+            bubbles: false,
+          }),
+        );
+      }
+    }) as EventListener);
   }
 
   private render() {

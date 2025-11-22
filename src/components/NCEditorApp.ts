@@ -9,6 +9,7 @@ import './NCChannelPane';
 import './NCSyncControls';
 import './NCStatusIndicator';
 import './NCMachineSelector';
+import './NCToolpathPlot';
 
 export class NCEditorApp extends HTMLElement {
   private registry: ServiceRegistry;
@@ -96,6 +97,21 @@ export class NCEditorApp extends HTMLElement {
           color: #888;
         }
 
+        .app-plot-toggle {
+          padding: 4px 12px;
+          background: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+
+        .app-plot-toggle.active {
+          background: #0e639c;
+          color: #fff;
+        }
+
         .app-main-content {
           display: flex;
           flex: 1;
@@ -114,6 +130,20 @@ export class NCEditorApp extends HTMLElement {
           display: flex;
           flex-direction: column;
           overflow: hidden;
+        }
+
+        .app-plot-container {
+          width: 0;
+          display: none;
+          background: #1e1e1e;
+          border-left: 1px solid #3e3e42;
+          overflow: hidden;
+          transition: width 0.3s ease;
+        }
+
+        .app-plot-container.visible {
+          display: block;
+          width: 400px;
         }
 
         .app-channels {
@@ -154,6 +184,7 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
+          <button class="app-plot-toggle" id="plot-toggle">🎯 Plot</button>
         </div>
       </div>
 
@@ -164,6 +195,9 @@ export class NCEditorApp extends HTMLElement {
             <nc-channel-pane channel-id="2" data-channel="2"></nc-channel-pane>
             <nc-channel-pane channel-id="3" data-channel="3"></nc-channel-pane>
           </div>
+        </div>
+        <div class="app-plot-container" id="plot-container">
+          <nc-toolpath-plot></nc-toolpath-plot>
         </div>
       </div>
 
@@ -195,6 +229,23 @@ export class NCEditorApp extends HTMLElement {
 
         this.updateChannelDisplay();
       });
+    });
+
+    // Plot toggle
+    const plotToggle = this.querySelector('#plot-toggle');
+    plotToggle?.addEventListener('click', () => {
+      const plotContainer = this.querySelector('#plot-container');
+      const isVisible = plotContainer?.classList.contains('visible');
+
+      if (isVisible) {
+        plotContainer?.classList.remove('visible');
+        plotToggle.classList.remove('active');
+        this.stateService.updateUISettings({ plotViewerOpen: false });
+      } else {
+        plotContainer?.classList.add('visible');
+        plotToggle.classList.add('active');
+        this.stateService.updateUISettings({ plotViewerOpen: true });
+      }
     });
   }
 
