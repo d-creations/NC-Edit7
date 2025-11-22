@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { cgiProxy } from './dev-cgi-proxy.js';
 
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  plugins: [cgiProxy()],
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
@@ -25,7 +27,7 @@ export default defineConfig({
     open: false,
     fs: {
       allow: ['.'],
-      deny: ['originalCode/**', 'ncplot7py/**'],
+      deny: ['originalCode/**'],
     },
   },
   optimizeDeps: {
