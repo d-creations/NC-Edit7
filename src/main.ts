@@ -7,12 +7,18 @@ import {
   BACKEND_GATEWAY_TOKEN,
   MACHINE_SERVICE_TOKEN,
   PARSER_SERVICE_TOKEN,
+  DIAGNOSTICS_SERVICE_TOKEN,
+  EXECUTED_PROGRAM_SERVICE_TOKEN,
+  PLOT_SERVICE_TOKEN,
 } from '@core/ServiceTokens';
 import { EventBus } from '@services/EventBus';
 import { StateService } from '@services/StateService';
 import { BackendGateway } from '@services/BackendGateway';
 import { MachineService } from '@services/MachineService';
 import { ParserService } from '@services/ParserService';
+import { DiagnosticsService } from '@services/DiagnosticsService';
+import { ExecutedProgramService } from '@services/ExecutedProgramService';
+import { PlotService } from '@services/PlotService';
 import '@components/NCEditorApp';
 
 // Bootstrap application
@@ -49,6 +55,34 @@ async function bootstrap() {
       () => {
         const eventBus = registry.get(EVENT_BUS_TOKEN);
         return new ParserService(eventBus);
+      },
+      ServiceScope.Singleton,
+    );
+
+    registry.register(
+      DIAGNOSTICS_SERVICE_TOKEN,
+      () => {
+        const eventBus = registry.get(EVENT_BUS_TOKEN);
+        return new DiagnosticsService(eventBus);
+      },
+      ServiceScope.Singleton,
+    );
+
+    registry.register(
+      EXECUTED_PROGRAM_SERVICE_TOKEN,
+      () => {
+        const backend = registry.get(BACKEND_GATEWAY_TOKEN);
+        const eventBus = registry.get(EVENT_BUS_TOKEN);
+        return new ExecutedProgramService(backend, eventBus);
+      },
+      ServiceScope.Singleton,
+    );
+
+    registry.register(
+      PLOT_SERVICE_TOKEN,
+      () => {
+        const eventBus = registry.get(EVENT_BUS_TOKEN);
+        return new PlotService(eventBus);
       },
       ServiceScope.Singleton,
     );
@@ -103,13 +137,80 @@ async function bootstrap() {
   }
 }
 
-// Error handling
+// Error handling - catch console errors and prevent endless loops
+let errorCount = 0;
+const ERROR_THRESHOLD = 10;
+const ERROR_RESET_INTERVAL = 5000; // 5 seconds
+
+// Reset error count periodically
+setInterval(() => {
+  if (errorCount > 0) {
+    errorCount = Math.max(0, errorCount - 1);
+  }
+}, ERROR_RESET_INTERVAL);
+
 window.addEventListener('error', (event) => {
+  errorCount++;
   console.error('Global error:', event.error);
+
+  // Prevent endless loops by stopping if too many errors
+  if (errorCount > ERROR_THRESHOLD) {
+    console.error('Too many errors detected, stopping execution to prevent infinite loops');
+    event.preventDefault();
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+      appContainer.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          flex-direction: column;
+          gap: 16px;
+          padding: 24px;
+          text-align: center;
+        ">
+          <div style="color: #f48771; font-size: 24px;">⚠️ Too Many Errors</div>
+          <div style="color: #d4d4d4; max-width: 600px;">
+            The application has encountered too many errors in a short period. 
+            This may indicate an infinite loop or critical issue. 
+            Please reload the page to try again.
+          </div>
+          <button 
+            onclick="location.reload()" 
+            style="
+              padding: 8px 16px;
+              background: #0e639c;
+              color: #fff;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          >
+            Reload Application
+          </button>
+        </div>
+      `;
+    }
+  }
 });
 
 window.addEventListener('unhandledrejection', (event) => {
+  errorCount++;
   console.error('Unhandled promise rejection:', event.reason);
+
+  // Check if it's a network error (server offline)
+  const isNetworkError =
+    event.reason instanceof Error &&
+    (event.reason.message.includes('fetch') ||
+      event.reason.message.includes('network') ||
+      event.reason.message.includes('HTTP error'));
+
+  if (isNetworkError) {
+    console.warn('Server appears to be offline or unreachable');
+    // Don't count network errors as aggressively
+    errorCount = Math.max(0, errorCount - 1);
+  }
 });
 
 // Start the application when DOM is ready

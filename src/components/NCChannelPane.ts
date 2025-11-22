@@ -3,6 +3,7 @@ import './NCKeywordPanel';
 import './NCVariableList';
 import './NCToolList';
 import './NCExecutedList';
+import type { NCVariableList } from './NCVariableList';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
@@ -24,6 +25,22 @@ export class NCChannelPane extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    // Forward keyword-click events to the code pane
+    this.addEventListener('keyword-click', ((e: CustomEvent) => {
+      const codePaneElement = this.querySelector('nc-code-pane');
+      if (codePaneElement) {
+        codePaneElement.dispatchEvent(
+          new CustomEvent('keyword-click', {
+            detail: e.detail,
+            bubbles: false,
+          }),
+        );
+      }
+    }) as EventListener);
   }
 
   private render() {
@@ -44,6 +61,27 @@ export class NCChannelPane extends HTMLElement {
           font-weight: bold;
           display: flex;
           justify-content: space-between;
+          align-items: center;
+        }
+        .channel-controls {
+          display: flex;
+          gap: 4px;
+        }
+        .channel-button {
+          padding: 2px 8px;
+          background: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 11px;
+        }
+        .channel-button:hover {
+          background: #4c4c4c;
+        }
+        .channel-button.active {
+          background: #0e639c;
+          color: #fff;
         }
         .channel-content {
           display: flex;
@@ -58,7 +96,13 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-editor-area {
           flex: 1;
+          display: flex;
+          flex-direction: column;
           position: relative;
+        }
+        .channel-editor-wrapper {
+          flex: 1;
+          overflow: hidden;
         }
         .channel-tools-panel {
           height: 150px;
@@ -67,22 +111,35 @@ export class NCChannelPane extends HTMLElement {
       </style>
       <div class="channel-header">
         <span>Channel ${this.channelId}</span>
-        <div class="controls">
-          <!-- TODO: Add channel controls -->
+        <div class="channel-controls">
+          <button class="channel-button" id="toggle-variables">📊 Variables</button>
         </div>
       </div>
       <div class="channel-content">
         <div class="channel-sidebar">
           <nc-keyword-panel channel-id="${this.channelId}" style="flex: 1;"></nc-keyword-panel>
           <div class="channel-tools-panel">
-            <nc-tool-list></nc-tool-list>
+            <nc-tool-list channel-id="${this.channelId}"></nc-tool-list>
           </div>
         </div>
         <div class="channel-editor-area">
-          <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
+          <div class="channel-editor-wrapper">
+            <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
+          </div>
+          <nc-variable-list channel-id="${this.channelId}" id="variable-drawer"></nc-variable-list>
         </div>
       </div>
     `;
+
+    // Attach control listeners
+    const toggleVariablesBtn = this.querySelector('#toggle-variables');
+    toggleVariablesBtn?.addEventListener('click', () => {
+      const drawer = this.querySelector('#variable-drawer') as NCVariableList | null;
+      if (drawer) {
+        drawer.toggle();
+        toggleVariablesBtn.classList.toggle('active');
+      }
+    });
   }
 }
 

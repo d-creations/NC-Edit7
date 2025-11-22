@@ -48,6 +48,8 @@ export class BackendGateway {
 
     for (let attempt = 0; attempt < this.config.retries; attempt++) {
       try {
+        const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
         const response = await fetch(this.config.baseUrl, {
           method: 'POST',
           headers: {
@@ -56,6 +58,8 @@ export class BackendGateway {
           body: JSON.stringify(data),
           signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -72,7 +76,19 @@ export class BackendGateway {
         lastError = error as Error;
 
         if (error instanceof Error && error.name === 'AbortError') {
-          throw error;
+          // Convert timeout to more descriptive error
+          if (requestId) {
+            this.abortControllers.delete(requestId);
+          }
+          throw new Error('Request timeout - server may be offline or unreachable');
+        }
+
+        // Check for network errors
+        if (
+          error instanceof TypeError &&
+          (error.message.includes('fetch') || error.message.includes('NetworkError'))
+        ) {
+          console.warn(`Network error on attempt ${attempt + 1}: Server may be offline`);
         }
 
         // Wait before retry using bit shifting for efficiency
@@ -86,7 +102,12 @@ export class BackendGateway {
       this.abortControllers.delete(requestId);
     }
 
-    throw lastError || new Error('Request failed');
+    // Throw a more descriptive error
+    if (lastError instanceof TypeError) {
+      throw new Error('Server is offline or unreachable. Please check your connection.');
+    }
+
+    throw lastError || new Error('Request failed after multiple retries');
   }
 
   cancel(requestId: string): void {

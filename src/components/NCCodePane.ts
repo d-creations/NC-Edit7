@@ -1,7 +1,7 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { PARSER_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { ParserService } from '@services/ParserService';
-// @ts-ignore
+// @ts-expect-error - ACE module doesn't export types correctly
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
 import 'ace-builds/src-noconflict/theme-monokai';
@@ -31,6 +31,15 @@ export class NCCodePane extends HTMLElement {
   connectedCallback() {
     this.render();
     this.initEditor();
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    // Listen for keyword clicks
+    this.addEventListener('keyword-click', ((e: CustomEvent) => {
+      const lineNumber = e.detail.lineNumber;
+      this.scrollToLine(lineNumber);
+    }) as EventListener);
   }
 
   disconnectedCallback() {
@@ -74,9 +83,9 @@ export class NCCodePane extends HTMLElement {
     // Ensure the container has explicit dimensions before initializing ACE
     const rect = this.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
-        // Fallback if not yet laid out
-        editorElement.style.width = '100%';
-        editorElement.style.height = '100%';
+      // Fallback if not yet laid out
+      editorElement.style.width = '100%';
+      editorElement.style.height = '100%';
     }
 
     this.editor = ace.edit(editorElement, {
@@ -89,7 +98,7 @@ export class NCCodePane extends HTMLElement {
       readOnly: false,
       value: '%\nO0001 (TEST PROGRAM)\nG0 X100 Z100\nM30\n%', // Default content for testing
     });
-    
+
     // Use ResizeObserver to handle dynamic layout changes
     this.resizeObserver = new ResizeObserver(() => {
       this.editor?.resize();
@@ -101,12 +110,14 @@ export class NCCodePane extends HTMLElement {
 
     this.editor.on('change', () => {
       const value = this.editor?.getValue() || '';
-      this.dispatchEvent(new CustomEvent('code-change', {
-        detail: { channelId: this.channelId, code: value },
-        bubbles: true,
-        composed: true
-      }));
-      
+      this.dispatchEvent(
+        new CustomEvent('code-change', {
+          detail: { channelId: this.channelId, code: value },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+
       // Trigger parse
       this.parserService.parse(value, this.channelId);
     });
@@ -120,6 +131,34 @@ export class NCCodePane extends HTMLElement {
 
   getValue(): string {
     return this.editor?.getValue() || '';
+  }
+
+  scrollToLine(lineNumber: number): void {
+    if (!this.editor) return;
+
+    // Convert to 0-based index
+    const line = lineNumber - 1;
+
+    // Scroll to line
+    this.editor.scrollToLine(line, true, true, () => {
+      // Callback after scroll
+    });
+
+    // Select the line
+    this.editor.gotoLine(lineNumber, 0, true);
+
+    // Highlight the line temporarily
+    const Range = ace.require('ace/range').Range;
+    const marker = this.editor.session.addMarker(
+      new Range(line, 0, line, 1),
+      'ace_active-line',
+      'fullLine',
+    );
+
+    // Remove highlight after 2 seconds
+    setTimeout(() => {
+      this.editor?.session.removeMarker(marker);
+    }, 2000);
   }
 }
 
