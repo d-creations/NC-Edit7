@@ -220,6 +220,9 @@ export class ExecutedProgramService {
       timestamp: Date.now(),
     };
 
+    // Log raw canal data for debugging
+    console.log('ExecutedProgramService received canal payload:', serverResponse.canal);
+
     // Parse canal data and extract execution results
     if (serverResponse.canal && typeof serverResponse.canal === 'object') {
       const canalData = (serverResponse.canal as Record<string, any>)[channelId];

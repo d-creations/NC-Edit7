@@ -21,7 +21,6 @@ export class NCToolpathPlot extends BaseComponent {
   private cameraAltitude = 60;
   private altitudeStep = 10;
   private isAnimationPaused = false;
-  private center = new THREE.Vector3(0, 0, 0);
 
   protected onConnected(): void {
     const registry = getServiceRegistry();
@@ -75,6 +74,12 @@ export class NCToolpathPlot extends BaseComponent {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(width, height);
     container.appendChild(this.renderer.domElement);
+    console.log('Plot canvas initialized', {
+      canvas: this.renderer.domElement,
+      width,
+      height,
+      containerRect: container.getBoundingClientRect(),
+    });
 
     // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -150,90 +155,39 @@ export class NCToolpathPlot extends BaseComponent {
   }
 
   private updatePlot(channelId: ChannelId, segments: PlotSegment[]): void {
-    console.log(`[NCToolpathPlot] Updating plot for channel ${channelId} with ${segments.length} segments`);
+    console.log('NCToolpathPlot updatePlot', channelId, segments);
     // Remove existing mesh for this channel
     const existingMesh = this.channelMeshes.get(channelId);
     if (existingMesh) {
       this.scene.remove(existingMesh);
-      console.log(`[NCToolpathPlot] Removed existing mesh for channel ${channelId}`);
-    }
-
-    if (segments.length === 0) {
-      console.warn(`[NCToolpathPlot] No segments to plot for channel ${channelId}`);
-      return;
     }
 
     // Create new group for this channel
     const channelGroup = new THREE.Group();
-    let segmentCount = 0;
 
-    // Calculate bounds for auto-centering
-    const box = new THREE.Box3();
-
-    segments.forEach((segment, index) => {
-      if (segment.points.length < 2) {
-        console.warn(`[NCToolpathPlot] Segment ${index} has fewer than 2 points`);
-        return;
-      }
+    segments.forEach((segment) => {
+      if (segment.points.length < 2) return;
 
       const points: THREE.Vector3[] = [];
       segment.points.forEach((point) => {
-        const vec = new THREE.Vector3(point.x, point.z, -point.y);
-        points.push(vec);
-        box.expandByPoint(vec);
+        points.push(new THREE.Vector3(point.x, point.z, -point.y));
       });
 
-      try {
-        // Use CatmullRomCurve3 for smooth paths, but handle straight lines gracefully
-        const curve = new THREE.CatmullRomCurve3(points);
-        // tension=0 makes it closer to straight lines between points
-        curve.tension = 0; 
-        
-        const radius = segment.type === 'RAPID' ? 0.4 : 0.8;
-        const geometry = new THREE.TubeGeometry(curve, 8, radius, 8, false);
-        const material = new THREE.MeshStandardMaterial({
-          color: segment.type === 'RAPID' ? 0x79b4ff : 0x1f6eff,
-          roughness: 0.35,
-          metalness: 0.05,
-        });
+      const curve = new THREE.CatmullRomCurve3(points);
+      const radius = segment.type === 'RAPID' ? 0.4 : 0.8;
+      const geometry = new THREE.TubeGeometry(curve, 8, radius, 12, false);
+      const material = new THREE.MeshStandardMaterial({
+        color: segment.type === 'RAPID' ? 0x79b4ff : 0x1f6eff,
+        roughness: 0.35,
+        metalness: 0.05,
+      });
 
-        const tube = new THREE.Mesh(geometry, material);
-        channelGroup.add(tube);
-        segmentCount++;
-      } catch (e) {
-        console.error(`[NCToolpathPlot] Failed to create tube for segment ${index}`, e);
-        // Fallback to simple line if tube fails
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ color: 0xff0000 }); // Red for error/fallback
-        const line = new THREE.Line(geometry, material);
-        channelGroup.add(line);
-      }
+      const tube = new THREE.Mesh(geometry, material);
+      channelGroup.add(tube);
     });
 
-    console.log(`[NCToolpathPlot] Created ${segmentCount} tube segments for channel ${channelId}`);
     this.channelMeshes.set(channelId, channelGroup);
     this.scene.add(channelGroup);
-
-    // Auto-center if we have content
-    if (!box.isEmpty()) {
-      box.getCenter(this.center);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      
-      // Adjust camera to fit
-      this.cameraOrbitRadius = maxDim * 1.5 + 50;
-      this.cameraAltitude = maxDim + 50;
-      this.updateOrbitPosition();
-      
-      console.log(`[NCToolpathPlot] Auto-centered on ${this.center.toArray()}, radius: ${this.cameraOrbitRadius}`);
-    }
-    
-    // Check visibility immediately
-    const activeChannels = this.stateService.getActiveChannels();
-    // Fallback: if no channels are active, show this one
-    const isActive = activeChannels.length === 0 || activeChannels.some(ch => ch.id === channelId);
-    channelGroup.visible = isActive;
-    console.log(`[NCToolpathPlot] Channel ${channelId} visibility set to ${isActive} (Active channels: ${activeChannels.map(c => c.id).join(', ')})`);
   }
 
   private updateVisibleChannels(): void {
@@ -354,10 +308,10 @@ export class NCToolpathPlot extends BaseComponent {
     const safeX = this.camera.position.x || 0.0001;
     const safeZ = this.camera.position.z || 0.0001;
     const angle = time ?? Math.atan2(safeZ, safeX);
-    this.camera.position.x = Math.cos(angle) * this.cameraOrbitRadius + this.center.x;
-    this.camera.position.z = Math.sin(angle) * this.cameraOrbitRadius + this.center.z;
-    this.camera.position.y = this.cameraAltitude + this.center.y;
-    this.camera.lookAt(this.center);
+    this.camera.position.x = Math.cos(angle) * this.cameraOrbitRadius;
+    this.camera.position.z = Math.sin(angle) * this.cameraOrbitRadius;
+    this.camera.position.y = this.cameraAltitude;
+    this.camera.lookAt(0, 0, 0);
   }
 
   private getStyles(): string {
