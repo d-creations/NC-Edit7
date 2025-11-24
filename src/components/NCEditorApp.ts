@@ -8,6 +8,7 @@ import { SERVICE_TOKENS, type ChannelId, type ChannelState } from '@core/types';
 import type { StateService } from '@services/StateService';
 import type { MachineService } from '@services/MachineService';
 import type { EventBus } from '@services/EventBus';
+import type { ExecutedProgramService } from '@services/ExecutedProgramService';
 import './NCCodePane';
 import './NCKeywordPanel';
 import './NCVariableList';
@@ -21,6 +22,7 @@ export class NCEditorApp extends BaseComponent {
   private stateService!: StateService;
   private machineService!: MachineService;
   private eventBus!: EventBus;
+  private executedProgramService!: ExecutedProgramService;
   private channelIds: ChannelId[] = ['channel-1', 'channel-2', 'channel-3'];
   private channelStateCache = new Map<ChannelId, ChannelState>();
   private plotPanelWidth = 450;
@@ -29,6 +31,7 @@ export class NCEditorApp extends BaseComponent {
   private plotPanelVisible = true;
   private plotWrapperElement?: HTMLElement;
   private mainContentElement?: HTMLElement;
+  private executingChannels = new Set<ChannelId>();
 
   static get useShadow() {
     return false;
@@ -40,6 +43,9 @@ export class NCEditorApp extends BaseComponent {
     this.stateService = registry.get<StateService>(SERVICE_TOKENS.StateService);
     this.machineService = registry.get<MachineService>(SERVICE_TOKENS.MachineService);
     this.eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
+    this.executedProgramService = registry.get<ExecutedProgramService>(
+      SERVICE_TOKENS.ExecutedProgramService
+    );
 
     // Subscribe to events
     this.setupEventListeners();
@@ -459,7 +465,19 @@ M30`,
 
     const header = document.createElement('div');
     header.className = 'channel-header';
-    header.textContent = `${channel.id} - ${channel.machineId}`;
+    
+    const headerTitle = document.createElement('span');
+    headerTitle.className = 'channel-title';
+    headerTitle.textContent = `${channel.id} - ${channel.machineId}`;
+    header.appendChild(headerTitle);
+
+    const plotButton = document.createElement('button');
+    plotButton.className = 'plot-button';
+    plotButton.textContent = 'Plot';
+    plotButton.title = 'Execute program and generate plot';
+    plotButton.addEventListener('click', () => this.handlePlotRequest(channel.id));
+    header.appendChild(plotButton);
+
     pane.appendChild(header);
 
     const contentArea = document.createElement('div');
@@ -545,6 +563,46 @@ M30`,
     if (this.plotWrapperElement) {
       this.plotWrapperElement.style.width = `${clamped}px`;
       this.plotWrapperElement.classList.remove('collapsed');
+    }
+  }
+
+  private async handlePlotRequest(channelId: ChannelId): Promise<void> {
+    // Prevent multiple simultaneous executions for the same channel
+    if (this.executingChannels.has(channelId)) {
+      console.log(`Channel ${channelId} is already executing`);
+      return;
+    }
+
+    try {
+      this.executingChannels.add(channelId);
+      
+      // Show plot panel if hidden
+      if (!this.plotPanelVisible) {
+        this.plotPanelVisible = true;
+        this.requestRender();
+      }
+
+      // Update status bar
+      this.updateStatusBar(`Executing ${channelId}...`);
+
+      // Execute the channel program
+      await this.executedProgramService.executeChannel(channelId);
+
+      // Update status bar
+      this.updateStatusBar(`${channelId} execution completed`);
+    } catch (error) {
+      console.error(`Failed to execute ${channelId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.updateStatusBar(`${channelId} execution failed: ${errorMessage}`);
+    } finally {
+      this.executingChannels.delete(channelId);
+    }
+  }
+
+  private updateStatusBar(message: string): void {
+    const statusBar = this.root.querySelector('.status-bar');
+    if (statusBar) {
+      statusBar.textContent = message;
     }
   }
 
@@ -673,6 +731,39 @@ M30`,
         background: #2d2d30;
         border-bottom: 1px solid #3e3e42;
         font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      nc-editor-app .channel-title {
+        flex: 1;
+      }
+
+      nc-editor-app .plot-button {
+        padding: 5px 15px;
+        background: #0e639c;
+        border: none;
+        border-radius: 3px;
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      nc-editor-app .plot-button:hover {
+        background: #1177bb;
+      }
+
+      nc-editor-app .plot-button:active {
+        background: #0d5a8f;
+      }
+
+      nc-editor-app .plot-button:disabled {
+        background: #555;
+        cursor: not-allowed;
+        opacity: 0.6;
       }
 
       nc-editor-app .channel-content {
