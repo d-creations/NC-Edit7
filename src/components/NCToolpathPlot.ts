@@ -17,6 +17,11 @@ export class NCToolpathPlot extends BaseComponent {
   private renderer!: THREE.WebGLRenderer;
   private animationId?: number;
   private channelMeshes = new Map<ChannelId, THREE.Group>();
+  private cameraOrbitRadius = 90;
+  private cameraAltitude = 60;
+  private altitudeStep = 10;
+  private isAnimationPaused = false;
+  private center = new THREE.Vector3(0, 0, 0);
 
   protected onConnected(): void {
     const registry = getServiceRegistry();
@@ -57,13 +62,13 @@ export class NCToolpathPlot extends BaseComponent {
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1e1e1e);
+    this.scene.background = new THREE.Color(0xffffff);
 
     // Camera
     const width = container.clientWidth || 400;
     const height = container.clientHeight || 400;
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 2000);
-    this.camera.position.set(100, 100, 100);
+    this.camera.position.set(this.cameraOrbitRadius, this.cameraAltitude, this.cameraOrbitRadius);
     this.camera.lookAt(0, 0, 0);
 
     // Renderer
@@ -79,32 +84,57 @@ export class NCToolpathPlot extends BaseComponent {
     directionalLight.position.set(50, 100, 50);
     this.scene.add(directionalLight);
 
-    // Grid
-    const gridHelper = new THREE.GridHelper(200, 20, 0x444444, 0x222222);
-    this.scene.add(gridHelper);
-
-    // Axes
+    // Axes + helper sphere for visibility
     const axesHelper = new THREE.AxesHelper(50);
     this.scene.add(axesHelper);
+
+    const helperSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(3, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0xff3b3b })
+    );
+    helperSphere.position.set(0, 0, 0);
+    this.scene.add(helperSphere);
 
     // Handle resize
     window.addEventListener('resize', () => this.handleResize());
   }
 
   private animateScene = (): void => {
-    this.animationId = requestAnimationFrame(this.animateScene);
-
     // Rotate camera slowly
     const time = Date.now() * 0.0001;
-    this.camera.position.x = Math.cos(time) * 150;
-    this.camera.position.z = Math.sin(time) * 150;
-    this.camera.lookAt(0, 0, 0);
+    this.updateOrbitPosition(time);
 
     this.renderer.render(this.scene, this.camera);
+
+    if (!this.isAnimationPaused) {
+      this.animationId = requestAnimationFrame(this.animateScene);
+    }
   };
 
   private startAnimation(): void {
-    this.animateScene();
+    if (this.animationId) {
+      return;
+    }
+
+    this.isAnimationPaused = false;
+    this.animationId = requestAnimationFrame(this.animateScene);
+  }
+
+  private pauseAnimation(): void {
+    this.isAnimationPaused = true;
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = undefined;
+    }
+  }
+
+  private resumeAnimation(): void {
+    if (!this.isAnimationPaused) {
+      return;
+    }
+
+    this.isAnimationPaused = false;
+    this.animationId = requestAnimationFrame(this.animateScene);
   }
 
   private handleResize(): void {
@@ -120,40 +150,90 @@ export class NCToolpathPlot extends BaseComponent {
   }
 
   private updatePlot(channelId: ChannelId, segments: PlotSegment[]): void {
+    console.log(`[NCToolpathPlot] Updating plot for channel ${channelId} with ${segments.length} segments`);
     // Remove existing mesh for this channel
     const existingMesh = this.channelMeshes.get(channelId);
     if (existingMesh) {
       this.scene.remove(existingMesh);
+      console.log(`[NCToolpathPlot] Removed existing mesh for channel ${channelId}`);
+    }
+
+    if (segments.length === 0) {
+      console.warn(`[NCToolpathPlot] No segments to plot for channel ${channelId}`);
+      return;
     }
 
     // Create new group for this channel
     const channelGroup = new THREE.Group();
+    let segmentCount = 0;
 
-    // Channel colors
-    const channelColors = [0x4ec9b0, 0xdcdcaa, 0xce9178];
-    const channelIndex = parseInt(channelId.split('-')[1] || '1') - 1;
-    const color = channelColors[channelIndex] || 0x4ec9b0;
+    // Calculate bounds for auto-centering
+    const box = new THREE.Box3();
 
-    segments.forEach((segment) => {
-      if (segment.points.length < 2) return;
+    segments.forEach((segment, index) => {
+      if (segment.points.length < 2) {
+        console.warn(`[NCToolpathPlot] Segment ${index} has fewer than 2 points`);
+        return;
+      }
 
       const points: THREE.Vector3[] = [];
       segment.points.forEach((point) => {
-        points.push(new THREE.Vector3(point.x, point.z, -point.y)); // Note: Z up in CNC
+        const vec = new THREE.Vector3(point.x, point.z, -point.y);
+        points.push(vec);
+        box.expandByPoint(vec);
       });
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const material = new THREE.LineBasicMaterial({
-        color,
-        linewidth: segment.type === 'RAPID' ? 1 : 2,
-      });
+      try {
+        // Use CatmullRomCurve3 for smooth paths, but handle straight lines gracefully
+        const curve = new THREE.CatmullRomCurve3(points);
+        // tension=0 makes it closer to straight lines between points
+        curve.tension = 0; 
+        
+        const radius = segment.type === 'RAPID' ? 0.4 : 0.8;
+        const geometry = new THREE.TubeGeometry(curve, 8, radius, 8, false);
+        const material = new THREE.MeshStandardMaterial({
+          color: segment.type === 'RAPID' ? 0x79b4ff : 0x1f6eff,
+          roughness: 0.35,
+          metalness: 0.05,
+        });
 
-      const line = new THREE.Line(geometry, material);
-      channelGroup.add(line);
+        const tube = new THREE.Mesh(geometry, material);
+        channelGroup.add(tube);
+        segmentCount++;
+      } catch (e) {
+        console.error(`[NCToolpathPlot] Failed to create tube for segment ${index}`, e);
+        // Fallback to simple line if tube fails
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: 0xff0000 }); // Red for error/fallback
+        const line = new THREE.Line(geometry, material);
+        channelGroup.add(line);
+      }
     });
 
+    console.log(`[NCToolpathPlot] Created ${segmentCount} tube segments for channel ${channelId}`);
     this.channelMeshes.set(channelId, channelGroup);
     this.scene.add(channelGroup);
+
+    // Auto-center if we have content
+    if (!box.isEmpty()) {
+      box.getCenter(this.center);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Adjust camera to fit
+      this.cameraOrbitRadius = maxDim * 1.5 + 50;
+      this.cameraAltitude = maxDim + 50;
+      this.updateOrbitPosition();
+      
+      console.log(`[NCToolpathPlot] Auto-centered on ${this.center.toArray()}, radius: ${this.cameraOrbitRadius}`);
+    }
+    
+    // Check visibility immediately
+    const activeChannels = this.stateService.getActiveChannels();
+    // Fallback: if no channels are active, show this one
+    const isActive = activeChannels.length === 0 || activeChannels.some(ch => ch.id === channelId);
+    channelGroup.visible = isActive;
+    console.log(`[NCToolpathPlot] Channel ${channelId} visibility set to ${isActive} (Active channels: ${activeChannels.map(c => c.id).join(', ')})`);
   }
 
   private updateVisibleChannels(): void {
@@ -200,18 +280,84 @@ export class NCToolpathPlot extends BaseComponent {
     const controls = document.createElement('div');
     controls.className = 'plot-controls';
 
+    const zoomInBtn = document.createElement('button');
+    zoomInBtn.className = 'control-btn';
+    zoomInBtn.textContent = 'Zoom In';
+    zoomInBtn.addEventListener('click', () => this.zoomIn());
+
+    const zoomOutBtn = document.createElement('button');
+    zoomOutBtn.className = 'control-btn';
+    zoomOutBtn.textContent = 'Zoom Out';
+    zoomOutBtn.addEventListener('click', () => this.zoomOut());
+
+    const altitudeUpBtn = document.createElement('button');
+    altitudeUpBtn.className = 'control-btn';
+    altitudeUpBtn.textContent = 'Altitude +';
+    altitudeUpBtn.addEventListener('click', () => this.adjustAltitude(this.altitudeStep));
+
+    const altitudeDownBtn = document.createElement('button');
+    altitudeDownBtn.className = 'control-btn';
+    altitudeDownBtn.textContent = 'Altitude -';
+    altitudeDownBtn.addEventListener('click', () => this.adjustAltitude(-this.altitudeStep));
+
+    const toggleAnimBtn = document.createElement('button');
+    toggleAnimBtn.className = 'control-btn';
+    toggleAnimBtn.textContent = 'Pause Orbit';
+    toggleAnimBtn.addEventListener('click', () => this.toggleAnimation(toggleAnimBtn));
+
     const resetBtn = document.createElement('button');
     resetBtn.className = 'control-btn';
     resetBtn.textContent = 'Reset View';
     resetBtn.addEventListener('click', () => this.resetView());
 
+    controls.appendChild(zoomInBtn);
+    controls.appendChild(zoomOutBtn);
+    controls.appendChild(altitudeUpBtn);
+    controls.appendChild(altitudeDownBtn);
+    controls.appendChild(toggleAnimBtn);
     controls.appendChild(resetBtn);
     return controls;
   }
 
   private resetView(): void {
-    this.camera.position.set(100, 100, 100);
-    this.camera.lookAt(0, 0, 0);
+    this.cameraOrbitRadius = 90;
+    this.cameraAltitude = 60;
+    this.updateOrbitPosition();
+  }
+
+  private zoomIn(): void {
+    this.cameraOrbitRadius = Math.max(20, this.cameraOrbitRadius - 15);
+    this.updateOrbitPosition();
+  }
+
+  private zoomOut(): void {
+    this.cameraOrbitRadius = Math.min(600, this.cameraOrbitRadius + 25);
+    this.updateOrbitPosition();
+  }
+
+  private adjustAltitude(delta: number): void {
+    this.cameraAltitude = Math.min(400, Math.max(15, this.cameraAltitude + delta));
+    this.updateOrbitPosition();
+  }
+
+  private toggleAnimation(button: HTMLButtonElement): void {
+    if (this.isAnimationPaused) {
+      this.resumeAnimation();
+      button.textContent = 'Pause Orbit';
+    } else {
+      this.pauseAnimation();
+      button.textContent = 'Resume Orbit';
+    }
+  }
+
+  private updateOrbitPosition(time?: number): void {
+    const safeX = this.camera.position.x || 0.0001;
+    const safeZ = this.camera.position.z || 0.0001;
+    const angle = time ?? Math.atan2(safeZ, safeX);
+    this.camera.position.x = Math.cos(angle) * this.cameraOrbitRadius + this.center.x;
+    this.camera.position.z = Math.sin(angle) * this.cameraOrbitRadius + this.center.z;
+    this.camera.position.y = this.cameraAltitude + this.center.y;
+    this.camera.lookAt(this.center);
   }
 
   private getStyles(): string {
@@ -227,18 +373,18 @@ export class NCToolpathPlot extends BaseComponent {
         flex-direction: column;
         width: 100%;
         height: 100%;
-        background: #1e1e1e;
-        color: #d4d4d4;
+        background: #ffffff;
+        color: #1b1b1b;
       }
 
       .plot-header {
         padding: 10px 15px;
-        background: #2d2d30;
-        border-bottom: 1px solid #3e3e42;
+        background: #f4f4f4;
+        border-bottom: 1px solid #e0e0e0;
         font-weight: 500;
         font-size: 13px;
         text-transform: uppercase;
-        color: #888;
+        color: #555;
       }
 
       .plot-container {
@@ -255,25 +401,27 @@ export class NCToolpathPlot extends BaseComponent {
 
       .plot-controls {
         padding: 10px;
-        background: #252526;
-        border-top: 1px solid #3e3e42;
+        background: #f9f9f9;
+        border-top: 1px solid #dcdcdc;
         display: flex;
         gap: 10px;
+        justify-content: flex-end;
       }
 
       .control-btn {
-        padding: 6px 12px;
-        background: #0e639c;
+        padding: 6px 14px;
+        background: #1a73e8;
         border: none;
         border-radius: 3px;
         color: white;
         font-size: 12px;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background 0.2s, transform 0.2s;
       }
 
       .control-btn:hover {
-        background: #1177bb;
+        background: #1558b8;
+        transform: translateY(-1px);
       }
     `;
   }

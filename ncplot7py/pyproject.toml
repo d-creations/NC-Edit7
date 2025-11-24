@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ncplot7py"
+version = "0.0.1"
+description = "ncplot7py — plotting and utilities for NetCDF data"
+readme = "README.md"
+license = { text = "See LICENSE" }
+authors = [ { name = "d-creations" } ]
+requires-python = ">=3.8"
+dependencies = []
+
+
+[tool.testing]
+# Test policy: prefer the Python standard library test tools (unittest, doctest, unittest.mock).
+# Use third-party test runners only with explicit justification and PR rationale.
+test-command = "python -m unittest discover -s tests -p 'test_*.py'"
+doctest-command = "python -m doctest -v src/ncplot7py/*.py"
+# CI-run command (PowerShell friendly):
+# powershell: python -m unittest discover -s tests -p 'test_*.py'
+
+[project.optional-dependencies]
+plotting = ["matplotlib>=3.0,<4.0"]
+
