@@ -22,7 +22,10 @@ export class ParserService {
     // For now, we'll do basic parsing on the main thread
   }
 
-  async parse(program: string, channelId: string): Promise<{ result: NcParseResult; artifacts: ParseArtifacts }> {
+  async parse(
+    program: string,
+    channelId: string,
+  ): Promise<{ result: NcParseResult; artifacts: ParseArtifacts }> {
     try {
       // Basic parsing logic - in production this would be in a worker
       const lines = program.split('\n');

@@ -1,11 +1,11 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
-import type { ParseArtifacts, NcParseResult } from '@core/types';
+import type { ParseArtifacts, NcParseResult, KeywordEntry } from '@core/types';
 
 export class NCKeywordPanel extends HTMLElement {
   private eventBus: EventBus;
-  private keywords: any[] = [];
+  private keywords: KeywordEntry[] = [];
   private channelId: string = '';
 
   static get observedAttributes() {
@@ -26,12 +26,15 @@ export class NCKeywordPanel extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    this.eventBus.subscribe(EVENT_NAMES.PARSE_COMPLETED, (data: { channelId: string; result: NcParseResult; artifacts: ParseArtifacts }) => {
-      if (data.channelId === this.channelId) {
-        this.keywords = data.artifacts.keywords;
-        this.updateList();
-      }
-    });
+    this.eventBus.subscribe(
+      EVENT_NAMES.PARSE_COMPLETED,
+      (data: { channelId: string; result: NcParseResult; artifacts: ParseArtifacts }) => {
+        if (data.channelId === this.channelId) {
+          this.keywords = data.artifacts.keywords;
+          this.updateList();
+        }
+      },
+    );
   }
 
   private render() {
@@ -74,7 +77,7 @@ export class NCKeywordPanel extends HTMLElement {
     if (!list) return;
 
     list.innerHTML = '';
-    this.keywords.forEach(k => {
+    this.keywords.forEach((k) => {
       const item = document.createElement('div');
       item.className = 'keyword-item';
       item.innerHTML = `
@@ -82,11 +85,13 @@ export class NCKeywordPanel extends HTMLElement {
         <span class="keyword">${k.keyword}</span>
       `;
       item.addEventListener('click', () => {
-        this.dispatchEvent(new CustomEvent('keyword-click', {
-          detail: { lineNumber: k.lineNumber },
-          bubbles: true,
-          composed: true
-        }));
+        this.dispatchEvent(
+          new CustomEvent('keyword-click', {
+            detail: { lineNumber: k.lineNumber },
+            bubbles: true,
+            composed: true,
+          }),
+        );
       });
       list.appendChild(item);
     });
