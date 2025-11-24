@@ -34,6 +34,7 @@ export class NCToolpathPlot extends BaseComponent {
   private isAutoRotating = true;
   private currentBgColorIndex = 0;
   private resizeObserver?: ResizeObserver;
+  private resizeTimeout?: ReturnType<typeof setTimeout>;
 
   // Deep zoom settings
   private readonly minDistance = 5;
@@ -52,6 +53,9 @@ export class NCToolpathPlot extends BaseComponent {
     this.cleanupScene();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
     }
   }
 
@@ -89,7 +93,8 @@ export class NCToolpathPlot extends BaseComponent {
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(BACKGROUND_COLORS[this.currentBgColorIndex]!.color);
+    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex]?.color ?? BACKGROUND_COLORS[0]!.color;
+    this.scene.background = new THREE.Color(bgColor);
 
     // Camera
     const width = container.clientWidth || 400;
@@ -150,8 +155,13 @@ export class NCToolpathPlot extends BaseComponent {
 
     this.isSceneInitialized = true;
 
-    // Handle resize with ResizeObserver for better responsiveness
-    this.resizeObserver = new ResizeObserver(() => this.handleResize());
+    // Handle resize with ResizeObserver (debounced for better performance)
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+      this.resizeTimeout = setTimeout(() => this.handleResize(), 100);
+    });
     this.resizeObserver.observe(container);
 
     // Process any pending plot data
@@ -204,6 +214,14 @@ export class NCToolpathPlot extends BaseComponent {
     this.addPlotToScene(channelId, segments);
   }
 
+  private disposeMaterial(material: THREE.Material | THREE.Material[]): void {
+    if (Array.isArray(material)) {
+      material.forEach((m) => m.dispose());
+    } else {
+      material.dispose();
+    }
+  }
+
   private addPlotToScene(channelId: ChannelId, segments: PlotSegment[]): void {
     // Remove existing mesh for this channel
     const existingMesh = this.channelMeshes.get(channelId);
@@ -212,9 +230,7 @@ export class NCToolpathPlot extends BaseComponent {
       existingMesh.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.geometry.dispose();
-          if (child.material instanceof THREE.Material) {
-            child.material.dispose();
-          }
+          this.disposeMaterial(child.material);
         }
       });
     }
@@ -231,7 +247,8 @@ export class NCToolpathPlot extends BaseComponent {
       });
 
       const curve = new THREE.CatmullRomCurve3(points);
-      const segmentCount = Math.max(points.length * 4, 16);
+      // Cap segment count to prevent performance issues with large point arrays
+      const segmentCount = Math.min(Math.max(points.length * 4, 16), 128);
       const radius = segment.type === 'RAPID' ? 0.5 : 1.0;
       const geometry = new THREE.TubeGeometry(curve, segmentCount, radius, 8, false);
       const material = new THREE.MeshStandardMaterial({
@@ -458,7 +475,7 @@ export class NCToolpathPlot extends BaseComponent {
 
   private cycleBackgroundColor(button: HTMLButtonElement): void {
     this.currentBgColorIndex = (this.currentBgColorIndex + 1) % BACKGROUND_COLORS.length;
-    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex]!;
+    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex] ?? BACKGROUND_COLORS[0]!;
 
     if (this.scene) {
       this.scene.background = new THREE.Color(bgColor.color);
