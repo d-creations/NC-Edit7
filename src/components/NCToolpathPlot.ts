@@ -8,6 +8,17 @@ import { SERVICE_TOKENS, type ChannelId, type PlotSegment } from '@core/types';
 import type { StateService } from '@services/StateService';
 import type { EventBus } from '@services/EventBus';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+// Predefined background colors
+const BACKGROUND_COLORS = [
+  { name: 'White', color: 0xffffff },
+  { name: 'Light Gray', color: 0xf0f0f0 },
+  { name: 'Dark Gray', color: 0x2d2d30 },
+  { name: 'Black', color: 0x1e1e1e },
+  { name: 'Navy', color: 0x1a1a2e },
+  { name: 'Blue', color: 0x0a192f },
+];
 
 export class NCToolpathPlot extends BaseComponent {
   private stateService!: StateService;
@@ -15,12 +26,20 @@ export class NCToolpathPlot extends BaseComponent {
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private renderer!: THREE.WebGLRenderer;
+  private orbitControls!: OrbitControls;
   private animationId?: number;
   private channelMeshes = new Map<ChannelId, THREE.Group>();
-  private cameraOrbitRadius = 90;
-  private cameraAltitude = 60;
-  private altitudeStep = 10;
-  private isAnimationPaused = false;
+  private pendingPlotData = new Map<ChannelId, PlotSegment[]>();
+  private isSceneInitialized = false;
+  private isAutoRotating = true;
+  private currentBgColorIndex = 0;
+  private resizeObserver?: ResizeObserver;
+  private resizeTimeout?: ReturnType<typeof setTimeout>;
+
+  // Deep zoom settings
+  private readonly minDistance = 5;
+  private readonly maxDistance = 1000;
+  private readonly defaultDistance = 120;
 
   protected onConnected(): void {
     const registry = getServiceRegistry();
@@ -28,17 +47,30 @@ export class NCToolpathPlot extends BaseComponent {
     this.eventBus = registry.get<EventBus>(SERVICE_TOKENS.EventBus);
 
     this.setupEventListeners();
-    this.initializeScene();
-    this.startAnimation();
   }
 
   protected onDisconnected(): void {
+    this.cleanupScene();
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+    }
+  }
+
+  private cleanupScene(): void {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
+      this.animationId = undefined;
+    }
+    if (this.orbitControls) {
+      this.orbitControls.dispose();
     }
     if (this.renderer) {
       this.renderer.dispose();
     }
+    this.isSceneInitialized = false;
   }
 
   private setupEventListeners(): void {
@@ -57,97 +89,116 @@ export class NCToolpathPlot extends BaseComponent {
 
   private initializeScene(): void {
     const container = this.query<HTMLDivElement>('.plot-container');
-    if (!container) return;
+    if (!container || this.isSceneInitialized) return;
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xffffff);
+    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex]?.color ?? BACKGROUND_COLORS[0]!.color;
+    this.scene.background = new THREE.Color(bgColor);
 
     // Camera
     const width = container.clientWidth || 400;
     const height = container.clientHeight || 400;
-    this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 2000);
-    this.camera.position.set(this.cameraOrbitRadius, this.cameraAltitude, this.cameraOrbitRadius);
+    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 5000);
+    this.camera.position.set(
+      this.defaultDistance,
+      this.defaultDistance * 0.7,
+      this.defaultDistance
+    );
     this.camera.lookAt(0, 0, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(this.renderer.domElement);
-    console.log('Plot canvas initialized', {
-      canvas: this.renderer.domElement,
-      width,
-      height,
-      containerRect: container.getBoundingClientRect(),
-    });
+
+    // OrbitControls for 3D mouse interaction
+    this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.orbitControls.enableDamping = true;
+    this.orbitControls.dampingFactor = 0.05;
+    this.orbitControls.minDistance = this.minDistance;
+    this.orbitControls.maxDistance = this.maxDistance;
+    this.orbitControls.autoRotate = this.isAutoRotating;
+    this.orbitControls.autoRotateSpeed = 1.0;
+    this.orbitControls.enablePan = true;
+    this.orbitControls.enableZoom = true;
+    this.orbitControls.target.set(0, 0, 0);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(50, 100, 50);
     this.scene.add(directionalLight);
 
-    // Axes + helper sphere for visibility
-    const axesHelper = new THREE.AxesHelper(50);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight2.position.set(-50, 50, -50);
+    this.scene.add(directionalLight2);
+
+    // Grid helper for better orientation
+    const gridHelper = new THREE.GridHelper(200, 20, 0x888888, 0xcccccc);
+    this.scene.add(gridHelper);
+
+    // Axes helper
+    const axesHelper = new THREE.AxesHelper(60);
     this.scene.add(axesHelper);
 
+    // Origin marker sphere
     const helperSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(3, 12, 12),
+      new THREE.SphereGeometry(2, 16, 16),
       new THREE.MeshBasicMaterial({ color: 0xff3b3b })
     );
     helperSphere.position.set(0, 0, 0);
     this.scene.add(helperSphere);
 
-    // Handle resize
-    window.addEventListener('resize', () => this.handleResize());
+    this.isSceneInitialized = true;
+
+    // Handle resize with ResizeObserver (debounced for better performance)
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+      this.resizeTimeout = setTimeout(() => this.handleResize(), 100);
+    });
+    this.resizeObserver.observe(container);
+
+    // Process any pending plot data
+    this.processPendingPlotData();
+
+    // Start animation
+    this.startAnimation();
+  }
+
+  private processPendingPlotData(): void {
+    this.pendingPlotData.forEach((segments, channelId) => {
+      this.addPlotToScene(channelId, segments);
+    });
+    this.pendingPlotData.clear();
   }
 
   private animateScene = (): void => {
-    // Rotate camera slowly
-    const time = Date.now() * 0.0001;
-    this.updateOrbitPosition(time);
-
+    this.orbitControls.update();
     this.renderer.render(this.scene, this.camera);
-
-    if (!this.isAnimationPaused) {
-      this.animationId = requestAnimationFrame(this.animateScene);
-    }
+    this.animationId = requestAnimationFrame(this.animateScene);
   };
 
   private startAnimation(): void {
     if (this.animationId) {
       return;
     }
-
-    this.isAnimationPaused = false;
-    this.animationId = requestAnimationFrame(this.animateScene);
-  }
-
-  private pauseAnimation(): void {
-    this.isAnimationPaused = true;
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = undefined;
-    }
-  }
-
-  private resumeAnimation(): void {
-    if (!this.isAnimationPaused) {
-      return;
-    }
-
-    this.isAnimationPaused = false;
     this.animationId = requestAnimationFrame(this.animateScene);
   }
 
   private handleResize(): void {
     const container = this.query<HTMLDivElement>('.plot-container');
-    if (!container) return;
+    if (!container || !this.renderer || !this.camera) return;
 
     const width = container.clientWidth;
     const height = container.clientHeight;
+
+    if (width === 0 || height === 0) return;
 
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
@@ -155,11 +206,33 @@ export class NCToolpathPlot extends BaseComponent {
   }
 
   private updatePlot(channelId: ChannelId, segments: PlotSegment[]): void {
-    console.log('NCToolpathPlot updatePlot', channelId, segments);
+    if (!this.isSceneInitialized) {
+      // Store data for later if scene not ready
+      this.pendingPlotData.set(channelId, segments);
+      return;
+    }
+    this.addPlotToScene(channelId, segments);
+  }
+
+  private disposeMaterial(material: THREE.Material | THREE.Material[]): void {
+    if (Array.isArray(material)) {
+      material.forEach((m) => m.dispose());
+    } else {
+      material.dispose();
+    }
+  }
+
+  private addPlotToScene(channelId: ChannelId, segments: PlotSegment[]): void {
     // Remove existing mesh for this channel
     const existingMesh = this.channelMeshes.get(channelId);
     if (existingMesh) {
       this.scene.remove(existingMesh);
+      existingMesh.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          this.disposeMaterial(child.material);
+        }
+      });
     }
 
     // Create new group for this channel
@@ -174,12 +247,14 @@ export class NCToolpathPlot extends BaseComponent {
       });
 
       const curve = new THREE.CatmullRomCurve3(points);
-      const radius = segment.type === 'RAPID' ? 0.4 : 0.8;
-      const geometry = new THREE.TubeGeometry(curve, 8, radius, 12, false);
+      // Cap segment count to prevent performance issues with large point arrays
+      const segmentCount = Math.min(Math.max(points.length * 4, 16), 128);
+      const radius = segment.type === 'RAPID' ? 0.5 : 1.0;
+      const geometry = new THREE.TubeGeometry(curve, segmentCount, radius, 8, false);
       const material = new THREE.MeshStandardMaterial({
         color: segment.type === 'RAPID' ? 0x79b4ff : 0x1f6eff,
-        roughness: 0.35,
-        metalness: 0.05,
+        roughness: 0.4,
+        metalness: 0.1,
       });
 
       const tube = new THREE.Mesh(geometry, material);
@@ -188,9 +263,44 @@ export class NCToolpathPlot extends BaseComponent {
 
     this.channelMeshes.set(channelId, channelGroup);
     this.scene.add(channelGroup);
+
+    // Auto-fit view to show new content
+    this.fitViewToContent();
+  }
+
+  private fitViewToContent(): void {
+    if (!this.orbitControls || !this.camera) return;
+
+    // Calculate bounding box of all channel meshes
+    const box = new THREE.Box3();
+    let hasContent = false;
+
+    this.channelMeshes.forEach((group) => {
+      if (group.visible) {
+        box.expandByObject(group);
+        hasContent = true;
+      }
+    });
+
+    if (!hasContent) return;
+
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    // Set orbit target to center of content
+    this.orbitControls.target.copy(center);
+
+    // Position camera at appropriate distance
+    const distance = Math.max(maxDim * 2, this.defaultDistance);
+    const direction = this.camera.position.clone().sub(center).normalize();
+    this.camera.position.copy(center).add(direction.multiplyScalar(distance));
+
+    this.orbitControls.update();
   }
 
   private updateVisibleChannels(): void {
+    if (!this.stateService) return;
     const activeChannels = this.stateService.getActiveChannels();
     const activeIds = new Set(activeChannels.map((ch) => ch.id));
 
@@ -201,6 +311,9 @@ export class NCToolpathPlot extends BaseComponent {
   }
 
   protected render(): void {
+    // Clean up existing scene before re-render
+    this.cleanupScene();
+
     this.shadow.innerHTML = '';
     this.shadow.appendChild(this.createStyles(this.getStyles()));
 
@@ -221,97 +334,154 @@ export class NCToolpathPlot extends BaseComponent {
 
     this.shadow.appendChild(container);
 
-    // Initialize scene after render
-    setTimeout(() => {
-      if (!this.renderer) {
-        this.initializeScene();
-        this.startAnimation();
-      }
-    }, 0);
+    // Initialize scene after DOM is ready
+    requestAnimationFrame(() => {
+      this.initializeScene();
+    });
   }
 
   private createControls(): HTMLElement {
     const controls = document.createElement('div');
     controls.className = 'plot-controls';
 
+    // Row 1: Zoom and view controls
+    const row1 = document.createElement('div');
+    row1.className = 'control-row';
+
+    const deepZoomInBtn = document.createElement('button');
+    deepZoomInBtn.className = 'control-btn';
+    deepZoomInBtn.textContent = 'Zoom ++';
+    deepZoomInBtn.title = 'Deep zoom in (close view)';
+    deepZoomInBtn.addEventListener('click', () => this.deepZoomIn());
+
     const zoomInBtn = document.createElement('button');
     zoomInBtn.className = 'control-btn';
-    zoomInBtn.textContent = 'Zoom In';
+    zoomInBtn.textContent = 'Zoom +';
     zoomInBtn.addEventListener('click', () => this.zoomIn());
 
     const zoomOutBtn = document.createElement('button');
     zoomOutBtn.className = 'control-btn';
-    zoomOutBtn.textContent = 'Zoom Out';
+    zoomOutBtn.textContent = 'Zoom -';
     zoomOutBtn.addEventListener('click', () => this.zoomOut());
 
-    const altitudeUpBtn = document.createElement('button');
-    altitudeUpBtn.className = 'control-btn';
-    altitudeUpBtn.textContent = 'Altitude +';
-    altitudeUpBtn.addEventListener('click', () => this.adjustAltitude(this.altitudeStep));
+    const deepZoomOutBtn = document.createElement('button');
+    deepZoomOutBtn.className = 'control-btn';
+    deepZoomOutBtn.textContent = 'Zoom --';
+    deepZoomOutBtn.title = 'Deep zoom out (far view)';
+    deepZoomOutBtn.addEventListener('click', () => this.deepZoomOut());
 
-    const altitudeDownBtn = document.createElement('button');
-    altitudeDownBtn.className = 'control-btn';
-    altitudeDownBtn.textContent = 'Altitude -';
-    altitudeDownBtn.addEventListener('click', () => this.adjustAltitude(-this.altitudeStep));
+    row1.appendChild(deepZoomInBtn);
+    row1.appendChild(zoomInBtn);
+    row1.appendChild(zoomOutBtn);
+    row1.appendChild(deepZoomOutBtn);
 
-    const toggleAnimBtn = document.createElement('button');
-    toggleAnimBtn.className = 'control-btn';
-    toggleAnimBtn.textContent = 'Pause Orbit';
-    toggleAnimBtn.addEventListener('click', () => this.toggleAnimation(toggleAnimBtn));
+    // Row 2: 3D control and settings
+    const row2 = document.createElement('div');
+    row2.className = 'control-row';
+
+    const toggleRotateBtn = document.createElement('button');
+    toggleRotateBtn.className = 'control-btn';
+    toggleRotateBtn.textContent = this.isAutoRotating ? 'Stop Rotate' : 'Auto Rotate';
+    toggleRotateBtn.addEventListener('click', () => this.toggleAutoRotate(toggleRotateBtn));
+
+    const fitViewBtn = document.createElement('button');
+    fitViewBtn.className = 'control-btn';
+    fitViewBtn.textContent = 'Fit View';
+    fitViewBtn.title = 'Fit view to content';
+    fitViewBtn.addEventListener('click', () => this.fitViewToContent());
 
     const resetBtn = document.createElement('button');
     resetBtn.className = 'control-btn';
-    resetBtn.textContent = 'Reset View';
+    resetBtn.textContent = 'Reset';
     resetBtn.addEventListener('click', () => this.resetView());
 
-    controls.appendChild(zoomInBtn);
-    controls.appendChild(zoomOutBtn);
-    controls.appendChild(altitudeUpBtn);
-    controls.appendChild(altitudeDownBtn);
-    controls.appendChild(toggleAnimBtn);
-    controls.appendChild(resetBtn);
+    const bgColorBtn = document.createElement('button');
+    bgColorBtn.className = 'control-btn bg-color-btn';
+    bgColorBtn.textContent = 'BG Color';
+    bgColorBtn.title = 'Change background color';
+    bgColorBtn.addEventListener('click', () => this.cycleBackgroundColor(bgColorBtn));
+
+    row2.appendChild(toggleRotateBtn);
+    row2.appendChild(fitViewBtn);
+    row2.appendChild(resetBtn);
+    row2.appendChild(bgColorBtn);
+
+    // Info text
+    const infoText = document.createElement('div');
+    infoText.className = 'control-info';
+    infoText.textContent = 'Mouse: drag to rotate, scroll to zoom, right-drag to pan';
+
+    controls.appendChild(row1);
+    controls.appendChild(row2);
+    controls.appendChild(infoText);
+
     return controls;
   }
 
   private resetView(): void {
-    this.cameraOrbitRadius = 90;
-    this.cameraAltitude = 60;
-    this.updateOrbitPosition();
+    if (!this.orbitControls || !this.camera) return;
+
+    this.camera.position.set(
+      this.defaultDistance,
+      this.defaultDistance * 0.7,
+      this.defaultDistance
+    );
+    this.orbitControls.target.set(0, 0, 0);
+    this.orbitControls.update();
   }
 
   private zoomIn(): void {
-    this.cameraOrbitRadius = Math.max(20, this.cameraOrbitRadius - 15);
-    this.updateOrbitPosition();
+    if (!this.orbitControls) return;
+    const currentDistance = this.camera.position.distanceTo(this.orbitControls.target);
+    const newDistance = Math.max(this.minDistance, currentDistance * 0.75);
+    this.setZoomDistance(newDistance);
   }
 
   private zoomOut(): void {
-    this.cameraOrbitRadius = Math.min(600, this.cameraOrbitRadius + 25);
-    this.updateOrbitPosition();
+    if (!this.orbitControls) return;
+    const currentDistance = this.camera.position.distanceTo(this.orbitControls.target);
+    const newDistance = Math.min(this.maxDistance, currentDistance * 1.33);
+    this.setZoomDistance(newDistance);
   }
 
-  private adjustAltitude(delta: number): void {
-    this.cameraAltitude = Math.min(400, Math.max(15, this.cameraAltitude + delta));
-    this.updateOrbitPosition();
+  private deepZoomIn(): void {
+    if (!this.orbitControls) return;
+    const currentDistance = this.camera.position.distanceTo(this.orbitControls.target);
+    const newDistance = Math.max(this.minDistance, currentDistance * 0.4);
+    this.setZoomDistance(newDistance);
   }
 
-  private toggleAnimation(button: HTMLButtonElement): void {
-    if (this.isAnimationPaused) {
-      this.resumeAnimation();
-      button.textContent = 'Pause Orbit';
-    } else {
-      this.pauseAnimation();
-      button.textContent = 'Resume Orbit';
+  private deepZoomOut(): void {
+    if (!this.orbitControls) return;
+    const currentDistance = this.camera.position.distanceTo(this.orbitControls.target);
+    const newDistance = Math.min(this.maxDistance, currentDistance * 2.5);
+    this.setZoomDistance(newDistance);
+  }
+
+  private setZoomDistance(distance: number): void {
+    if (!this.orbitControls || !this.camera) return;
+    const direction = this.camera.position.clone().sub(this.orbitControls.target).normalize();
+    this.camera.position.copy(this.orbitControls.target).add(direction.multiplyScalar(distance));
+    this.orbitControls.update();
+  }
+
+  private toggleAutoRotate(button: HTMLButtonElement): void {
+    this.isAutoRotating = !this.isAutoRotating;
+    if (this.orbitControls) {
+      this.orbitControls.autoRotate = this.isAutoRotating;
     }
+    button.textContent = this.isAutoRotating ? 'Stop Rotate' : 'Auto Rotate';
   }
 
-  private updateOrbitPosition(time?: number): void {
-    const safeX = this.camera.position.x || 0.0001;
-    const safeZ = this.camera.position.z || 0.0001;
-    const angle = time ?? Math.atan2(safeZ, safeX);
-    this.camera.position.x = Math.cos(angle) * this.cameraOrbitRadius;
-    this.camera.position.z = Math.sin(angle) * this.cameraOrbitRadius;
-    this.camera.position.y = this.cameraAltitude;
-    this.camera.lookAt(0, 0, 0);
+  private cycleBackgroundColor(button: HTMLButtonElement): void {
+    this.currentBgColorIndex = (this.currentBgColorIndex + 1) % BACKGROUND_COLORS.length;
+    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex] ?? BACKGROUND_COLORS[0]!;
+
+    if (this.scene) {
+      this.scene.background = new THREE.Color(bgColor.color);
+    }
+
+    button.title = `Background: ${bgColor.name}`;
   }
 
   private getStyles(): string {
@@ -345,6 +515,7 @@ export class NCToolpathPlot extends BaseComponent {
         flex: 1;
         position: relative;
         overflow: hidden;
+        min-height: 200px;
       }
 
       .plot-container canvas {
@@ -354,28 +525,54 @@ export class NCToolpathPlot extends BaseComponent {
       }
 
       .plot-controls {
-        padding: 10px;
+        padding: 8px 10px;
         background: #f9f9f9;
         border-top: 1px solid #dcdcdc;
         display: flex;
-        gap: 10px;
-        justify-content: flex-end;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .control-row {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: wrap;
       }
 
       .control-btn {
-        padding: 6px 14px;
+        padding: 5px 10px;
         background: #1a73e8;
         border: none;
         border-radius: 3px;
         color: white;
-        font-size: 12px;
+        font-size: 11px;
         cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
+        transition: background 0.2s, transform 0.1s;
       }
 
       .control-btn:hover {
         background: #1558b8;
         transform: translateY(-1px);
+      }
+
+      .control-btn:active {
+        transform: translateY(0);
+      }
+
+      .bg-color-btn {
+        background: #6c757d;
+      }
+
+      .bg-color-btn:hover {
+        background: #5a6268;
+      }
+
+      .control-info {
+        text-align: center;
+        font-size: 10px;
+        color: #888;
+        padding-top: 2px;
       }
     `;
   }
