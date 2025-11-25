@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import {
   PLOT_SERVICE_TOKEN,
@@ -16,6 +17,7 @@ export class NCToolpathPlot extends HTMLElement {
   private scene?: THREE.Scene;
   private camera?: THREE.PerspectiveCamera;
   private renderer?: THREE.WebGLRenderer;
+  private controls?: OrbitControls;
   private plotService: PlotService;
   private eventBus: EventBus;
   private executedProgramService: ExecutedProgramService;
@@ -48,6 +50,9 @@ export class NCToolpathPlot extends HTMLElement {
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.controls) {
+      this.controls.dispose();
     }
     if (this.renderer) {
       this.renderer.dispose();
@@ -104,6 +109,7 @@ export class NCToolpathPlot extends HTMLElement {
           display: flex;
           gap: 4px;
           z-index: 10;
+          flex-wrap: wrap;
         }
         .plot-button {
           padding: 4px 8px;
@@ -129,6 +135,36 @@ export class NCToolpathPlot extends HTMLElement {
           opacity: 0.5;
           cursor: not-allowed;
         }
+        .plot-button.active {
+          background: #0e639c;
+          color: #fff;
+        }
+        .zoom-controls {
+          position: absolute;
+          top: 40px;
+          right: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          z-index: 10;
+        }
+        .zoom-button {
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          background: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .zoom-button:hover {
+          background: #4c4c4c;
+        }
         .plot-info {
           position: absolute;
           bottom: 8px;
@@ -139,15 +175,34 @@ export class NCToolpathPlot extends HTMLElement {
           padding: 4px 8px;
           border-radius: 4px;
         }
+        .orbit-hint {
+          position: absolute;
+          bottom: 8px;
+          right: 8px;
+          color: #888;
+          font-size: 10px;
+          background: rgba(30, 30, 30, 0.8);
+          padding: 4px 8px;
+          border-radius: 4px;
+        }
       </style>
       <div id="plot-container">
         <div class="plot-controls">
           <button class="plot-button primary" id="plot-nc-code">📊 Plot NC Code</button>
           <button class="plot-button" id="reset-camera">Reset View</button>
           <button class="plot-button" id="toggle-axes">Axes</button>
+          <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
+        </div>
+        <div class="zoom-controls">
+          <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
+          <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
+          <button class="zoom-button" id="zoom-fit" title="Fit View">⊡</button>
         </div>
         <div class="plot-info">
           <div id="plot-status">No plot data</div>
+        </div>
+        <div class="orbit-hint">
+          🖱️ Left: Rotate | Middle: Pan | Scroll: Zoom
         </div>
       </div>
     `;
@@ -163,6 +218,18 @@ export class NCToolpathPlot extends HTMLElement {
 
     const axesButton = this.shadowRoot?.getElementById('toggle-axes');
     axesButton?.addEventListener('click', () => this.toggleAxes());
+
+    const orbitButton = this.shadowRoot?.getElementById('toggle-orbit');
+    orbitButton?.addEventListener('click', () => this.toggleOrbit());
+
+    const zoomInButton = this.shadowRoot?.getElementById('zoom-in');
+    zoomInButton?.addEventListener('click', () => this.zoomIn());
+
+    const zoomOutButton = this.shadowRoot?.getElementById('zoom-out');
+    zoomOutButton?.addEventListener('click', () => this.zoomOut());
+
+    const zoomFitButton = this.shadowRoot?.getElementById('zoom-fit');
+    zoomFitButton?.addEventListener('click', () => this.zoomToFit());
   }
 
   private async plotNCCode() {
@@ -257,6 +324,15 @@ export class NCToolpathPlot extends HTMLElement {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
 
+    // OrbitControls setup for rotation/pan/zoom
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.screenSpacePanning = true;
+    this.controls.minDistance = 10;
+    this.controls.maxDistance = 500;
+    this.controls.target.set(50, 25, 0);
+
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
@@ -281,6 +357,11 @@ export class NCToolpathPlot extends HTMLElement {
 
   private animateScene() {
     this.animationFrameId = requestAnimationFrame(() => this.animateScene());
+
+    // Update orbit controls
+    if (this.controls) {
+      this.controls.update();
+    }
 
     if (this.scene && this.camera && this.renderer) {
       this.renderer.render(this.scene, this.camera);
@@ -328,9 +409,10 @@ export class NCToolpathPlot extends HTMLElement {
   }
 
   private resetCamera() {
-    if (!this.camera) return;
+    if (!this.camera || !this.controls) return;
     this.camera.position.set(50, 50, 50);
-    this.camera.lookAt(0, 0, 0);
+    this.controls.target.set(50, 25, 0);
+    this.controls.update();
   }
 
   private toggleAxes() {
@@ -341,6 +423,101 @@ export class NCToolpathPlot extends HTMLElement {
         child.visible = !child.visible;
       }
     });
+  }
+
+  private toggleOrbit() {
+    if (!this.controls) return;
+    this.controls.enabled = !this.controls.enabled;
+
+    const orbitButton = this.shadowRoot?.getElementById('toggle-orbit');
+    if (orbitButton) {
+      orbitButton.classList.toggle('active', this.controls.enabled);
+    }
+  }
+
+  private zoomIn() {
+    if (!this.camera || !this.controls) return;
+    // Move camera closer to target
+    const direction = new THREE.Vector3();
+    direction.subVectors(this.camera.position, this.controls.target);
+    direction.multiplyScalar(0.8); // Zoom in by 20%
+    this.camera.position.copy(this.controls.target).add(direction);
+    this.controls.update();
+  }
+
+  private zoomOut() {
+    if (!this.camera || !this.controls) return;
+    // Move camera further from target
+    const direction = new THREE.Vector3();
+    direction.subVectors(this.camera.position, this.controls.target);
+    direction.multiplyScalar(1.25); // Zoom out by 25%
+    this.camera.position.copy(this.controls.target).add(direction);
+    this.controls.update();
+  }
+
+  private zoomToFit() {
+    if (!this.scene || !this.camera || !this.controls) return;
+
+    // Calculate bounding box of all toolpath objects
+    const box = new THREE.Box3();
+    let hasToolpath = false;
+
+    this.scene.children.forEach((child) => {
+      if (child.userData.isToolpath) {
+        box.expandByObject(child);
+        hasToolpath = true;
+      }
+    });
+
+    // If no toolpath, use the axes
+    if (!hasToolpath) {
+      this.scene.children.forEach((child) => {
+        if (child instanceof THREE.Group) {
+          box.expandByObject(child);
+        }
+      });
+    }
+
+    // Check if bounding box is valid (not empty/infinite)
+    if (box.isEmpty()) {
+      // Reset to default view if nothing to fit
+      this.resetCamera();
+      return;
+    }
+
+    // Get the center and size of the bounding box
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    // Calculate the distance to fit the object
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    // Handle edge case where maxDim is 0 or very small
+    if (maxDim < 0.001) {
+      this.resetCamera();
+      return;
+    }
+
+    // Validate FOV is within valid range (not 0 or 180 degrees)
+    const fov = this.camera.fov * (Math.PI / 180);
+    if (fov <= 0 || fov >= Math.PI) {
+      this.resetCamera();
+      return;
+    }
+
+    let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
+    cameraDistance *= 1.5; // Add some padding
+
+    // Ensure camera distance is within valid range
+    cameraDistance = Math.max(this.controls.minDistance, Math.min(cameraDistance, this.controls.maxDistance));
+
+    // Position camera
+    const direction = new THREE.Vector3(1, 1, 1).normalize();
+    this.camera.position.copy(center).add(direction.multiplyScalar(cameraDistance));
+    this.controls.target.copy(center);
+    this.controls.update();
   }
 
   private updateVisibility() {
