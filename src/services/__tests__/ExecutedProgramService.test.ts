@@ -107,6 +107,50 @@ describe('ExecutedProgramService', () => {
       expect(result.plotMetadata?.points).toHaveLength(0);
     });
 
+    it('should deduplicate points when segments share endpoints', async () => {
+      const mockResponse: PlotResponse = {
+        canal: {
+          '1': {
+            segments: [
+              {
+                type: 'LINEAR',
+                lineNumber: 1,
+                toolNumber: 1,
+                points: [
+                  { x: 0, y: 0, z: 0 },
+                  { x: 10, y: 10, z: 0 },
+                ],
+              },
+              {
+                type: 'LINEAR',
+                lineNumber: 2,
+                toolNumber: 1,
+                points: [
+                  { x: 10, y: 10, z: 0 }, // Same as previous endpoint
+                  { x: 20, y: 20, z: 0 },
+                ],
+              },
+            ],
+            executedLines: [1, 2],
+            variables: {},
+            timing: [0.1, 0.1],
+          },
+        },
+      };
+
+      vi.mocked(mockBackend.requestPlot).mockResolvedValue(mockResponse);
+
+      const result = await service.executeProgram({
+        channelId: '1',
+        program: 'G1 X10 Y10\nG1 X20 Y20',
+        machineName: 'ISO_MILL',
+      });
+
+      // Should have 2 segments but only 3 unique points (not 4)
+      expect(result.plotMetadata?.segments).toHaveLength(2);
+      expect(result.plotMetadata?.points).toHaveLength(3);
+    });
+
     it('should map segment types correctly', async () => {
       const mockResponse: PlotResponse = {
         canal: {

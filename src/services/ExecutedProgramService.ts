@@ -183,11 +183,16 @@ export class ExecutedProgramService {
         }
 
         // Parse segments and convert to PlotSegment format
+        // Track added points to avoid duplicates
+        const addedPoints = new Set<string>();
+        const getPointKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
+
         if (canal.segments && Array.isArray(canal.segments)) {
           canal.segments.forEach((segment) => {
             if (segment.points && segment.points.length >= 2) {
+              // Use first and last points for segment (handles both linear and arc segments)
               const startPoint = segment.points[0];
-              const endPoint = segment.points[1];
+              const endPoint = segment.points[segment.points.length - 1];
 
               // Map server segment type to client type
               let segmentType: 'rapid' | 'feed' | 'arc' = 'feed';
@@ -218,16 +223,28 @@ export class ExecutedProgramService {
                 toolNumber: segment.toolNumber,
               });
 
-              // Add points to the points array
-              result.plotMetadata!.points.push(
-                {
+              // Add unique points to the points array
+              const startKey = getPointKey(startPoint.x, startPoint.y, startPoint.z);
+              if (!addedPoints.has(startKey)) {
+                addedPoints.add(startKey);
+                result.plotMetadata!.points.push({
                   x: startPoint.x,
                   y: startPoint.y,
                   z: startPoint.z,
                   lineNumber: segment.lineNumber,
-                },
-                { x: endPoint.x, y: endPoint.y, z: endPoint.z, lineNumber: segment.lineNumber },
-              );
+                });
+              }
+
+              const endKey = getPointKey(endPoint.x, endPoint.y, endPoint.z);
+              if (!addedPoints.has(endKey)) {
+                addedPoints.add(endKey);
+                result.plotMetadata!.points.push({
+                  x: endPoint.x,
+                  y: endPoint.y,
+                  z: endPoint.z,
+                  lineNumber: segment.lineNumber,
+                });
+              }
             }
           });
         }
