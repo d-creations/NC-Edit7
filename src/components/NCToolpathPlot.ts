@@ -20,6 +20,9 @@ const BACKGROUND_COLORS = [
   { name: 'Blue', color: 0x0a192f },
 ];
 
+// Light text colors (for dark backgrounds)
+const LIGHT_TEXT_COLORS = new Set([0x2d2d30, 0x1e1e1e, 0x1a1a2e, 0x0a192f]);
+
 export class NCToolpathPlot extends BaseComponent {
   private stateService!: StateService;
   private eventBus!: EventBus;
@@ -35,11 +38,17 @@ export class NCToolpathPlot extends BaseComponent {
   private currentBgColorIndex = 0;
   private resizeObserver?: ResizeObserver;
   private resizeTimeout?: ReturnType<typeof setTimeout>;
+  private dimensionLabelsGroup?: THREE.Group;
 
   // Deep zoom settings
   private readonly minDistance = 5;
   private readonly maxDistance = 1000;
   private readonly defaultDistance = 120;
+
+  // Grid and dimension settings
+  private readonly gridSize = 200;
+  private readonly gridDivisions = 20;
+  private readonly labelInterval = 20; // Show labels every 20 units
 
   protected onConnected(): void {
     const registry = getServiceRegistry();
@@ -138,11 +147,11 @@ export class NCToolpathPlot extends BaseComponent {
     this.scene.add(directionalLight2);
 
     // Grid helper for better orientation
-    const gridHelper = new THREE.GridHelper(200, 20, 0x888888, 0xcccccc);
+    const gridHelper = new THREE.GridHelper(this.gridSize, this.gridDivisions, 0x888888, 0xcccccc);
     this.scene.add(gridHelper);
 
     // Axes helper
-    const axesHelper = new THREE.AxesHelper(60);
+    const axesHelper = new THREE.AxesHelper(this.gridSize / 2 + 10);
     this.scene.add(axesHelper);
 
     // Origin marker sphere
@@ -152,6 +161,9 @@ export class NCToolpathPlot extends BaseComponent {
     );
     helperSphere.position.set(0, 0, 0);
     this.scene.add(helperSphere);
+
+    // Add dimension labels with tick marks
+    this.createDimensionLabels();
 
     this.isSceneInitialized = true;
 
@@ -169,6 +181,147 @@ export class NCToolpathPlot extends BaseComponent {
 
     // Start animation
     this.startAnimation();
+  }
+
+  /**
+   * Creates dimension labels along all three axes with tick marks
+   */
+  private createDimensionLabels(): void {
+    // Remove existing labels if any
+    if (this.dimensionLabelsGroup) {
+      this.scene.remove(this.dimensionLabelsGroup);
+      this.dimensionLabelsGroup.traverse((child) => {
+        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+          }
+          if (child instanceof THREE.Sprite) {
+            child.material.dispose();
+          }
+        }
+      });
+    }
+
+    this.dimensionLabelsGroup = new THREE.Group();
+    this.dimensionLabelsGroup.name = 'dimensionLabels';
+
+    const halfGrid = this.gridSize / 2;
+    const bgColor = BACKGROUND_COLORS[this.currentBgColorIndex]?.color ?? 0xffffff;
+    const useLightText = LIGHT_TEXT_COLORS.has(bgColor);
+    const textColor = useLightText ? '#ffffff' : '#333333';
+
+    // Create labels along X axis (red) - positive and negative
+    for (let x = -halfGrid; x <= halfGrid; x += this.labelInterval) {
+      if (x === 0) continue; // Skip origin, we'll add a special label
+      const label = this.createTextSprite(`${x}`, textColor);
+      label.position.set(x, -3, 0);
+      this.dimensionLabelsGroup.add(label);
+
+      // Add tick mark
+      const tick = this.createTickMark(0xff0000);
+      tick.position.set(x, 0, 0);
+      this.dimensionLabelsGroup.add(tick);
+    }
+
+    // Create labels along Z axis (blue, which appears as Y in NC coordinates) - positive and negative
+    for (let z = -halfGrid; z <= halfGrid; z += this.labelInterval) {
+      if (z === 0) continue;
+      const label = this.createTextSprite(`${-z}`, textColor); // Negate for NC Y coordinate
+      label.position.set(0, -3, z);
+      this.dimensionLabelsGroup.add(label);
+
+      // Add tick mark
+      const tick = this.createTickMark(0x0000ff);
+      tick.position.set(0, 0, z);
+      this.dimensionLabelsGroup.add(tick);
+    }
+
+    // Create labels along Y axis (green, which appears as Z in NC coordinates)
+    for (let y = this.labelInterval; y <= halfGrid; y += this.labelInterval) {
+      const label = this.createTextSprite(`Z${y}`, textColor);
+      label.position.set(-3, y, 0);
+      this.dimensionLabelsGroup.add(label);
+
+      // Add tick mark
+      const tick = this.createTickMark(0x00ff00);
+      tick.position.set(0, y, 0);
+      this.dimensionLabelsGroup.add(tick);
+    }
+
+    // Add axis labels at the end of each axis
+    const axisLength = halfGrid + 15;
+
+    const xAxisLabel = this.createTextSprite('X', '#ff0000', 1.5);
+    xAxisLabel.position.set(axisLength, 0, 0);
+    this.dimensionLabelsGroup.add(xAxisLabel);
+
+    const yAxisLabel = this.createTextSprite('Y', '#0000ff', 1.5);
+    yAxisLabel.position.set(0, 0, -axisLength); // NC Y is negative three.js Z
+    this.dimensionLabelsGroup.add(yAxisLabel);
+
+    const zAxisLabel = this.createTextSprite('Z', '#00ff00', 1.5);
+    zAxisLabel.position.set(0, axisLength, 0);
+    this.dimensionLabelsGroup.add(zAxisLabel);
+
+    // Add origin label
+    const originLabel = this.createTextSprite('0', textColor, 1.2);
+    originLabel.position.set(3, -3, 3);
+    this.dimensionLabelsGroup.add(originLabel);
+
+    this.scene.add(this.dimensionLabelsGroup);
+  }
+
+  /**
+   * Creates a text sprite for dimension labels
+   */
+  private createTextSprite(text: string, color: string, scale: number = 1): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Could not get 2D context');
+    }
+
+    const fontSize = 48;
+    canvas.width = 128;
+    canvas.height = 64;
+
+    // Clear canvas
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Set text properties
+    context.font = `bold ${fontSize}px Arial`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+
+    // Draw text with slight shadow for better visibility
+    context.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    context.fillText(text, canvas.width / 2 + 1, canvas.height / 2 + 1);
+    context.fillStyle = color;
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      sizeAttenuation: true,
+    });
+
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(8 * scale, 4 * scale, 1);
+
+    return sprite;
+  }
+
+  /**
+   * Creates a small tick mark for axis indicators
+   */
+  private createTickMark(color: number): THREE.Mesh {
+    const geometry = new THREE.BoxGeometry(0.5, 2, 0.5);
+    const material = new THREE.MeshBasicMaterial({ color });
+    return new THREE.Mesh(geometry, material);
   }
 
   private processPendingPlotData(): void {
@@ -479,6 +632,8 @@ export class NCToolpathPlot extends BaseComponent {
 
     if (this.scene) {
       this.scene.background = new THREE.Color(bgColor.color);
+      // Recreate dimension labels with appropriate text color for new background
+      this.createDimensionLabels();
     }
 
     button.title = `Background: ${bgColor.name}`;
