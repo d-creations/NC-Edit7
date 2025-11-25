@@ -1,6 +1,8 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { PARSER_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { ParserService } from '@services/ParserService';
+import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
+import type { ExecutedProgramResult } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
@@ -9,13 +11,18 @@ import 'ace-builds/src-noconflict/theme-monokai';
 export class NCCodePane extends HTMLElement {
   private editor?: ace.Ace.Editor;
   private parserService: ParserService;
+  private eventBus: EventBus;
   private channelId: string = '';
   private resizeObserver?: ResizeObserver;
+  private executedLineMarkers: number[] = [];
+  private executionSubscription?: EventSubscription;
 
   constructor() {
     super();
     // ACE editor has issues with Shadow DOM, so we render directly to light DOM
-    this.parserService = ServiceRegistry.getInstance().get(PARSER_SERVICE_TOKEN);
+    const registry = ServiceRegistry.getInstance();
+    this.parserService = registry.get(PARSER_SERVICE_TOKEN);
+    this.eventBus = registry.get(EVENT_BUS_TOKEN);
   }
 
   static get observedAttributes() {
@@ -40,9 +47,28 @@ export class NCCodePane extends HTMLElement {
       const lineNumber = e.detail.lineNumber;
       this.scrollToLine(lineNumber);
     }) as EventListener);
+
+    // Listen for execution completed events to highlight executed lines
+    this.executionSubscription = this.eventBus.subscribe(
+      EVENT_NAMES.EXECUTION_COMPLETED,
+      (data: unknown) => {
+        const executionData = data as {
+          channelId: string;
+          result?: ExecutedProgramResult;
+        };
+
+        // Only highlight if this is for our channel
+        if (executionData.channelId === this.channelId && executionData.result) {
+          this.highlightExecutedLines(executionData.result);
+        }
+      },
+    );
   }
 
   disconnectedCallback() {
+    if (this.executionSubscription) {
+      this.executionSubscription.unsubscribe();
+    }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
@@ -70,6 +96,11 @@ export class NCCodePane extends HTMLElement {
         }
         .ace_layer {
             z-index: auto !important;
+        }
+        .ace_executed-line {
+            position: absolute;
+            background-color: rgba(0, 128, 0, 0.2) !important;
+            border-left: 3px solid #4ec9b0 !important;
         }
       </style>
       <div class="ace-editor-container" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
@@ -213,6 +244,65 @@ N400 M30 (PROGRAM END)
     setTimeout(() => {
       this.editor?.session.removeMarker(marker);
     }, 2000);
+  }
+
+  /**
+   * Highlights lines in the editor that have been executed/plotted.
+   * Called when execution completes to show which lines were processed.
+   */
+  highlightExecutedLines(result: ExecutedProgramResult): void {
+    if (!this.editor) return;
+
+    // Clear previous executed line markers
+    this.clearExecutedLineMarkers();
+
+    // Get line numbers from segments if available (more accurate than executedLines)
+    const lineNumbers = new Set<number>();
+
+    // Add lines from plotMetadata segments
+    if (result.plotMetadata?.segments) {
+      result.plotMetadata.segments.forEach((segment) => {
+        if (segment.startPoint.lineNumber !== undefined) {
+          lineNumbers.add(segment.startPoint.lineNumber);
+        }
+        if (segment.endPoint.lineNumber !== undefined) {
+          lineNumbers.add(segment.endPoint.lineNumber);
+        }
+      });
+    }
+
+    // Also add from executedLines array if available
+    if (result.executedLines && result.executedLines.length > 0) {
+      result.executedLines.forEach((line) => lineNumbers.add(line));
+    }
+
+    // Add markers for each executed line
+    const Range = ace.require('ace/range').Range;
+    lineNumbers.forEach((lineNumber) => {
+      // Convert to 0-based index
+      const line = lineNumber - 1;
+      if (line >= 0 && line < this.editor!.session.getLength()) {
+        const markerId = this.editor!.session.addMarker(
+          new Range(line, 0, line, 1),
+          'ace_executed-line',
+          'fullLine',
+          false,
+        );
+        this.executedLineMarkers.push(markerId);
+      }
+    });
+  }
+
+  /**
+   * Clears all executed line markers from the editor.
+   */
+  clearExecutedLineMarkers(): void {
+    if (!this.editor) return;
+
+    this.executedLineMarkers.forEach((markerId) => {
+      this.editor?.session.removeMarker(markerId);
+    });
+    this.executedLineMarkers = [];
   }
 }
 

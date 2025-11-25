@@ -232,6 +232,15 @@ export class NCEditorApp extends HTMLElement {
     // Channel toggles
     const toggles = this.querySelectorAll('.app-channel-toggle');
     toggles?.forEach((toggle) => {
+      const button = toggle as HTMLButtonElement;
+      const channelId = button.dataset.channel as ChannelId;
+      const channel = this.stateService.getChannel(channelId);
+
+      // Set initial button state based on channel's active state
+      if (!channel?.active) {
+        button.classList.add('inactive');
+      }
+
       toggle.addEventListener('click', (e) => {
         const button = e.target as HTMLButtonElement;
         const channelId = button.dataset.channel as ChannelId;
@@ -248,6 +257,9 @@ export class NCEditorApp extends HTMLElement {
         this.updateChannelDisplay();
       });
     });
+
+    // Initialize channel display on load
+    this.updateChannelDisplay();
 
     const plotToggle = this.querySelector('#plot-toggle');
     plotToggle?.addEventListener('click', () => {
