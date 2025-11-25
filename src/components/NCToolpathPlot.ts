@@ -189,6 +189,7 @@ export class NCToolpathPlot extends HTMLElement {
       <div id="plot-container">
         <div class="plot-controls">
           <button class="plot-button primary" id="plot-nc-code">📊 Plot NC Code</button>
+          <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
           <button class="plot-button" id="reset-camera">Reset View</button>
           <button class="plot-button" id="toggle-axes">Axes</button>
           <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
@@ -212,6 +213,9 @@ export class NCToolpathPlot extends HTMLElement {
   private attachControlListeners() {
     const plotButton = this.shadowRoot?.getElementById('plot-nc-code');
     plotButton?.addEventListener('click', () => this.plotNCCode());
+
+    const clearButton = this.shadowRoot?.getElementById('clear-plot');
+    clearButton?.addEventListener('click', () => this.clearPlot());
 
     const resetButton = this.shadowRoot?.getElementById('reset-camera');
     resetButton?.addEventListener('click', () => this.resetCamera());
@@ -433,6 +437,30 @@ export class NCToolpathPlot extends HTMLElement {
     if (orbitButton) {
       orbitButton.classList.toggle('active', this.controls.enabled);
     }
+  }
+
+  private clearPlot() {
+    if (!this.scene) return;
+
+    // Clear all toolpath objects from the scene
+    const toRemove: THREE.Object3D[] = [];
+    this.scene.children.forEach((child) => {
+      if (child instanceof THREE.Line || child instanceof THREE.LineSegments) {
+        if (child.userData.isToolpath) {
+          toRemove.push(child);
+        }
+      }
+    });
+    toRemove.forEach((obj) => this.scene?.remove(obj));
+
+    // Update status
+    const statusElement = this.shadowRoot?.getElementById('plot-status');
+    if (statusElement) {
+      statusElement.textContent = 'No plot data';
+    }
+
+    // Notify other components (e.g., NCCodePane) that the plot was cleared
+    this.eventBus.publish(EVENT_NAMES.PLOT_CLEARED, undefined);
   }
 
   private zoomIn() {
