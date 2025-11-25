@@ -88,6 +88,61 @@ export class NCCodePane extends HTMLElement {
       editorElement.style.height = '100%';
     }
 
+    // Demo program for Channel 1 with comprehensive NC/G-code
+    const demoProgram = `%
+O0001 (DEMO MACHINING PROGRAM - CHANNEL 1)
+(LONGER DEMO PROGRAM FOR VISUALIZATION)
+N10 G21 (METRIC UNITS)
+N20 G90 (ABSOLUTE POSITIONING)
+N30 G17 (XY PLANE)
+(TOOL CHANGE)
+N40 T1 M06 (TOOL 1 - 10MM END MILL)
+N50 G43 H1 (TOOL LENGTH COMPENSATION)
+N60 S2000 M03 (SPINDLE ON CW AT 2000 RPM)
+(RAPID TO START POSITION)
+N70 G00 X0 Y0 Z50
+N80 G00 X10 Y10
+N90 G00 Z5 (RAPID APPROACH)
+(PLUNGE TO DEPTH)
+N100 G01 Z-5 F100 (PLUNGE)
+(SQUARE POCKET - FIRST PASS)
+N110 G01 X60 F300
+N120 G01 Y60
+N130 G01 X10
+N140 G01 Y10
+(SECOND PASS - OFFSET)
+N150 G01 X15 Y15
+N160 G01 X55
+N170 G01 Y55
+N180 G01 X15
+N190 G01 Y15
+(DEEPER LEVEL)
+N200 G01 Z-10 F100
+N210 G01 X60 F300
+N220 G01 Y60
+N230 G01 X10
+N240 G01 Y10
+(CIRCULAR INTERPOLATION - ARC MOVES)
+N250 G00 Z5
+N260 G00 X100 Y35
+N270 G01 Z-5 F100
+N280 G02 X100 Y35 I0 J15 F200 (FULL CIRCLE CW)
+N290 G03 X130 Y35 R15 F200 (ARC CCW)
+(DIAGONAL MOVES)
+N300 G00 Z5
+N310 G00 X150 Y0
+N320 G01 Z-3 F100
+N330 G01 X200 Y50 F250
+N340 G01 X150 Y100
+N350 G01 X100 Y50
+N360 G01 X150 Y0
+(RETRACT AND END)
+N370 G00 Z50 (RETRACT)
+N380 G00 X0 Y0 (RETURN TO HOME)
+N390 M05 (SPINDLE OFF)
+N400 M30 (PROGRAM END)
+%`;
+
     this.editor = ace.edit(editorElement, {
       mode: 'ace/mode/text', // TODO: Custom NC mode
       theme: 'ace/theme/monokai',
@@ -96,7 +151,7 @@ export class NCCodePane extends HTMLElement {
       showGutter: true,
       highlightActiveLine: true,
       readOnly: false,
-      value: '%\nO0001 (TEST PROGRAM)\nG0 X100 Z100\nM30\n%', // Default content for testing
+      value: demoProgram, // Demo program for Channel 1
     });
 
     // Use ResizeObserver to handle dynamic layout changes
