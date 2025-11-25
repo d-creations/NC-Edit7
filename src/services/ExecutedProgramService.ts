@@ -120,8 +120,6 @@ export class ExecutedProgramService {
   }
 
   private parseExecutionResponse(response: PlotResponse): ExecutedProgramResult {
-    // TODO: Parse the actual response structure from the server
-    // For now, return a stub structure
     const result: ExecutedProgramResult = {
       executedLines: [],
       variableSnapshot: new Map(),
@@ -138,10 +136,119 @@ export class ExecutedProgramService {
     }
 
     // Parse canal data if available
-    if (response.canal) {
-      // TODO: Parse actual canal structure
-      // This will depend on the actual response format
+    if (response.canal && typeof response.canal === 'object') {
       console.log('Canal data received:', response.canal);
+
+      // Parse the canal data - it's keyed by canal number
+      const canalData = response.canal as Record<
+        string,
+        {
+          segments?: Array<{
+            type?: string;
+            lineNumber?: number;
+            toolNumber?: number;
+            points?: Array<{ x: number; y: number; z: number }>;
+          }>;
+          executedLines?: number[];
+          variables?: Record<string, number>;
+          timing?: number[];
+        }
+      >;
+
+      // Merge data from all canals
+      for (const canalNr of Object.keys(canalData)) {
+        const canal = canalData[canalNr];
+
+        // Parse executed lines
+        if (canal.executedLines && Array.isArray(canal.executedLines)) {
+          result.executedLines.push(...canal.executedLines);
+        }
+
+        // Parse timing data
+        if (canal.timing && Array.isArray(canal.timing)) {
+          canal.timing.forEach((time, index) => {
+            const lineNumber = canal.executedLines?.[index] || index + 1;
+            result.timingData.set(lineNumber, time);
+          });
+        }
+
+        // Parse variables
+        if (canal.variables && typeof canal.variables === 'object') {
+          for (const [key, value] of Object.entries(canal.variables)) {
+            const varNum = parseInt(key, 10);
+            if (!isNaN(varNum)) {
+              result.variableSnapshot.set(varNum, value);
+            }
+          }
+        }
+
+        // Parse segments and convert to PlotSegment format
+        // Track added points to avoid duplicates
+        const addedPoints = new Set<string>();
+        const getPointKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
+
+        if (canal.segments && Array.isArray(canal.segments)) {
+          canal.segments.forEach((segment) => {
+            if (segment.points && segment.points.length >= 2) {
+              // Use first and last points for segment (handles both linear and arc segments)
+              const startPoint = segment.points[0];
+              const endPoint = segment.points[segment.points.length - 1];
+
+              // Map server segment type to client type
+              let segmentType: 'rapid' | 'feed' | 'arc' = 'feed';
+              if (segment.type) {
+                const serverType = segment.type.toUpperCase();
+                if (serverType === 'RAPID' || serverType === 'G0') {
+                  segmentType = 'rapid';
+                } else if (serverType === 'ARC' || serverType === 'G2' || serverType === 'G3') {
+                  segmentType = 'arc';
+                }
+              }
+
+              // Add segment
+              result.plotMetadata!.segments.push({
+                startPoint: {
+                  x: startPoint.x,
+                  y: startPoint.y,
+                  z: startPoint.z,
+                  lineNumber: segment.lineNumber,
+                },
+                endPoint: {
+                  x: endPoint.x,
+                  y: endPoint.y,
+                  z: endPoint.z,
+                  lineNumber: segment.lineNumber,
+                },
+                type: segmentType,
+                toolNumber: segment.toolNumber,
+              });
+
+              // Add unique points to the points array
+              const startKey = getPointKey(startPoint.x, startPoint.y, startPoint.z);
+              if (!addedPoints.has(startKey)) {
+                addedPoints.add(startKey);
+                result.plotMetadata!.points.push({
+                  x: startPoint.x,
+                  y: startPoint.y,
+                  z: startPoint.z,
+                  lineNumber: segment.lineNumber,
+                });
+              }
+
+              const endKey = getPointKey(endPoint.x, endPoint.y, endPoint.z);
+              if (!addedPoints.has(endKey)) {
+                addedPoints.add(endKey);
+                result.plotMetadata!.points.push({
+                  x: endPoint.x,
+                  y: endPoint.y,
+                  z: endPoint.z,
+                  lineNumber: segment.lineNumber,
+                });
+              }
+            }
+          });
+        }
+      }
     }
 
     return result;
