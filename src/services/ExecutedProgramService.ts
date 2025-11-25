@@ -42,8 +42,10 @@ export class ExecutedProgramService {
         ],
       };
 
+      console.debug('Plot request payload for channel', request.channelId, plotRequest);
       // Make server request
       const response: PlotResponse = await this.backend.requestPlot(plotRequest);
+      console.debug('Plot response for channel', request.channelId, response);
 
       // Parse response
       const result = this.parseExecutionResponse(response);
@@ -83,6 +85,7 @@ export class ExecutedProgramService {
 
       // Make server request
       const response: PlotResponse = await this.backend.requestPlot(plotRequest);
+      console.debug('Plot response for multi-channel request', response);
 
       // Parse response for each channel
       const results = requests.map(() => {
@@ -137,7 +140,7 @@ export class ExecutedProgramService {
 
     // Parse canal data if available
     if (response.canal && typeof response.canal === 'object') {
-      console.log('Canal data received:', response.canal);
+      console.debug('Canal data received:', response.canal);
 
       // Parse the canal data - it's keyed by canal number
       const canalData = response.canal as Record<
@@ -186,6 +189,11 @@ export class ExecutedProgramService {
         // Track added points to avoid duplicates
         const addedPoints = new Set<string>();
         const getPointKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
+
+        const canalSegmentCount = canal.segments?.length ?? 0;
+        if (canalSegmentCount === 0) {
+          console.debug('Canal has zero segments:', canalNr);
+        }
 
         if (canal.segments && Array.isArray(canal.segments)) {
           canal.segments.forEach((segment) => {

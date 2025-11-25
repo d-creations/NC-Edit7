@@ -88,7 +88,6 @@ export class NCCodePane extends HTMLElement {
       editorElement.style.height = '100%';
     }
 
-    // Demo program for Channel 1 with comprehensive NC/G-code
     const demoProgram = `%
 O0001 (DEMO MACHINING PROGRAM - CHANNEL 1)
 (LONGER DEMO PROGRAM FOR VISUALIZATION)
