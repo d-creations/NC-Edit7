@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File (with PYTHONPATH)",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Python: Run example_O0004.py (with PYTHONPATH)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_example_O0004.py",
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Python: Unittest (discover, with PYTHONPATH)",
+      "type": "python",
+      "request": "launch",
+      "module": "unittest",
+      "args": ["discover", "-s", "tests", "-p", "test_*.py"],
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

@@ -1,193 +1,196 @@
 #!/usr/bin/env python3
 """
-CGI Server for NC-Edit7 Plot Generation
-
-This script handles HTTP requests to process NC code and return plot data
-for 3D visualization in the NC-Edit7 application.
+CGI Server for NC-Edit7 Plot Interface
+Handles machine data requests and returns plot data
 """
 
+import sys
 import json
 import os
-import sys
-import re
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+
+# Set content type for CGI
+print("Content-Type: application/json")
+print()
 
 
-def parse_nc_code(program: str) -> Dict[str, Any]:
+def get_mock_machines() -> List[Dict[str, str]]:
+    """Return list of available machines"""
+    return [
+        {"machineName": "ISO_MILL", "controlType": "MILL"},
+        {"machineName": "FANUC_T", "controlType": "TURN"},
+        {"machineName": "SB12RG_F", "controlType": "MILL"},
+        {"machineName": "SB12RG_B", "controlType": "MILL"},
+        {"machineName": "SR20JII_F", "controlType": "MILL"},
+        {"machineName": "SR20JII_B", "controlType": "MILL"},
+    ]
+
+
+def parse_nc_program(program: str, machine_name: str) -> Dict[str, Any]:
     """
-    Parse NC code and generate plot data for 3D visualization.
-    
-    Args:
-        program: The NC program code as a string
-        
-    Returns:
-        Dictionary containing plot points and segments
+    Parse NC program and generate mock plot data
+    In production, this would call the actual NC parser
     """
-    points: List[Dict[str, Any]] = []
-    segments: List[Dict[str, Any]] = []
+    lines = [line.strip() for line in program.split('\n') if line.strip()]
     
-    # Current position
-    x, y, z = 0.0, 0.0, 0.0
+    # Generate mock plot segments
+    segments = []
+    current_pos = {"x": 0, "y": 0, "z": 0}
     
-    # Parse NC code line by line
-    lines = program.replace(';', '\n').split('\n')
-    line_number = 0
-    
-    # Movement mode: G00 = rapid, G01 = feed
-    mode = 'rapid'
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
+    for i, line in enumerate(lines):
+        # Simple G-code parsing for demo
+        if line.startswith('G0') or line.startswith('G1'):
+            # Extract coordinates
+            new_pos = current_pos.copy()
             
-        line_number += 1
-        
-        # Detect movement mode using word boundary regex for precise matching
-        g0_match = re.search(r'\bG0+\b', line, re.IGNORECASE)
-        g1_match = re.search(r'\bG0*1\b', line, re.IGNORECASE)
-        g2_match = re.search(r'\bG0*2\b', line, re.IGNORECASE)
-        g3_match = re.search(r'\bG0*3\b', line, re.IGNORECASE)
-        
-        if g0_match:
-            mode = 'rapid'
-        elif g1_match:
-            mode = 'feed'
-        elif g2_match:
-            mode = 'arc'
-        elif g3_match:
-            mode = 'arc'
-        
-        # Extract coordinates
-        prev_x, prev_y, prev_z = x, y, z
-        
-        x_match = re.search(r'X\s*(-?\d+\.?\d*)', line, re.IGNORECASE)
-        y_match = re.search(r'Y\s*(-?\d+\.?\d*)', line, re.IGNORECASE)
-        z_match = re.search(r'Z\s*(-?\d+\.?\d*)', line, re.IGNORECASE)
-        
-        if x_match:
-            x = float(x_match.group(1))
-        if y_match:
-            y = float(y_match.group(1))
-        if z_match:
-            z = float(z_match.group(1))
-        
-        # Only add segment if position changed
-        if (x != prev_x or y != prev_y or z != prev_z):
-            start_point = {'x': prev_x, 'y': prev_y, 'z': prev_z, 'lineNumber': line_number}
-            end_point = {'x': x, 'y': y, 'z': z, 'lineNumber': line_number}
+            parts = line.split()
+            for part in parts:
+                if part.startswith('X'):
+                    try:
+                        new_pos['x'] = float(part[1:])
+                    except ValueError:
+                        pass
+                elif part.startswith('Y'):
+                    try:
+                        new_pos['y'] = float(part[1:])
+                    except ValueError:
+                        pass
+                elif part.startswith('Z'):
+                    try:
+                        new_pos['z'] = float(part[1:])
+                    except ValueError:
+                        pass
             
-            # Add start point if not already added
-            if not points or (points[-1]['x'] != prev_x or points[-1]['y'] != prev_y or points[-1]['z'] != prev_z):
-                points.append(start_point)
-            
-            points.append(end_point)
-            
-            segments.append({
-                'startPoint': start_point,
-                'endPoint': end_point,
-                'type': mode,
-                'toolNumber': 1
-            })
+            # Create segment
+            segment = {
+                "type": "RAPID" if line.startswith('G0') else "LINEAR",
+                "lineNumber": i + 1,
+                "toolNumber": 1,
+                "points": [
+                    current_pos.copy(),
+                    new_pos.copy()
+                ]
+            }
+            segments.append(segment)
+            current_pos = new_pos
     
     return {
-        'points': points,
-        'segments': segments
+        "segments": segments,
+        "executedLines": list(range(1, len(lines) + 1)),
+        "variables": {},
+        "timing": [0.1] * len(lines)
     }
 
 
 def handle_list_machines() -> Dict[str, Any]:
-    """Return a list of available machine profiles."""
+    """Handle machine list request"""
     return {
-        'machines': [
-            {'machineName': 'SB12RG_F', 'controlType': 'Fanuc'},
-            {'machineName': 'FANUC_T', 'controlType': 'Fanuc'},
-            {'machineName': 'SR20JII_F', 'controlType': 'Fanuc'},
-            {'machineName': 'SB12RG_B', 'controlType': 'Siemens'},
-            {'machineName': 'SR20JII_B', 'controlType': 'Siemens'},
-            {'machineName': 'ISO_MILL', 'controlType': 'ISO'}
-        ]
+        "machines": get_mock_machines(),
+        "success": True
     }
 
 
-def handle_plot_request(data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Handle a plot request from the frontend.
+def handle_execute_programs(programs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Handle program execution request"""
+    canal_results = {}
+    messages = []
     
-    Args:
-        data: Request data containing machinedata array
+    for program_entry in programs:
+        program = program_entry.get("program", "")
+        machine_name = program_entry.get("machineName", "ISO_MILL")
+        canal_nr = program_entry.get("canalNr", "1")
         
-    Returns:
-        Response with canal data containing plot metadata
-    """
-    machine_data = data.get('machinedata', [])
-    
-    if not machine_data:
-        return {'message_TEST': 'No machine data provided'}
-    
-    canals = {}
-    
-    for entry in machine_data:
-        program = entry.get('program', '')
-        machine_name = entry.get('machineName', 'ISO_MILL')
-        canal_nr = str(entry.get('canalNr', '1'))
+        # Validate machine name
+        valid_machines = ["SB12RG_F", "FANUC_T", "SR20JII_F", "SB12RG_B", "SR20JII_B", "ISO_MILL"]
+        if machine_name not in valid_machines:
+            messages.append(f"Invalid machine name: {machine_name}")
+            continue
         
-        # Parse the NC code and generate plot data
-        plot_data = parse_nc_code(program)
-        
-        canals[canal_nr] = {
-            'plotMetadata': plot_data,
-            'machineName': machine_name
-        }
+        # Parse program
+        try:
+            result = parse_nc_program(program, machine_name)
+            canal_results[canal_nr] = result
+            messages.append(f"Successfully processed {machine_name} canal {canal_nr}")
+        except Exception as e:
+            messages.append(f"Error processing {machine_name} canal {canal_nr}: {str(e)}")
     
     return {
-        'canal': canals,
-        'message': 'Plot generated successfully'
+        "canal": canal_results,
+        "message": messages,
+        "success": True
     }
 
 
 def main():
-    """Main CGI handler function."""
-    # Set CORS headers and content type
-    print("Content-Type: application/json")
-    print("Access-Control-Allow-Origin: *")
-    print("Access-Control-Allow-Methods: POST, GET, OPTIONS")
-    print("Access-Control-Allow-Headers: Content-Type")
-    print()
-    
-    # Handle preflight OPTIONS request
-    method = os.environ.get('REQUEST_METHOD', 'GET')
-    if method == 'OPTIONS':
-        print(json.dumps({'status': 'ok'}))
-        return
-    
+    """Main CGI entry point"""
     try:
-        # Read input data
-        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+        # Get request method
+        request_method = os.environ.get("REQUEST_METHOD", "GET")
         
-        if content_length > 0:
-            input_data = sys.stdin.read(content_length)
-            data = json.loads(input_data)
+        if request_method != "POST":
+            response = {
+                "error": "Only POST requests are supported",
+                "message_TEST": ["Method not allowed"]
+            }
+            print(json.dumps(response))
+            return
+        
+        # Read POST data
+        content_length = int(os.environ.get("CONTENT_LENGTH", 0))
+        if content_length == 0:
+            response = {
+                "error": "Empty request body",
+                "message_TEST": ["No data provided"]
+            }
+            print(json.dumps(response))
+            return
+        
+        post_data = sys.stdin.read(content_length)
+        request_data = json.loads(post_data)
+        
+        # Handle different request types
+        if "action" in request_data:
+            action = request_data["action"]
+            
+            if action in ["list_machines", "get_machines"]:
+                response = handle_list_machines()
+            else:
+                response = {
+                    "error": f"Unknown action: {action}",
+                    "message_TEST": [f"Invalid action: {action}"]
+                }
+        
+        elif "machinedata" in request_data:
+            programs = request_data["machinedata"]
+            response = handle_execute_programs(programs)
+        
+        elif isinstance(request_data, list):
+            # Direct array format
+            response = handle_execute_programs(request_data)
+        
         else:
-            data = {}
+            response = {
+                "error": "Invalid request format",
+                "message_TEST": ["Request must contain 'action' or 'machinedata'"]
+            }
         
-        # Route the request
-        action = data.get('action', '')
-        
-        if action == 'list_machines' or action == 'get_machines':
-            result = handle_list_machines()
-        elif 'machinedata' in data:
-            result = handle_plot_request(data)
-        else:
-            result = {'message': 'NC-Edit7 CGI Server Ready', 'version': '1.0.0'}
-        
-        print(json.dumps(result))
-        
+        # Return response
+        print(json.dumps(response))
+    
     except json.JSONDecodeError as e:
-        print(json.dumps({'message_TEST': f'Invalid JSON: {str(e)}'}))
+        response = {
+            "error": "Invalid JSON",
+            "message_TEST": [f"JSON parse error: {str(e)}"]
+        }
+        print(json.dumps(response))
+    
     except Exception as e:
-        print(json.dumps({'message_TEST': f'Server error: {str(e)}'}))
+        response = {
+            "error": "Internal server error",
+            "message_TEST": [f"Server error: {str(e)}"]
+        }
+        print(json.dumps(response))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,0 +1,4 @@
+# Development requirements (install with `pip install -r dev-requirements.txt`)
+# These are dev-only tools; runtime code should prefer the Python stdlib and keep
+# `dependencies` in `pyproject.toml` empty unless an explicit justification exists.
+

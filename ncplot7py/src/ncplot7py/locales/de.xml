@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<messages lang="de">
+  <!-- Schlüssel sind "{ExceptionTyps-Wert}:{Code}" -->
+  <message id="1:1001">Ungültiger NC-Code '{value}' in Zeile {line}</message>
+  <message id="2:2001">Canal Star wurde vor der Benutzung nicht gestartet</message>
+  <message id="3:3001">Allgemeiner CNC-Fehler (Code {code})</message>
+
+  <!-- NCCodeErrors (typ=1) -->
+  <message id="1:0">Keine</message>
+  <message id="1:-1">Beliebig</message>
+  <message id="1:-2">Duplikation eines Befehls derselben Gruppe</message>
+  <message id="1:-3">Vorschub ist Null</message>
+  <message id="1:-4">Spindeldrehzahl ist Null</message>
+  <message id="1:-5">Abstand des Durchmessers ist kleiner als der Weg</message>
+  <message id="1:-6">Polare Achse existiert nicht</message>
+  <message id="1:-7">Makroberechnungsfehler</message>
+  <message id="1:-8">Funktion nicht unterstützt</message>
+  <message id="1:-9">Buchstabe nicht groß geschrieben</message>
+  <message id="1:-10">Makroberechnungsfehler</message>
+  <message id="1:-11">Bogenwert ist zu groß</message>
+
+  <!-- CNCError (typ=3) -->
+  <message id="3:0">Keine</message>
+  <message id="3:-1">Zu viele G-Codes einer Gruppe</message>
+  <message id="3:-2">Code-Fehler</message>
+  <message id="3:-3">Ausgewählter Kanal existiert nicht</message>
+  <message id="3:-4">Fehler in einem Kanal</message>
+  <message id="3:-5">Wartecode stimmt nicht überein</message>
+
+  <!-- NCCanalStarErrors (typ=2) -->
+  <message id="2:0">Keine</message>
+  <message id="2:-1">Zu viele G-Codes einer Gruppe</message>
+  <message id="2:-2">Code-Fehler</message>
+  <message id="2:-3">Ausführung des Codes fehlgeschlagen</message>
+</messages>
