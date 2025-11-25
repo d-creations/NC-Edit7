@@ -2,11 +2,7 @@
 
 import type { ChannelId } from '@core/types';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import {
-  STATE_SERVICE_TOKEN,
-  MACHINE_SERVICE_TOKEN,
-  EVENT_BUS_TOKEN,
-} from '@core/ServiceTokens';
+import { STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';

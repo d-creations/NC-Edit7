@@ -511,7 +511,10 @@ export class NCToolpathPlot extends HTMLElement {
     cameraDistance *= 1.5; // Add some padding
 
     // Ensure camera distance is within valid range
-    cameraDistance = Math.max(this.controls.minDistance, Math.min(cameraDistance, this.controls.maxDistance));
+    cameraDistance = Math.max(
+      this.controls.minDistance,
+      Math.min(cameraDistance, this.controls.maxDistance),
+    );
 
     // Position camera
     const direction = new THREE.Vector3(1, 1, 1).normalize();
