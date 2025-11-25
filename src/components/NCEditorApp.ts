@@ -2,9 +2,14 @@
 
 import type { ChannelId } from '@core/types';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import {
+  STATE_SERVICE_TOKEN,
+  MACHINE_SERVICE_TOKEN,
+  EVENT_BUS_TOKEN,
+} from '@core/ServiceTokens';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
+import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import './NCChannelPane';
 import './NCSyncControls';
 import './NCStatusIndicator';
@@ -15,6 +20,7 @@ export class NCEditorApp extends HTMLElement {
   private registry: ServiceRegistry;
   private stateService: StateService;
   private machineService: MachineService;
+  private eventBus: EventBus;
 
   constructor() {
     super();
@@ -23,6 +29,7 @@ export class NCEditorApp extends HTMLElement {
     // Get services from registry
     this.stateService = this.registry.get(STATE_SERVICE_TOKEN);
     this.machineService = this.registry.get(MACHINE_SERVICE_TOKEN);
+    this.eventBus = this.registry.get(EVENT_BUS_TOKEN);
   }
 
   async connectedCallback(): Promise<void> {
@@ -95,6 +102,20 @@ export class NCEditorApp extends HTMLElement {
         .app-channel-toggle.inactive {
           background: #3c3c3c;
           color: #888;
+        }
+
+        .app-channel-action {
+          padding: 4px 12px;
+          background: #0e639c;
+          color: #fff;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+
+        .app-channel-action:hover {
+          background: #1177bb;
         }
 
         .app-plot-toggle {
@@ -184,7 +205,8 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
-          <button class="app-plot-toggle" id="plot-toggle">🎯 Plot</button>
+          <button class="app-channel-action" id="plot-request">▶️ Plot Active</button>
+          <button class="app-plot-toggle" id="plot-toggle">🎯 Plot Panel</button>
         </div>
       </div>
 
@@ -231,22 +253,34 @@ export class NCEditorApp extends HTMLElement {
       });
     });
 
-    // Plot toggle
     const plotToggle = this.querySelector('#plot-toggle');
     plotToggle?.addEventListener('click', () => {
       const plotContainer = this.querySelector('#plot-container');
       const isVisible = plotContainer?.classList.contains('visible');
-
-      if (isVisible) {
-        plotContainer?.classList.remove('visible');
-        plotToggle.classList.remove('active');
-        this.stateService.updateUISettings({ plotViewerOpen: false });
-      } else {
-        plotContainer?.classList.add('visible');
-        plotToggle.classList.add('active');
-        this.stateService.updateUISettings({ plotViewerOpen: true });
-      }
+      this.setPlotViewerVisible(!isVisible);
     });
+
+    const plotRequest = this.querySelector('#plot-request');
+    plotRequest?.addEventListener('click', () => {
+      this.setPlotViewerVisible(true);
+      this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, undefined);
+    });
+  }
+
+  private setPlotViewerVisible(visible: boolean): void {
+    const plotContainer = this.querySelector('#plot-container');
+    const plotToggle = this.querySelector('#plot-toggle');
+    if (!plotContainer || !plotToggle) return;
+
+    if (visible) {
+      plotContainer.classList.add('visible');
+      plotToggle.classList.add('active');
+    } else {
+      plotContainer.classList.remove('visible');
+      plotToggle.classList.remove('active');
+    }
+
+    this.stateService.updateUISettings({ plotViewerOpen: visible });
   }
 
   private updateChannelDisplay(): void {

@@ -63,6 +63,11 @@ export class NCToolpathPlot extends HTMLElement {
       }
     });
 
+    // Allow external UI elements to request a plot
+    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, () => {
+      this.plotNCCode();
+    });
+
     // Listen for plot toggle
     this.eventBus.subscribe(EVENT_NAMES.STATE_CHANGED, (data: unknown) => {
       const stateData = data as { uiSettings?: { plotViewerOpen?: boolean } };
