@@ -61,5 +61,6 @@ export const EVENT_NAMES = {
   EXECUTION_ERROR: 'execution:error',
   PLOT_UPDATED: 'plot:updated',
   PLOT_REQUEST: 'plot:request',
+  PLOT_CLEARED: 'plot:cleared',
   ERROR_OCCURRED: 'error:occurred',
 } as const;

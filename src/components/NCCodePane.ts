@@ -16,6 +16,7 @@ export class NCCodePane extends HTMLElement {
   private resizeObserver?: ResizeObserver;
   private executedLineMarkers: number[] = [];
   private executionSubscription?: EventSubscription;
+  private plotClearedSubscription?: EventSubscription;
 
   constructor() {
     super();
@@ -63,11 +64,19 @@ export class NCCodePane extends HTMLElement {
         }
       },
     );
+
+    // Listen for plot cleared events to remove executed line highlighting
+    this.plotClearedSubscription = this.eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
+      this.clearExecutedLineMarkers();
+    });
   }
 
   disconnectedCallback() {
     if (this.executionSubscription) {
       this.executionSubscription.unsubscribe();
+    }
+    if (this.plotClearedSubscription) {
+      this.plotClearedSubscription.unsubscribe();
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

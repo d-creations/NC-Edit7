@@ -458,6 +458,9 @@ export class NCToolpathPlot extends HTMLElement {
     if (statusElement) {
       statusElement.textContent = 'No plot data';
     }
+
+    // Notify other components (e.g., NCCodePane) that the plot was cleared
+    this.eventBus.publish(EVENT_NAMES.PLOT_CLEARED, undefined);
   }
 
   private zoomIn() {
