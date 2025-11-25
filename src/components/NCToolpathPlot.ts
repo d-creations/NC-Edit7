@@ -478,6 +478,13 @@ export class NCToolpathPlot extends HTMLElement {
       });
     }
 
+    // Check if bounding box is valid (not empty/infinite)
+    if (box.isEmpty()) {
+      // Reset to default view if nothing to fit
+      this.resetCamera();
+      return;
+    }
+
     // Get the center and size of the bounding box
     const center = new THREE.Vector3();
     box.getCenter(center);
@@ -486,9 +493,25 @@ export class NCToolpathPlot extends HTMLElement {
 
     // Calculate the distance to fit the object
     const maxDim = Math.max(size.x, size.y, size.z);
+
+    // Handle edge case where maxDim is 0 or very small
+    if (maxDim < 0.001) {
+      this.resetCamera();
+      return;
+    }
+
+    // Validate FOV is within valid range (not 0 or 180 degrees)
     const fov = this.camera.fov * (Math.PI / 180);
+    if (fov <= 0 || fov >= Math.PI) {
+      this.resetCamera();
+      return;
+    }
+
     let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
     cameraDistance *= 1.5; // Add some padding
+
+    // Ensure camera distance is within valid range
+    cameraDistance = Math.max(this.controls.minDistance, Math.min(cameraDistance, this.controls.maxDistance));
 
     // Position camera
     const direction = new THREE.Vector3(1, 1, 1).normalize();
