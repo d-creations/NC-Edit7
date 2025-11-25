@@ -99,17 +99,46 @@ export class NCCodePane extends HTMLElement {
       <style>
         .ace_editor {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace !important;
-        }
-        .ace_line {
+            background-color: #272822 !important;
             color: #f8f8f2 !important;
         }
-        .ace_layer {
-            z-index: auto !important;
+        
+        /* Layering fixes to ensure text is always on top of markers */
+        .ace_marker-layer {
+            z-index: 1 !important;
         }
+        .ace_text-layer {
+            z-index: 2 !important;
+            color: #f8f8f2 !important;
+        }
+        .ace_cursor-layer {
+            z-index: 3 !important;
+        }
+        
+        .ace_line {
+            /* Allow syntax highlighting to work, but default to white */
+            color: inherit;
+        }
+
         .ace_executed-line {
             position: absolute;
             background-color: rgba(0, 128, 0, 0.2) !important;
             border-left: 3px solid #4ec9b0 !important;
+        }
+        
+        /* Improve active line visibility */
+        .ace_marker-layer .ace_active-line {
+            background-color: #44475a !important;
+            border-top: 1px solid #6272a4;
+            border-bottom: 1px solid #6272a4;
+        }
+        .ace_gutter-active-line {
+            background-color: #44475a !important;
+            color: #f8f8f2 !important;
+        }
+        .ace_cursor {
+            color: #f8f8f2 !important;
+            border-left: 2px solid #f8f8f2 !important;
         }
       </style>
       <div class="ace-editor-container" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
@@ -128,59 +157,18 @@ export class NCCodePane extends HTMLElement {
       editorElement.style.height = '100%';
     }
 
-    const demoProgram = `%
-O0001 (DEMO MACHINING PROGRAM - CHANNEL 1)
-(LONGER DEMO PROGRAM FOR VISUALIZATION)
-N10 G21 (METRIC UNITS)
-N20 G90 (ABSOLUTE POSITIONING)
-N30 G17 (XY PLANE)
-(TOOL CHANGE)
-N40 T1 M06 (TOOL 1 - 10MM END MILL)
-N50 G43 H1 (TOOL LENGTH COMPENSATION)
-N60 S2000 M03 (SPINDLE ON CW AT 2000 RPM)
-(RAPID TO START POSITION)
-N70 G00 X0 Y0 Z50
-N80 G00 X10 Y10
-N90 G00 Z5 (RAPID APPROACH)
-(PLUNGE TO DEPTH)
-N100 G01 Z-5 F100 (PLUNGE)
-(SQUARE POCKET - FIRST PASS)
-N110 G01 X60 F300
-N120 G01 Y60
-N130 G01 X10
-N140 G01 Y10
-(SECOND PASS - OFFSET)
-N150 G01 X15 Y15
-N160 G01 X55
-N170 G01 Y55
-N180 G01 X15
-N190 G01 Y15
-(DEEPER LEVEL)
-N200 G01 Z-10 F100
-N210 G01 X60 F300
-N220 G01 Y60
-N230 G01 X10
-N240 G01 Y10
-(CIRCULAR INTERPOLATION - ARC MOVES)
-N250 G00 Z5
-N260 G00 X100 Y35
-N270 G01 Z-5 F100
-N280 G02 X100 Y35 I0 J15 F200 (FULL CIRCLE CW)
-N290 G03 X130 Y35 R15 F200 (ARC CCW)
-(DIAGONAL MOVES)
-N300 G00 Z5
-N310 G00 X150 Y0
-N320 G01 Z-3 F100
-N330 G01 X200 Y50 F250
-N340 G01 X150 Y100
-N350 G01 X100 Y50
-N360 G01 X150 Y0
-(RETRACT AND END)
-N370 G00 Z50 (RETRACT)
-N380 G00 X0 Y0 (RETURN TO HOME)
-N390 M05 (SPINDLE OFF)
-N400 M30 (PROGRAM END)
-%`;
+    const demoProgram = `G0 X0 Y0
+T200
+G98
+G1 X50 Y0 F200
+G1 X50 Y50
+G1 X0 Y50
+G1 X0 Y0
+G0 Z5
+G1 X25 Y25
+G1 Z0
+G1 X75 Y25
+G1 Z5`;
 
     this.editor = ace.edit(editorElement, {
       mode: 'ace/mode/text', // TODO: Custom NC mode
@@ -214,6 +202,19 @@ N400 M30 (PROGRAM END)
 
       // Trigger parse
       this.parserService.parse(value, this.channelId);
+    });
+
+    // Listen for cursor changes to highlight corresponding plot segment
+    this.editor.selection.on('changeCursor', () => {
+      if (!this.editor) return;
+      const cursorPosition = this.editor.getCursorPosition();
+      // Ace uses 0-based rows, but our NC parser/plotter uses 1-based line numbers
+      const lineNumber = cursorPosition.row + 1;
+      
+      this.eventBus.publish(EVENT_NAMES.EDITOR_CURSOR_MOVED, {
+        channelId: this.channelId,
+        lineNumber: lineNumber
+      });
     });
   }
 

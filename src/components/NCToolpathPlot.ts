@@ -26,6 +26,8 @@ export class NCToolpathPlot extends HTMLElement {
   private isVisible = false;
   private resizeObserver?: ResizeObserver;
   private isPlotting = false;
+  private currentPlotMetadata: PlotMetadata | null = null;
+  private highlightObject: THREE.Object3D | null = null;
 
   constructor() {
     super();
@@ -80,6 +82,12 @@ export class NCToolpathPlot extends HTMLElement {
         this.isVisible = stateData.uiSettings.plotViewerOpen;
         this.updateVisibility();
       }
+    });
+
+    // Listen for cursor movement to highlight segments
+    this.eventBus.subscribe(EVENT_NAMES.EDITOR_CURSOR_MOVED, (data: unknown) => {
+      const cursorData = data as { channelId: string; lineNumber: number };
+      this.highlightSegment(cursorData.lineNumber);
     });
   }
 
@@ -389,16 +397,22 @@ export class NCToolpathPlot extends HTMLElement {
   private updatePlot(plotMetadata: PlotMetadata) {
     if (!this.scene) return;
 
+    this.currentPlotMetadata = plotMetadata;
+
     // Clear existing plot lines (keep axes)
     const toRemove: THREE.Object3D[] = [];
     this.scene.children.forEach((child) => {
-      if (child instanceof THREE.Line || child instanceof THREE.LineSegments) {
-        if (child.userData.isToolpath) {
-          toRemove.push(child);
-        }
+      if (child.userData.isToolpath) {
+        toRemove.push(child);
       }
     });
     toRemove.forEach((obj) => this.scene?.remove(obj));
+
+    // Remove highlight object if exists
+    if (this.highlightObject) {
+      this.scene.remove(this.highlightObject);
+      this.highlightObject = null;
+    }
 
     // Add new plot
     const plotGroup = this.plotService.createSegmentedToolpath(plotMetadata);
@@ -409,6 +423,59 @@ export class NCToolpathPlot extends HTMLElement {
     const statusElement = this.shadowRoot?.getElementById('plot-status');
     if (statusElement) {
       statusElement.textContent = `Points: ${plotMetadata.points.length}, Segments: ${plotMetadata.segments.length}`;
+    }
+  }
+
+  private highlightSegment(lineNumber: number) {
+    if (!this.scene || !this.currentPlotMetadata) return;
+
+    // Remove previous highlight
+    if (this.highlightObject) {
+      this.scene.remove(this.highlightObject);
+      this.highlightObject = null;
+    }
+
+    // Find segments corresponding to this line number
+    // We check endPoint.lineNumber as it represents the move to that point
+    const segments = this.currentPlotMetadata.segments.filter(
+      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber
+    );
+
+    if (segments.length === 0) return;
+
+    // Create geometry for highlighted segments
+    const vertices: number[] = [];
+    segments.forEach((segment) => {
+      vertices.push(
+        segment.startPoint.x,
+        segment.startPoint.y,
+        segment.startPoint.z,
+        segment.endPoint.x,
+        segment.endPoint.y,
+        segment.endPoint.z
+      );
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+    // Create a bright material for highlighting (e.g., yellow)
+    // We use LineSegments because we might have multiple disconnected segments
+    const material = new THREE.LineBasicMaterial({ 
+      color: 0xffff00, // Yellow
+      depthTest: false, // Make it visible on top of other lines
+      linewidth: 3 // Note: might not work in all browsers
+    });
+
+    this.highlightObject = new THREE.LineSegments(geometry, material);
+    // Ensure it renders on top
+    this.highlightObject.renderOrder = 999;
+    
+    this.scene.add(this.highlightObject);
+    
+    // Force a re-render if not animating
+    if (!this.animationFrameId && this.renderer && this.camera) {
+      this.renderer.render(this.scene, this.camera);
     }
   }
 
@@ -442,13 +509,19 @@ export class NCToolpathPlot extends HTMLElement {
   private clearPlot() {
     if (!this.scene) return;
 
+    this.currentPlotMetadata = null;
+
+    // Remove highlight object if exists
+    if (this.highlightObject) {
+      this.scene.remove(this.highlightObject);
+      this.highlightObject = null;
+    }
+
     // Clear all toolpath objects from the scene
     const toRemove: THREE.Object3D[] = [];
     this.scene.children.forEach((child) => {
-      if (child instanceof THREE.Line || child instanceof THREE.LineSegments) {
-        if (child.userData.isToolpath) {
-          toRemove.push(child);
-        }
+      if (child.userData.isToolpath) {
+        toRemove.push(child);
       }
     });
     toRemove.forEach((obj) => this.scene?.remove(obj));
