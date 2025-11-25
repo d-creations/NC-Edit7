@@ -40,6 +40,10 @@ export class NCToolpathPlot extends BaseComponent {
   private resizeTimeout?: ReturnType<typeof setTimeout>;
   private dimensionLabelsGroup?: THREE.Group;
 
+  // Reusable canvas for text sprite creation
+  private labelCanvas?: HTMLCanvasElement;
+  private labelContext?: CanvasRenderingContext2D;
+
   // Deep zoom settings
   private readonly minDistance = 5;
   private readonly maxDistance = 1000;
@@ -191,13 +195,13 @@ export class NCToolpathPlot extends BaseComponent {
     if (this.dimensionLabelsGroup) {
       this.scene.remove(this.dimensionLabelsGroup);
       this.dimensionLabelsGroup.traverse((child) => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose();
-          }
-          if (child instanceof THREE.Sprite) {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (child.material instanceof THREE.Material) {
             child.material.dispose();
           }
+        } else if (child instanceof THREE.Sprite) {
+          child.material.dispose();
         }
       });
     }
@@ -272,20 +276,26 @@ export class NCToolpathPlot extends BaseComponent {
   }
 
   /**
-   * Creates a text sprite for dimension labels
+   * Creates a text sprite for dimension labels using a cached canvas
    */
   private createTextSprite(text: string, color: string, scale: number = 1): THREE.Sprite {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    if (!context) {
+    // Initialize or reuse the cached canvas
+    if (!this.labelCanvas) {
+      this.labelCanvas = document.createElement('canvas');
+      this.labelCanvas.width = 128;
+      this.labelCanvas.height = 64;
+      this.labelContext = this.labelCanvas.getContext('2d') ?? undefined;
+    }
+
+    if (!this.labelContext) {
       throw new Error('Could not get 2D context');
     }
 
+    const context = this.labelContext;
+    const canvas = this.labelCanvas;
     const fontSize = 48;
-    canvas.width = 128;
-    canvas.height = 64;
 
-    // Clear canvas
+    // Clear canvas for reuse
     context.clearRect(0, 0, canvas.width, canvas.height);
 
     // Set text properties
@@ -299,7 +309,16 @@ export class NCToolpathPlot extends BaseComponent {
     context.fillStyle = color;
     context.fillText(text, canvas.width / 2, canvas.height / 2);
 
-    const texture = new THREE.CanvasTexture(canvas);
+    // Create a new canvas for the texture (textures need their own canvas)
+    const textureCanvas = document.createElement('canvas');
+    textureCanvas.width = canvas.width;
+    textureCanvas.height = canvas.height;
+    const textureContext = textureCanvas.getContext('2d');
+    if (textureContext) {
+      textureContext.drawImage(canvas, 0, 0);
+    }
+
+    const texture = new THREE.CanvasTexture(textureCanvas);
     texture.needsUpdate = true;
 
     const spriteMaterial = new THREE.SpriteMaterial({
