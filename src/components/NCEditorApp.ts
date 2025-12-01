@@ -12,6 +12,10 @@ import './NCStatusIndicator';
 import './NCMachineSelector';
 import './NCToolpathPlot';
 
+// Constants for plot panel sizing
+const PLOT_PANEL_MIN_WIDTH = 200;
+const PLOT_PANEL_MAX_WIDTH_RATIO = 0.8;
+
 export class NCEditorApp extends HTMLElement {
   private registry: ServiceRegistry;
   private stateService: StateService;
@@ -155,12 +159,73 @@ export class NCEditorApp extends HTMLElement {
           background: #1e1e1e;
           border-left: 1px solid #3e3e42;
           overflow: hidden;
-          transition: width 0.3s ease;
+          position: relative;
         }
 
         .app-plot-container.visible {
-          display: block;
+          display: flex;
           width: 400px;
+          min-width: 200px; /* PLOT_PANEL_MIN_WIDTH */
+          max-width: 80%; /* PLOT_PANEL_MAX_WIDTH_RATIO */
+        }
+
+        .plot-resize-handle {
+          width: 6px;
+          cursor: ew-resize;
+          background: #3e3e42;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s;
+        }
+
+        .plot-resize-handle:hover {
+          background: #0e639c;
+        }
+
+        .plot-resize-handle::before {
+          content: '⋮';
+          color: #888;
+          font-size: 14px;
+        }
+
+        .plot-resize-handle:hover::before {
+          color: #fff;
+        }
+
+        .plot-content {
+          flex: 1;
+          overflow: hidden;
+        }
+
+        .plot-hide-bar {
+          position: absolute;
+          top: 50%;
+          left: 0;
+          transform: translateY(-50%);
+          width: 16px;
+          height: 40px;
+          background: #3c3c3c;
+          border: 1px solid #555;
+          border-left: none;
+          border-radius: 0 4px 4px 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+
+        .plot-hide-bar:hover {
+          background: #0e639c;
+        }
+
+        .plot-hide-bar::before {
+          content: '›';
+          color: #d4d4d4;
+          font-size: 14px;
+          font-weight: bold;
         }
 
         .app-channels {
@@ -215,7 +280,11 @@ export class NCEditorApp extends HTMLElement {
           </div>
         </div>
         <div class="app-plot-container" id="plot-container">
-          <nc-toolpath-plot></nc-toolpath-plot>
+          <div class="plot-resize-handle" id="plot-resize-handle"></div>
+          <div class="plot-content">
+            <nc-toolpath-plot></nc-toolpath-plot>
+          </div>
+          <div class="plot-hide-bar" id="plot-hide-bar" title="Hide plot panel"></div>
         </div>
       </div>
 
@@ -272,6 +341,54 @@ export class NCEditorApp extends HTMLElement {
     plotRequest?.addEventListener('click', () => {
       this.setPlotViewerVisible(true);
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, undefined);
+    });
+
+    // Hide bar to close the plot panel
+    const plotHideBar = this.querySelector('#plot-hide-bar');
+    plotHideBar?.addEventListener('click', () => {
+      this.setPlotViewerVisible(false);
+    });
+
+    // Resize handle for plot panel
+    this.setupResizeHandle();
+  }
+
+  private setupResizeHandle(): void {
+    const resizeHandle = this.querySelector('#plot-resize-handle');
+    const plotContainer = this.querySelector('#plot-container') as HTMLElement | null;
+    if (!resizeHandle || !plotContainer) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const deltaX = startX - e.clientX;
+      const newWidth = Math.max(
+        PLOT_PANEL_MIN_WIDTH,
+        Math.min(startWidth + deltaX, window.innerWidth * PLOT_PANEL_MAX_WIDTH_RATIO),
+      );
+      plotContainer.style.width = `${newWidth}px`;
+    };
+
+    const onMouseUp = () => {
+      isResizing = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    resizeHandle.addEventListener('mousedown', (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+      isResizing = true;
+      startX = mouseEvent.clientX;
+      startWidth = plotContainer.offsetWidth;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
     });
   }
 
