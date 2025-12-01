@@ -12,6 +12,10 @@ import './NCStatusIndicator';
 import './NCMachineSelector';
 import './NCToolpathPlot';
 
+// Constants for plot panel sizing
+const PLOT_PANEL_MIN_WIDTH = 200;
+const PLOT_PANEL_MAX_WIDTH_RATIO = 0.8;
+
 export class NCEditorApp extends HTMLElement {
   private registry: ServiceRegistry;
   private stateService: StateService;
@@ -161,8 +165,8 @@ export class NCEditorApp extends HTMLElement {
         .app-plot-container.visible {
           display: flex;
           width: 400px;
-          min-width: 200px;
-          max-width: 80%;
+          min-width: 200px; /* PLOT_PANEL_MIN_WIDTH */
+          max-width: 80%; /* PLOT_PANEL_MAX_WIDTH_RATIO */
         }
 
         .plot-resize-handle {
@@ -361,7 +365,10 @@ export class NCEditorApp extends HTMLElement {
     const onMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       const deltaX = startX - e.clientX;
-      const newWidth = Math.max(200, Math.min(startWidth + deltaX, window.innerWidth * 0.8));
+      const newWidth = Math.max(
+        PLOT_PANEL_MIN_WIDTH,
+        Math.min(startWidth + deltaX, window.innerWidth * PLOT_PANEL_MAX_WIDTH_RATIO),
+      );
       plotContainer.style.width = `${newWidth}px`;
     };
 
