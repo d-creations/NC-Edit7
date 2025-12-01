@@ -27,5 +27,21 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      // Forward legacy CGI path to local FastAPI adapter during development
+      '/ncplot7py/scripts/cgiserver.cgi': {
+        target: 'http://localhost:8000/cgiserver',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace('/ncplot7py/scripts/cgiserver.cgi', '/cgiserver'),
+      },
+      // Also provide path for the import-based adapter
+      '/ncplot7py/scripts/cgiserver_import': {
+        target: 'http://localhost:8000/cgiserver_import',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace('/ncplot7py/scripts/cgiserver_import', '/cgiserver_import'),
+      },
+    },
   },
 });
