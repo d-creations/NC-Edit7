@@ -29,15 +29,20 @@ export default defineConfig({
     open: true,
     proxy: {
       // Forward legacy CGI path to local FastAPI adapter during development
+      // Legacy frontend calls the CGI path; during dev forward these to the
+      // import-based FastAPI adapter so the frontend works without changing
+      // the client code. If you prefer the subprocess adapter, point this
+      // to `/cgiserver` instead.
       '/ncplot7py/scripts/cgiserver.cgi': {
-        target: 'http://localhost:8000/cgiserver',
+        // During local development route to the import adapter on 8001
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace('/ncplot7py/scripts/cgiserver.cgi', '/cgiserver'),
+        rewrite: (path) => path.replace('/ncplot7py/scripts/cgiserver.cgi', '/cgiserver_import'),
       },
       // Also provide path for the import-based adapter
       '/ncplot7py/scripts/cgiserver_import': {
-        target: 'http://localhost:8000/cgiserver_import',
+        target: 'http://localhost:8001/cgiserver_import',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace('/ncplot7py/scripts/cgiserver_import', '/cgiserver_import'),
