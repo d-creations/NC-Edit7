@@ -147,6 +147,14 @@ export class NCToolpathPlot extends HTMLElement {
           background: #0e639c;
           color: #fff;
         }
+        .view-controls {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          display: flex;
+          gap: 4px;
+          z-index: 10;
+        }
         .zoom-controls {
           position: absolute;
           top: 40px;
@@ -202,6 +210,11 @@ export class NCToolpathPlot extends HTMLElement {
           <button class="plot-button" id="toggle-axes">Axes</button>
           <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
         </div>
+        <div class="view-controls">
+          <button class="plot-button" id="view-xy">X-Y</button>
+          <button class="plot-button" id="view-xz">X-Z</button>
+          <button class="plot-button" id="view-yz">Y-Z</button>
+        </div>
         <div class="zoom-controls">
           <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
           <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
@@ -242,6 +255,16 @@ export class NCToolpathPlot extends HTMLElement {
 
     const zoomFitButton = this.shadowRoot?.getElementById('zoom-fit');
     zoomFitButton?.addEventListener('click', () => this.zoomToFit());
+
+    // View selection buttons
+    const viewXYButton = this.shadowRoot?.getElementById('view-xy');
+    viewXYButton?.addEventListener('click', () => this.setViewXY());
+
+    const viewXZButton = this.shadowRoot?.getElementById('view-xz');
+    viewXZButton?.addEventListener('click', () => this.setViewXZ());
+
+    const viewYZButton = this.shadowRoot?.getElementById('view-yz');
+    viewYZButton?.addEventListener('click', () => this.setViewYZ());
   }
 
   private async plotNCCode() {
@@ -483,6 +506,45 @@ export class NCToolpathPlot extends HTMLElement {
     if (!this.camera || !this.controls) return;
     this.camera.position.set(50, 50, 50);
     this.controls.target.set(50, 25, 0);
+    this.controls.update();
+  }
+
+  // View from top (X-Y plane, looking down Z axis)
+  private setViewXY() {
+    if (!this.camera || !this.controls) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    this.camera.position.set(
+      this.controls.target.x,
+      this.controls.target.y,
+      this.controls.target.z + distance,
+    );
+    this.camera.up.set(0, 1, 0);
+    this.controls.update();
+  }
+
+  // View from front (X-Z plane, looking along Y axis)
+  private setViewXZ() {
+    if (!this.camera || !this.controls) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    this.camera.position.set(
+      this.controls.target.x,
+      this.controls.target.y - distance,
+      this.controls.target.z,
+    );
+    this.camera.up.set(0, 0, 1);
+    this.controls.update();
+  }
+
+  // View from side (Y-Z plane, looking along X axis)
+  private setViewYZ() {
+    if (!this.camera || !this.controls) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    this.camera.position.set(
+      this.controls.target.x + distance,
+      this.controls.target.y,
+      this.controls.target.z,
+    );
+    this.camera.up.set(0, 0, 1);
     this.controls.update();
   }
 

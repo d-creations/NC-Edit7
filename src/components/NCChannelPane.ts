@@ -89,7 +89,9 @@ export class NCChannelPane extends HTMLElement {
           overflow: hidden;
         }
         .channel-sidebar {
-          width: 200px;
+          width: auto;
+          min-width: 100px;
+          max-width: 180px;
           border-right: 1px solid #3e3e42;
           display: flex;
           flex-direction: column;

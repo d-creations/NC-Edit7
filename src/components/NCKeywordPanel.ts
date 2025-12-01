@@ -49,19 +49,21 @@ export class NCKeywordPanel extends HTMLElement {
           background: #252526;
           color: #d4d4d4;
           font-family: monospace;
-          font-size: 12px;
+          font-size: 11px;
         }
         .keyword-item {
-          padding: 4px 8px;
+          padding: 2px 6px;
           cursor: pointer;
           border-bottom: 1px solid #3e3e42;
+          white-space: nowrap;
         }
         .keyword-item:hover {
           background: #2a2d2e;
         }
         .line-number {
           color: #858585;
-          margin-right: 8px;
+          margin-right: 4px;
+          font-size: 10px;
         }
         .keyword {
           color: #569cd6;
