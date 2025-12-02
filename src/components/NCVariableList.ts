@@ -1,17 +1,19 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
-import type { ParseArtifacts, NcParseResult } from '@core/types';
+import type { ParseArtifacts, NcParseResult, CustomVariable } from '@core/types';
 
 interface VariableEntry {
   register: number;
   value: number;
   modified?: boolean;
+  isCustom?: boolean;
 }
 
 export class NCVariableList extends HTMLElement {
   private eventBus: EventBus;
   private variables = new Map<number, number>();
+  private customVariables = new Map<string, number>();
   private channelId: string = '';
   private isOpen = false;
   private filterText = '';
@@ -66,6 +68,16 @@ export class NCVariableList extends HTMLElement {
     });
   }
 
+  /**
+   * Get custom variables for sending with plot requests
+   */
+  getCustomVariables(): CustomVariable[] {
+    return Array.from(this.customVariables.entries()).map(([name, value]) => ({
+      name,
+      value,
+    }));
+  }
+
   private render() {
     if (!this.shadowRoot) return;
 
@@ -84,7 +96,7 @@ export class NCVariableList extends HTMLElement {
         }
 
         :host([open]) {
-          height: 200px;
+          height: 280px;
         }
 
         .drawer-header {
@@ -115,7 +127,7 @@ export class NCVariableList extends HTMLElement {
           font-size: 11px;
         }
 
-        .close-button {
+        .close-button, .add-button {
           padding: 2px 8px;
           background: #3c3c3c;
           color: #d4d4d4;
@@ -125,12 +137,97 @@ export class NCVariableList extends HTMLElement {
           font-size: 11px;
         }
 
-        .close-button:hover {
+        .close-button:hover, .add-button:hover {
           background: #4c4c4c;
         }
 
+        .add-button {
+          background: #0e639c;
+          border-color: #0e639c;
+          color: #fff;
+        }
+
+        .add-button:hover {
+          background: #1177bb;
+        }
+
+        .custom-section {
+          padding: 8px;
+          background: #2d2d30;
+          border-bottom: 1px solid #3e3e42;
+        }
+
+        .custom-section-title {
+          font-weight: bold;
+          color: #569cd6;
+          margin-bottom: 8px;
+          font-size: 11px;
+        }
+
+        .custom-input-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .custom-input {
+          padding: 4px 8px;
+          background: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 3px;
+          font-size: 11px;
+          font-family: monospace;
+        }
+
+        .custom-input:focus {
+          outline: none;
+          border-color: #569cd6;
+        }
+
+        .custom-input.name {
+          width: 80px;
+        }
+
+        .custom-input.value {
+          width: 80px;
+        }
+
+        .custom-list {
+          margin-top: 8px;
+          max-height: 60px;
+          overflow-y: auto;
+        }
+
+        .custom-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 2px 8px;
+          background: #333;
+          border-radius: 3px;
+          margin-bottom: 2px;
+        }
+
+        .custom-item-info {
+          color: #9cdcfe;
+        }
+
+        .remove-button {
+          background: transparent;
+          border: none;
+          color: #f14c4c;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 0 4px;
+        }
+
+        .remove-button:hover {
+          color: #ff6b6b;
+        }
+
         .variable-list {
-          height: calc(100% - 32px);
+          height: calc(100% - 150px);
           overflow-y: auto;
           padding: 4px;
         }
@@ -173,10 +270,20 @@ export class NCVariableList extends HTMLElement {
           <button class="close-button" id="close">Close</button>
         </div>
       </div>
+      <div class="custom-section">
+        <div class="custom-section-title">Custom Variables</div>
+        <div class="custom-input-row">
+          <input type="text" class="custom-input name" id="custom-name" placeholder="Name (e.g., #100)">
+          <input type="number" class="custom-input value" id="custom-value" placeholder="Value" step="any">
+          <button class="add-button" id="add-custom">+ Add</button>
+        </div>
+        <div class="custom-list" id="custom-list"></div>
+      </div>
       <div class="variable-list" id="list"></div>
     `;
 
     this.attachControlListeners();
+    this.updateCustomList();
   }
 
   private attachControlListeners() {
@@ -187,6 +294,78 @@ export class NCVariableList extends HTMLElement {
     filterInput?.addEventListener('input', (e) => {
       this.filterText = (e.target as HTMLInputElement).value;
       this.updateList();
+    });
+
+    const addButton = this.shadowRoot?.getElementById('add-custom');
+    addButton?.addEventListener('click', () => this.addCustomVariable());
+
+    // Allow adding with Enter key
+    const customName = this.shadowRoot?.getElementById('custom-name') as HTMLInputElement;
+    const customValue = this.shadowRoot?.getElementById('custom-value') as HTMLInputElement;
+
+    customName?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addCustomVariable();
+    });
+    customValue?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addCustomVariable();
+    });
+  }
+
+  private addCustomVariable() {
+    const nameInput = this.shadowRoot?.getElementById('custom-name') as HTMLInputElement;
+    const valueInput = this.shadowRoot?.getElementById('custom-value') as HTMLInputElement;
+
+    if (!nameInput || !valueInput) return;
+
+    const name = nameInput.value.trim();
+    const value = parseFloat(valueInput.value);
+
+    if (!name || isNaN(value)) {
+      return;
+    }
+
+    this.customVariables.set(name, value);
+    this.updateCustomList();
+
+    // Clear inputs
+    nameInput.value = '';
+    valueInput.value = '';
+    nameInput.focus();
+  }
+
+  private removeCustomVariable(name: string) {
+    this.customVariables.delete(name);
+    this.updateCustomList();
+  }
+
+  private updateCustomList() {
+    const customList = this.shadowRoot?.getElementById('custom-list');
+    if (!customList) return;
+
+    customList.innerHTML = '';
+
+    if (this.customVariables.size === 0) {
+      customList.innerHTML = '<div style="color: #666; font-size: 10px;">No custom variables</div>';
+      return;
+    }
+
+    this.customVariables.forEach((value, name) => {
+      const item = document.createElement('div');
+      item.className = 'custom-item';
+      item.innerHTML = `
+        <span class="custom-item-info">${name} = ${value}</span>
+        <button class="remove-button" data-name="${name}" title="Remove">×</button>
+      `;
+      customList.appendChild(item);
+    });
+
+    // Attach remove listeners
+    const removeButtons = customList.querySelectorAll('.remove-button');
+    removeButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const name = (e.target as HTMLElement).dataset.name;
+        if (name) this.removeCustomVariable(name);
+      });
     });
   }
 

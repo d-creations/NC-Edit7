@@ -11,7 +11,9 @@ import { PlotService } from '@services/PlotService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { StateService } from '@services/StateService';
-import type { PlotMetadata, MachineType } from '@core/types';
+import type { PlotMetadata, MachineType, ToolValue, CustomVariable } from '@core/types';
+import type { NCToolList } from './NCToolList';
+import type { NCVariableList } from './NCVariableList';
 
 export class NCToolpathPlot extends HTMLElement {
   private scene?: THREE.Scene;
@@ -299,12 +301,26 @@ export class NCToolpathPlot extends HTMLElement {
           `nc-channel-pane[data-channel="${channel.id}"] nc-code-pane`,
         ) as (HTMLElement & { getValue: () => string }) | null;
 
+        // Get tool values from the NCToolList component
+        const toolList = document.querySelector(
+          `nc-channel-pane[data-channel="${channel.id}"] nc-tool-list`,
+        ) as (NCToolList & { getToolValues: () => ToolValue[] }) | null;
+
+        // Get custom variables from the NCVariableList component
+        const variableList = document.querySelector(
+          `nc-channel-pane[data-channel="${channel.id}"] nc-variable-list`,
+        ) as (NCVariableList & { getCustomVariables: () => CustomVariable[] }) | null;
+
         const program = codePane?.getValue() || channel.program || '';
+        const toolValues = toolList?.getToolValues() || [];
+        const customVariables = variableList?.getCustomVariables() || [];
 
         return {
           channelId: channel.id,
           program,
           machineName: machineName as MachineType,
+          toolValues,
+          customVariables,
         };
       });
 

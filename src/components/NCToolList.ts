@@ -1,11 +1,16 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
-import type { ParseArtifacts, NcParseResult, ToolRegisterEntry } from '@core/types';
+import type { ParseArtifacts, NcParseResult, ToolRegisterEntry, ToolValue } from '@core/types';
+
+interface ToolWithValues extends ToolRegisterEntry {
+  qValue?: number;
+  rValue?: number;
+}
 
 export class NCToolList extends HTMLElement {
   private eventBus: EventBus;
-  private tools: ToolRegisterEntry[] = [];
+  private tools: ToolWithValues[] = [];
   private channelId: string = '';
 
   static get observedAttributes() {
@@ -35,11 +40,43 @@ export class NCToolList extends HTMLElement {
       EVENT_NAMES.PARSE_COMPLETED,
       (data: { channelId: string; result: NcParseResult; artifacts: ParseArtifacts }) => {
         if (data.channelId === this.channelId) {
-          this.tools = data.artifacts.toolRegisters;
+          // Preserve existing Q and R values for tools that still exist
+          const existingToolValues = new Map<number, { qValue?: number; rValue?: number }>();
+          this.tools.forEach((tool) => {
+            if (tool.qValue !== undefined || tool.rValue !== undefined) {
+              existingToolValues.set(tool.toolNumber, {
+                qValue: tool.qValue,
+                rValue: tool.rValue,
+              });
+            }
+          });
+
+          // Update tools list with new data, preserving user-set values
+          this.tools = data.artifacts.toolRegisters.map((tool) => {
+            const existing = existingToolValues.get(tool.toolNumber);
+            return {
+              ...tool,
+              qValue: existing?.qValue,
+              rValue: existing?.rValue,
+            };
+          });
           this.updateList();
         }
       },
     );
+  }
+
+  /**
+   * Get tool values for sending with plot requests
+   */
+  getToolValues(): ToolValue[] {
+    return this.tools
+      .filter((tool) => tool.qValue !== undefined || tool.rValue !== undefined)
+      .map((tool) => ({
+        toolNumber: tool.toolNumber,
+        qValue: tool.qValue,
+        rValue: tool.rValue,
+      }));
   }
 
   private render() {
@@ -72,12 +109,18 @@ export class NCToolList extends HTMLElement {
           padding: 4px 8px;
           border-bottom: 1px solid #3e3e42;
           display: flex;
-          justify-content: space-between;
-          align-items: center;
+          flex-direction: column;
+          gap: 4px;
         }
 
         .tool-item:hover {
           background: #2a2d2e;
+        }
+
+        .tool-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
         }
 
         .tool-number {
@@ -95,6 +138,43 @@ export class NCToolList extends HTMLElement {
           color: #b5cea8;
         }
 
+        .tool-inputs {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .input-group {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .input-group label {
+          color: #9cdcfe;
+          font-size: 11px;
+        }
+
+        .input-group input {
+          width: 50px;
+          padding: 2px 4px;
+          background: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 3px;
+          font-size: 11px;
+          font-family: monospace;
+        }
+
+        .input-group input:focus {
+          outline: none;
+          border-color: #569cd6;
+        }
+
+        .input-group input::placeholder {
+          color: #666;
+        }
+
         .empty-message {
           padding: 16px;
           text-align: center;
@@ -103,7 +183,7 @@ export class NCToolList extends HTMLElement {
         }
       </style>
 
-      <div class="tool-header">Tools</div>
+      <div class="tool-header">Tools (Q/R Values)</div>
       <div class="tool-list" id="list"></div>
     `;
   }
@@ -119,7 +199,7 @@ export class NCToolList extends HTMLElement {
       return;
     }
 
-    this.tools.forEach((tool) => {
+    this.tools.forEach((tool, index) => {
       const item = document.createElement('div');
       item.className = 'tool-item';
 
@@ -132,13 +212,52 @@ export class NCToolList extends HTMLElement {
       }
 
       item.innerHTML = `
-        <span class="tool-number">T${tool.toolNumber}</span>
-        <div class="tool-params">
-          ${params.join('') || '<span class="tool-param">-</span>'}
+        <div class="tool-row">
+          <span class="tool-number">T${tool.toolNumber}</span>
+          <div class="tool-params">
+            ${params.join('') || '<span class="tool-param">-</span>'}
+          </div>
+        </div>
+        <div class="tool-inputs">
+          <div class="input-group">
+            <label for="q-${index}">Q:</label>
+            <input type="number" id="q-${index}" data-tool="${index}" data-type="q" 
+                   value="${tool.qValue !== undefined ? tool.qValue : ''}" 
+                   placeholder="Q value" step="any">
+          </div>
+          <div class="input-group">
+            <label for="r-${index}">R:</label>
+            <input type="number" id="r-${index}" data-tool="${index}" data-type="r" 
+                   value="${tool.rValue !== undefined ? tool.rValue : ''}" 
+                   placeholder="R value" step="any">
+          </div>
         </div>
       `;
 
       list.appendChild(item);
+    });
+
+    // Attach input listeners
+    this.attachInputListeners();
+  }
+
+  private attachInputListeners() {
+    const inputs = this.shadowRoot?.querySelectorAll('input[type="number"]');
+    inputs?.forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        const toolIndex = parseInt(target.dataset.tool || '0', 10);
+        const type = target.dataset.type;
+        const value = target.value ? parseFloat(target.value) : undefined;
+
+        if (toolIndex >= 0 && toolIndex < this.tools.length) {
+          if (type === 'q') {
+            this.tools[toolIndex].qValue = value;
+          } else if (type === 'r') {
+            this.tools[toolIndex].rValue = value;
+          }
+        }
+      });
     });
   }
 }
