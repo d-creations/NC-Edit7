@@ -1,6 +1,7 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
+import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { ParserService } from '@services/ParserService';
+import { StateService } from '@services/StateService';
 import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
 import type { ExecutedProgramResult } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
@@ -11,18 +12,21 @@ import 'ace-builds/src-noconflict/theme-monokai';
 export class NCCodePane extends HTMLElement {
   private editor?: ace.Ace.Editor;
   private parserService: ParserService;
+  private stateService: StateService;
   private eventBus: EventBus;
   private channelId: string = '';
   private resizeObserver?: ResizeObserver;
   private executedLineMarkers: number[] = [];
   private executionSubscription?: EventSubscription;
   private plotClearedSubscription?: EventSubscription;
+  private machineChangedSubscription?: EventSubscription;
 
   constructor() {
     super();
     // ACE editor has issues with Shadow DOM, so we render directly to light DOM
     const registry = ServiceRegistry.getInstance();
     this.parserService = registry.get(PARSER_SERVICE_TOKEN);
+    this.stateService = registry.get(STATE_SERVICE_TOKEN);
     this.eventBus = registry.get(EVENT_BUS_TOKEN);
   }
 
@@ -69,6 +73,11 @@ export class NCCodePane extends HTMLElement {
     this.plotClearedSubscription = this.eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
       this.clearExecutedLineMarkers();
     });
+
+    // Listen for machine changes to re-parse with new regex patterns
+    this.machineChangedSubscription = this.eventBus.subscribe(EVENT_NAMES.MACHINE_CHANGED, () => {
+      this.triggerParse();
+    });
   }
 
   disconnectedCallback() {
@@ -77,6 +86,9 @@ export class NCCodePane extends HTMLElement {
     }
     if (this.plotClearedSubscription) {
       this.plotClearedSubscription.unsubscribe();
+    }
+    if (this.machineChangedSubscription) {
+      this.machineChangedSubscription.unsubscribe();
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -188,7 +200,7 @@ G1 Z5`;
     this.resizeObserver.observe(this);
 
     // Trigger initial parse
-    this.parserService.parse(this.editor.getValue(), this.channelId);
+    this.triggerParse();
 
     this.editor.on('change', () => {
       const value = this.editor?.getValue() || '';
@@ -201,7 +213,7 @@ G1 Z5`;
       );
 
       // Trigger parse
-      this.parserService.parse(value, this.channelId);
+      this.triggerParse();
     });
 
     // Listen for cursor changes to highlight corresponding plot segment
@@ -216,6 +228,15 @@ G1 Z5`;
         lineNumber: lineNumber
       });
     });
+  }
+
+  private triggerParse() {
+    if (!this.editor) return;
+    const value = this.editor.getValue();
+    const activeMachine = this.stateService.getState().activeMachine;
+    const regexPatterns = activeMachine?.regexPatterns;
+    
+    this.parserService.parse(value, this.channelId, { regexPatterns });
   }
 
   setValue(code: string) {
