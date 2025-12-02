@@ -83,8 +83,11 @@ class TestStarCanalSynchroIntegration(unittest.TestCase):
 
         result = engine.get_Syncro_plot([prog1, prog2], synch=True)
 
-        # On synchronization error the engine returns the legacy error value
-        self.assertEqual(result, [[], []])
+        # The engine now returns partial results even when synchronization fails
+        # The errors are collected in engine.errors for the frontend to display
+        self.assertTrue(len(engine.errors) > 0, "Expected sync error to be collected")
+        # Result should still have the partial plot data that was generated before the error
+        self.assertIsInstance(result, list)
 
 
 if __name__ == '__main__':

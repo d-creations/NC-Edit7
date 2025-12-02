@@ -1,6 +1,7 @@
 """Handler for Tool Changes (T-codes)."""
 from __future__ import annotations
 
+import logging
 from typing import Optional, Tuple, List
 
 from ncplot7py.domain.exec_chain import Handler
@@ -8,11 +9,14 @@ from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.domain.exceptions import raise_nc_error, ExceptionTyps
 
+logger = logging.getLogger(__name__)
+
 
 class ToolHandler(Handler):
     """Handle Tool Change commands (T).
 
-    Validates tool number against machine configuration.
+    Validates tool number against machine configuration and stores
+    the current tool number in state for use by tool compensation handlers.
     """
 
     def handle(self, node: NCCommandNode, state: CNCState) -> Tuple[Optional[List], Optional[float]]:
@@ -27,6 +31,9 @@ class ToolHandler(Handler):
                 
                 # Simple parsing: try to get integer
                 t_val = int(float(t_str))
+                
+                # Store current tool number in state for compensation handlers
+                state.extra["current_tool_number"] = t_val
                 
                 # If machine config is present, validate
                 if state.machine_config:
@@ -68,15 +75,35 @@ class ToolHandler(Handler):
                             ExceptionTyps.NCCodeErrors, 
                             200, 
                             message=f"Tool number T{t_val} out of range ({min_t}-{max_t}) for {state.machine_config.name}", 
-                            value=t_str
+                            value=t_str,
+                            line=getattr(node, 'nc_code_line_nr', 0) or 0,
                         )
+                
+                # Load tool compensation data if available
+                tool_comp_data = state.extra.get("tool_compensation_data", {})
+                if t_val in tool_comp_data:
+                    tool_data = tool_comp_data[t_val]
+                    # Preload tool radius if available (will be used when G41/G42 activates)
+                    r_value = tool_data.get("rValue")
+                    if r_value is not None:
+                        try:
+                            state.extra["pending_tool_radius"] = float(r_value)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool radius value '{r_value}' for tool T{t_val}: {e}")
+                    # Preload tool quadrant if available
+                    q_value = tool_data.get("qValue")
+                    if q_value is not None:
+                        try:
+                            state.extra["pending_tool_quadrant"] = int(q_value)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool quadrant value '{q_value}' for tool T{t_val}: {e}")
 
             except ValueError:
                 # T might be a string name (Siemens allows T="EndMill")
                 # If config expects integer range, this might be an issue, 
                 # but Siemens 840D supports names.
                 # Our config has a range, implying integer tools.
-                pass
+                state.extra["current_tool_name"] = t_str
 
         if self.next_handler is not None:
             return self.next_handler.handle(node, state)
