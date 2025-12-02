@@ -19,6 +19,16 @@
   <message id="1:-10">Makroberechnungsfehler</message>
   <message id="1:-11">Bogenwert ist zu groß</message>
 
+  <!-- Werkzeugradiuskompensation Fehler (typ=1) -->
+  <message id="1:-100">Werkzeugradiuskompensation (G41/G42) benötigt Werkzeugradius R für Werkzeug {value}</message>
+  <message id="1:-101">Werkzeugradiuskompensation aktiv aber kein Verfahrbefehl gefunden</message>
+  <message id="1:-102">Ungültiger Werkzeugquadrant Q{value} - muss 1-9 sein</message>
+  <message id="1:-103">Werkzeugkompensation kann nicht ohne vorherige Werkzeugauswahl aktiviert werden</message>
+  <message id="1:-104">Werkzeugkompensation bereits aktiv - vor Richtungswechsel mit G40 abschalten</message>
+  <message id="1:-105">Bogenradius zu klein für Werkzeugkompensation - Werkzeug würde Werkstück beschädigen</message>
+  <message id="1:-106">Anfahrwinkel für Werkzeugkompensation ungültig in Zeile {line}</message>
+  <message id="1:-107">Werkzeugradius '{value}' ist ungültig oder Null</message>
+
   <!-- CNCError (typ=3) -->
   <message id="3:0">Keine</message>
   <message id="3:-1">Zu viele G-Codes einer Gruppe</message>

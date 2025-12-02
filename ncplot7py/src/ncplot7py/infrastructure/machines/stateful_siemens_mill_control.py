@@ -38,8 +38,9 @@ class StatefulSiemensMillCanal(BaseNCCanalInterface):
         self._name = name
         self._state = init_state or CNCState()
         
-        # Ensure machine config is set
-        if self._state.machine_config is None:
+        # Ensure machine config is set to Siemens for this control type
+        # Override even if a default was set (e.g. FANUC_GENERIC from __post_init__)
+        if self._state.machine_config is None or self._state.machine_config.name in ("FANUC_GENERIC", "FANUC_STAR"):
             self._state.machine_config = SIEMENS_840D_CONFIG
 
         # Default to G17 (XY Plane) and G94 (Feed/min)

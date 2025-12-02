@@ -18,6 +18,16 @@
   <message id="1:-9">Letter not upper-case</message>
   <message id="1:-10">Macro calculation error</message>
   <message id="1:-11">Arc value is too big</message>
+  
+  <!-- Tool Compensation Errors (typ=1) -->
+  <message id="1:-100">Tool radius compensation (G41/G42) requires tool radius R to be set for tool {value}</message>
+  <message id="1:-101">Tool radius compensation active but no motion command found</message>
+  <message id="1:-102">Invalid tool quadrant Q{value} - must be 1-9</message>
+  <message id="1:-103">Tool compensation cannot be activated without prior tool selection</message>
+  <message id="1:-104">Tool compensation already active - cancel with G40 before changing direction</message>
+  <message id="1:-105">Arc radius too small for tool compensation - tool would gouge workpiece</message>
+  <message id="1:-106">Tool compensation approach angle invalid at line {line}</message>
+  <message id="1:-107">Tool radius '{value}' is invalid or zero</message>
 
   <!-- CNCError (typ=3) -->
   <message id="3:0">None</message>

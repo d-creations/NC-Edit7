@@ -24,17 +24,23 @@ except Exception:
 try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
     from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
+    from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
     from ncplot7py.domain.machines import get_available_machines, get_machine_regex_patterns
+    from ncplot7py.domain.cnc_state import CNCState
+    from ncplot7py.domain.exceptions import ExceptionNode
 except Exception as e:
     logging.error(f"Failed to import ncplot7py: {e}")
     logging.error(traceback.format_exc())
     # If package isn't importable in some environments, we will raise at runtime
     NCExecutionEngine = None  # type: ignore
     StatefulIsoTurnControl = None  # type: ignore
+    StatefulSiemensMillControl = None  # type: ignore
     cli_bootstrap = None  # type: ignore
     get_available_machines = None # type: ignore
     get_machine_regex_patterns = None # type: ignore
+    CNCState = None  # type: ignore
+    ExceptionNode = None  # type: ignore
 
 app = FastAPI(title="ncplot7py-adapter-import")
 
@@ -328,9 +334,12 @@ async def cgiserver_import(request: Request):
     else:
         raise HTTPException(status_code=400, detail="Invalid request format")
 
-    # Build programs list and canal names
+    # Build programs list, canal names, tool values, custom variables, and machine names
     programs: List[str] = []
     canal_names: List[str] = []
+    tool_values_list: List[List[Dict[str, Any]]] = []
+    custom_variables_list: List[List[Dict[str, Any]]] = []
+    machine_names: List[str] = []
     # use module-level `sanitize_program` defined above
 
     for entry in machinedata:
@@ -338,17 +347,86 @@ async def cgiserver_import(request: Request):
         prog_sanitized = sanitize_program(prog)
         programs.append(prog_sanitized)
         canal_names.append(str(entry.get("canalNr", "1")))
+        machine_names.append(str(entry.get("machineName", "ISO_MILL")))
+        
+        # Extract toolValues (Q quadrant 1-9 and R radius for tool compensation)
+        tool_values = entry.get("toolValues", [])
+        tool_values_list.append(tool_values)
+        logging.info(f"Tool values for canal {entry.get('canalNr', '1')}: {tool_values}")
+        
+        # Extract customVariables (user-defined variables)
+        custom_vars = entry.get("customVariables", [])
+        custom_variables_list.append(custom_vars)
+        logging.info(f"Custom variables for canal {entry.get('canalNr', '1')}: {custom_vars}")
+
+    # Create initial CNC states with custom variables and tool data
+    init_states = []
+    for idx in range(len(programs)):
+        if CNCState is not None:
+            state = CNCState()
+            # Set custom variables into state parameters
+            custom_vars = custom_variables_list[idx] if idx < len(custom_variables_list) else []
+            for var in custom_vars:
+                var_name = str(var.get("name", ""))
+                var_value = var.get("value", 0)
+                if var_name:
+                    try:
+                        state.set_parameter(var_name, float(var_value))
+                    except (ValueError, TypeError):
+                        logging.warning(f"Invalid custom variable value: {var_name}={var_value}")
+            
+            # Store tool Q/R values in state extra for later use by tool compensation handlers
+            tool_vals = tool_values_list[idx] if idx < len(tool_values_list) else []
+            tool_data = {}
+            for tv in tool_vals:
+                t_num = tv.get("toolNumber")
+                if t_num is not None:
+                    tool_data[int(t_num)] = {
+                        "qValue": tv.get("qValue"),  # Quadrant Q1-Q9
+                        "rValue": tv.get("rValue"),  # Tool radius R
+                    }
+            state.extra["tool_compensation_data"] = tool_data
+            init_states.append(state)
+        else:
+            init_states.append(None)
+
+    # Determine control type based on machine name
+    first_machine = machine_names[0] if machine_names else "ISO_MILL"
+    is_siemens_mill = "SIEMENS" in first_machine.upper() or "MILL" in first_machine.upper() or first_machine == "ISO_MILL"
 
     # Create a control that can handle multiple canals and run the engine.
     engine_output = None
+    errors: List[Dict[str, Any]] = []
     try:
-        # The library currently supports Turning (Lathe) controls primarily.
-        # If the input is for a Mill (ISO_MILL) or uses Y-axis heavily without
-        # proper configuration, the real engine might produce empty plots.
-        # We attempt to run the real engine first.
-        control = StatefulIsoTurnControl(count_of_canals=len(programs), canal_names=canal_names)
+        # Choose control type based on machine
+        if is_siemens_mill and StatefulSiemensMillControl is not None:
+            control = StatefulSiemensMillControl(
+                count_of_canals=len(programs), 
+                canal_names=canal_names,
+                init_nc_states=init_states if any(s is not None for s in init_states) else None
+            )
+        else:
+            control = StatefulIsoTurnControl(
+                count_of_canals=len(programs), 
+                canal_names=canal_names,
+                init_nc_states=init_states if any(s is not None for s in init_states) else None
+            )
         engine = NCExecutionEngine(control)
         engine_output = engine.get_Syncro_plot(programs, False)
+        
+        # Collect any errors from the engine
+        errors = getattr(engine, 'errors', [])
+    except ExceptionNode as e:
+        # Handle structured NC errors
+        error_info = {
+            "type": e.typ.name if hasattr(e.typ, 'name') else str(e.typ),
+            "code": e.code,
+            "line": e.line,
+            "message": e.localized("en"),
+            "value": str(e.value) if e.value else "",
+        }
+        errors.append(error_info)
+        logging.warning("NC execution error: %s", error_info)
     except Exception as e:
         logging.warning("Real engine failed: %s. Falling back to mock parser.", e)
         # Fallback will handle this
@@ -372,7 +450,11 @@ async def cgiserver_import(request: Request):
             use_mock = True
 
     if use_mock:
-        return run_mock_parser(machinedata)
+        result = run_mock_parser(machinedata)
+        # Include any errors that occurred before falling back to mock
+        if errors:
+            result["errors"] = errors
+        return result
 
     # engine_output is a list per canal
     canal_results = {}
@@ -397,9 +479,15 @@ async def cgiserver_import(request: Request):
                 "canal": canal_results,
                 "message": [f"Conversion error for canal {canal_nr}: {str(e)}", f"raw_output: {repr(canal)[:1000]}"],
                 "success": False,
+                "errors": errors,
             }
 
-    return {"canal": canal_results, "message": messages, "success": True}
+    response = {"canal": canal_results, "message": messages, "success": True}
+    # Include errors array in the response even if execution succeeded partially
+    if errors:
+        response["errors"] = errors
+        response["success"] = len(errors) == 0  # Mark as unsuccessful if there were errors
+    return response
 
 
 # Backwards-compatible legacy CGI path used by the frontend
