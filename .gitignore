@@ -29,3 +29,4 @@ backend/Dockerfile
 build-plan.md
 docker-compose.yml
 launch.json
+docs/ncplot7py-integration.md

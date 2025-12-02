@@ -2,6 +2,7 @@
 
 `ncplot7py` ships a small CGI service (`scripts/cgiserver.cgi`) that exposes the legacy plot-calculation engine the main editor shell should call to keep NC toolpath plots synchronized with the parsed program.
 
+
 ## What the CGI expects
 
 The endpoint only accepts POST requests with a JSON body. The payload must either be an object with a `machinedata` array or a direct array. Each item represents one channel and requires the keys:
