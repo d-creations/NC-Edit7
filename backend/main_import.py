@@ -7,6 +7,18 @@ import logging
 from typing import List, Dict, Any
 import re
 import traceback
+import sys
+from pathlib import Path
+
+# Ensure ncplot7py/src is in sys.path for F1/Code deployment where PYTHONPATH env var might not be set easily
+# We assume this file is in backend/main_import.py, and ncplot7py is at ../ncplot7py
+try:
+    current_dir = Path(__file__).resolve().parent
+    package_src = current_dir.parent / "ncplot7py" / "src"
+    if package_src.exists() and str(package_src) not in sys.path:
+        sys.path.insert(0, str(package_src))
+except Exception:
+    pass
 
 # Import ncplot7py internals
 try:

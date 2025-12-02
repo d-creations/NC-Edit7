@@ -1,2 +1,30 @@
 node_modules/
 dist/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.venv/
+.env
+
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+
+# Deployment/build artifacts
+app.zip
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+DEPLOY_TO_AZURE.md
+backend/Dockerfile
+
+
+.yml
+build-plan.md
+docker-compose.yml
