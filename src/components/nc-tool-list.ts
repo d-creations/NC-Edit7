@@ -1,4 +1,5 @@
 import type { ChannelState } from "../domain/models.js";
+import type { ToolValue } from "../core/types.js";
 
 const styles = `
 :host {
@@ -32,19 +33,58 @@ const styles = `
 
 .list li {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 0.4rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 4px;
 }
 
 .list li:last-child {
   border-bottom: none;
 }
 
+.tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .badge {
   font-weight: 600;
   color: #81b1ff;
+}
+
+.tool-inputs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-group label {
+  color: #9cdcfe;
+  font-size: 11px;
+}
+
+.input-group input {
+  width: 50px;
+  padding: 2px 4px;
+  background: #3c3c3c;
+  color: #d4d4d4;
+  border: 1px solid #555;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #569cd6;
 }
 
 .no-data {
@@ -55,6 +95,7 @@ const styles = `
 
 export class NcToolList extends HTMLElement {
   private _state?: ChannelState;
+  private toolValues = new Map<number, { q?: number; r?: number }>();
 
   constructor() {
     super();
@@ -70,44 +111,101 @@ export class NcToolList extends HTMLElement {
     return this._state;
   }
 
+  getToolValues(): ToolValue[] {
+    const result: ToolValue[] = [];
+    this.toolValues.forEach((val, toolNumber) => {
+      if (val.q !== undefined || val.r !== undefined) {
+        result.push({
+          toolNumber,
+          qValue: val.q,
+          rValue: val.r,
+        });
+      }
+    });
+    return result;
+  }
+
   private render() {
     if (!this.shadowRoot) {
       return;
     }
 
     if (!this._state) {
-      this.shadowRoot.innerHTML = `<p class="no-data">Waiting for channel data…</p>`;
+      this.shadowRoot.innerHTML = `
+        <style>${styles}</style>
+        <div class="panel">
+          <h3>Tool usage</h3>
+          <p class="no-data">Waiting for channel data…</p>
+        </div>`;
       return;
     }
 
     const toolUsage = this._state.parseResult?.toolUsage ?? [];
-    const toolMap = new Map<number, number[]>();
+    // Get unique tool numbers
+    const tools = Array.from(new Set(toolUsage.map(u => u.toolNumber))).sort((a, b) => a - b);
 
-    for (const usage of toolUsage) {
-      const lines = toolMap.get(usage.toolNumber) ?? [];
-      lines.push(usage.lineNumber);
-      toolMap.set(usage.toolNumber, lines);
-    }
-
-    const listContent = Array.from(toolMap.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([toolNumber, lines]) => `
+    const listContent = tools.map((toolNumber) => {
+      const values = this.toolValues.get(toolNumber) || {};
+      return `
         <li>
-          <span class="badge">T${toolNumber}</span>
-          <span>${lines.map((line) => `L${line}`).join(", ")}</span>
+          <div class="tool-header">
+            <span class="badge">T${toolNumber}</span>
+          </div>
+          <div class="tool-inputs">
+            <div class="input-group">
+              <label>Q:</label>
+              <input type="number" 
+                     data-tool="${toolNumber}" 
+                     data-type="q" 
+                     value="${values.q !== undefined ? values.q : ''}" 
+                     placeholder="Q" step="any">
+            </div>
+            <div class="input-group">
+              <label>R:</label>
+              <input type="number" 
+                     data-tool="${toolNumber}" 
+                     data-type="r" 
+                     value="${values.r !== undefined ? values.r : ''}" 
+                     placeholder="R" step="any">
+            </div>
+          </div>
         </li>
-      `)
-      .join("");
+      `;
+    }).join("");
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <div class="panel">
-        <h3>Tool usage</h3>
-        <ul class="list">
+        <h3>Tool usage (Q/R)</h3>
+        <ul class="list" id="tool-list">
           ${listContent || '<li class="no-data">No tool entries yet.</li>'}
         </ul>
       </div>
     `;
+
+    this.attachListeners();
+  }
+
+  private attachListeners() {
+    const list = this.shadowRoot?.getElementById('tool-list');
+    if (!list) return;
+
+    list.addEventListener('change', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.tagName === 'INPUT') {
+        const toolNumber = parseInt(target.dataset.tool || '0', 10);
+        const type = target.dataset.type;
+        const value = target.value ? parseFloat(target.value) : undefined;
+
+        const current = this.toolValues.get(toolNumber) || {};
+        if (type === 'q') {
+          current.q = value;
+        } else if (type === 'r') {
+          current.r = value;
+        }
+        this.toolValues.set(toolNumber, current);
+      }
+    });
   }
 }
 

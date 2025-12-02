@@ -5,12 +5,17 @@ import "./nc-tool-list.js";
 import "./nc-variable-list.js";
 import "./nc-executed-list.js";
 import type { ChannelState } from "../domain/models.js";
+import { BackendGateway } from "../services/BackendGateway.js";
+import { ExecutedProgramService } from "../services/ExecutedProgramService.js";
+import { EventBus as ServiceEventBus } from "../services/EventBus.js";
+import { NcToolList } from "./nc-tool-list.js";
+import { NcVariableList } from "./nc-variable-list.js";
 
 type ChannelStateElement = HTMLElement & {
   channelState: ChannelState | undefined;
 };
 
-const CHANNEL_ID = "CH1";
+const CHANNEL_ID = "1";
 const DEFAULT_PROGRAM = `N1 G00 X0 Y0 Z0\nN2 G01 X10 Y10 Z0 M200`;
 
 const template = document.createElement("template");
@@ -67,6 +72,11 @@ template.innerHTML = `
       resize: vertical;
     }
 
+    .button-row {
+      display: flex;
+      gap: 8px;
+    }
+
     button {
       align-self: flex-start;
       padding: 0.5rem 1rem;
@@ -81,6 +91,10 @@ template.innerHTML = `
 
     button:active {
       transform: scale(0.98);
+    }
+
+    button.secondary {
+      background: linear-gradient(120deg, #4a4a4a, #666);
     }
 
     .status-pills {
@@ -102,9 +116,20 @@ template.innerHTML = `
           <span class="pill">Channel ${CHANNEL_ID}</span>
           <span class="pill" id="statusLabel">Idle</span>
         </div>
+        
+        <div style="margin-bottom: 0.5rem;">
+            <label for="machineSelector" style="display:block; margin-bottom: 0.25rem; font-size: 0.9rem;">Machine Control</label>
+            <select id="machineSelector" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: #0b0d1b; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                <option value="ISO_MILL">Loading machines...</option>
+            </select>
+        </div>
+
         <label for="programInput">NC Program</label>
         <textarea id="programInput" spellcheck="false"></textarea>
-        <button id="parseButton" type="button">Parse channel</button>
+        <div class="button-row">
+          <button id="parseButton" type="button">Parse channel</button>
+          <button id="plotButton" type="button" class="secondary">Plot (Server)</button>
+        </div>
       </div>
 
       <div class="panel-stack">
@@ -122,8 +147,11 @@ template.innerHTML = `
 export class NcEditorApp extends HTMLElement {
   private subscriptions: Array<() => void> = [];
   private parseButton?: HTMLButtonElement;
+  private plotButton?: HTMLButtonElement;
   private programInput?: HTMLTextAreaElement;
   private statusLabel?: HTMLElement;
+  private executedProgramService: ExecutedProgramService;
+  private backend: BackendGateway;
 
   constructor() {
     super();
@@ -131,6 +159,11 @@ export class NcEditorApp extends HTMLElement {
     if (this.shadowRoot) {
       this.shadowRoot.appendChild(template.content.cloneNode(true));
     }
+
+    // Initialize services
+    this.backend = new BackendGateway();
+    const serviceEventBus = new ServiceEventBus();
+    this.executedProgramService = new ExecutedProgramService(this.backend, serviceEventBus);
   }
 
   connectedCallback() {
@@ -139,6 +172,7 @@ export class NcEditorApp extends HTMLElement {
     }
 
     this.parseButton = this.shadowRoot.querySelector("#parseButton") ?? undefined;
+    this.plotButton = this.shadowRoot.querySelector("#plotButton") ?? undefined;
     this.programInput = this.shadowRoot.querySelector("#programInput") ?? undefined;
     this.statusLabel = this.shadowRoot.querySelector("#statusLabel") ?? undefined;
 
@@ -146,16 +180,47 @@ export class NcEditorApp extends HTMLElement {
       this.programInput.value = DEFAULT_PROGRAM;
     }
 
-    const handler = () => this.handleParse();
-    this.parseButton?.addEventListener("click", handler);
+    const parseHandler = () => this.handleParse();
+    this.parseButton?.addEventListener("click", parseHandler);
+    this.subscriptions.push(() => this.parseButton?.removeEventListener("click", parseHandler));
 
-    this.subscriptions.push(() => this.parseButton?.removeEventListener("click", handler));
+    const plotHandler = () => this.handlePlot();
+    this.plotButton?.addEventListener("click", plotHandler);
+    this.subscriptions.push(() => this.plotButton?.removeEventListener("click", plotHandler));
 
     this.subscriptions.push(
       eventBus.on("channelUpdated", ({ state }) => this.renderChannelState(state))
     );
 
     this.dispatchInitialParse();
+    this.loadMachines();
+  }
+
+  private async loadMachines() {
+    const selector = this.shadowRoot?.querySelector("#machineSelector") as HTMLSelectElement;
+    if (!selector) return;
+
+    try {
+      const response = await this.backend.listMachines();
+      if (response.success && response.machines) {
+        selector.innerHTML = "";
+        response.machines.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.machineName;
+            opt.textContent = `${m.machineName} (${m.controlType})`;
+            selector.appendChild(opt);
+        });
+        // Select ISO_MILL by default if available, or the first one
+        if (response.machines.some(m => m.machineName === "ISO_MILL")) {
+            selector.value = "ISO_MILL";
+        }
+      } else {
+          selector.innerHTML = "<option>Failed to load machines</option>";
+      }
+    } catch (e) {
+        console.error("Failed to load machines", e);
+        selector.innerHTML = "<option>Error loading machines</option>";
+    }
   }
 
   disconnectedCallback() {
@@ -173,6 +238,39 @@ export class NcEditorApp extends HTMLElement {
 
     this.statusLabel?.replaceChildren("Parsing…");
     updateChannelProgram(CHANNEL_ID, program);
+  }
+
+  private async handlePlot() {
+    const program = this.programInput?.value.trim() ?? "";
+    if (!program) return;
+
+    this.statusLabel?.replaceChildren("Requesting Plot...");
+
+    const toolList = this.shadowRoot?.querySelector("nc-tool-list") as NcToolList;
+    const variableList = this.shadowRoot?.querySelector("nc-variable-list") as NcVariableList;
+    const selector = this.shadowRoot?.querySelector("#machineSelector") as HTMLSelectElement;
+    const machineName = selector?.value || "ISO_MILL";
+
+    const toolValues = toolList?.getToolValues();
+    const customVariables = variableList?.getCustomVariables();
+
+    try {
+      const result = await this.executedProgramService.executeProgram({
+        channelId: CHANNEL_ID,
+        program,
+        machineName: machineName as any,
+        toolValues,
+        customVariables,
+      });
+      
+      this.statusLabel?.replaceChildren("Plot Received");
+      console.log("Plot Result:", result);
+      // TODO: Update UI with plot result (e.g. executed list, 3D view)
+      
+    } catch (error) {
+      console.error("Plot failed:", error);
+      this.statusLabel?.replaceChildren("Plot Failed");
+    }
   }
 
   private renderChannelState(state: ChannelState) {

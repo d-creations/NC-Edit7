@@ -23,13 +23,18 @@ except Exception:
 # Import ncplot7py internals
 try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
-    from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnNCControl
+    from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
+    from ncplot7py.domain.machines import get_available_machines, get_machine_regex_patterns
 except Exception as e:
+    logging.error(f"Failed to import ncplot7py: {e}")
+    logging.error(traceback.format_exc())
     # If package isn't importable in some environments, we will raise at runtime
     NCExecutionEngine = None  # type: ignore
-    StatefulIsoTurnNCControl = None  # type: ignore
+    StatefulIsoTurnControl = None  # type: ignore
     cli_bootstrap = None  # type: ignore
+    get_available_machines = None # type: ignore
+    get_machine_regex_patterns = None # type: ignore
 
 app = FastAPI(title="ncplot7py-adapter-import")
 
@@ -280,7 +285,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 @app.post("/cgiserver_import")
 async def cgiserver_import(request: Request):
-    if NCExecutionEngine is None or StatefulIsoTurnNCControl is None:
+    if NCExecutionEngine is None or StatefulIsoTurnControl is None:
         logging.warning("ncplot7py package not importable in this environment; some actions will be limited")
 
     # Log incoming request path and headers for debugging proxy issues
@@ -341,7 +346,7 @@ async def cgiserver_import(request: Request):
         # If the input is for a Mill (ISO_MILL) or uses Y-axis heavily without
         # proper configuration, the real engine might produce empty plots.
         # We attempt to run the real engine first.
-        control = StatefulIsoTurnNCControl(count_of_canals=len(programs), canal_names=canal_names)
+        control = StatefulIsoTurnControl(count_of_canals=len(programs), canal_names=canal_names)
         engine = NCExecutionEngine(control)
         engine_output = engine.get_Syncro_plot(programs, False)
     except Exception as e:

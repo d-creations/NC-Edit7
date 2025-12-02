@@ -94,15 +94,21 @@ class VariableHandler(Handler):
 
     # Match innermost bracket expressions (no nested '[' or ']' inside)
     BRACKET_RE = re.compile(r"\[([^\[\]]+)\]")
-    VAR_RE = re.compile(r"#(\d+)")
+    # VAR_RE is now dynamic based on state.machine_config
 
     def __init__(self, next_handler: Optional[Handler] = None):
         super().__init__(next_handler=next_handler)
 
+    def _get_var_regex(self, state: CNCState) -> re.Pattern:
+        if state.machine_config and state.machine_config.variable_pattern:
+            return re.compile(state.machine_config.variable_pattern)
+        return re.compile(r"#(\d+)")
+
     def _build_variable_map(self, state: CNCState) -> Dict[str, float]:
-        # map '#123' -> v123 identifier usable in Python expressions
+        # map '#123' or 'R123' -> v123 identifier usable in Python expressions
         vm: Dict[str, float] = {}
         for k, v in (state.parameters or {}).items():
+            # k is the number part usually (e.g. "100")
             vm_key = f"v{k}"
             try:
                 vm[vm_key] = float(v)
@@ -110,9 +116,11 @@ class VariableHandler(Handler):
                 vm[vm_key] = 0.0
         return vm
 
-    def _replace_vars_in_expr(self, expr: str) -> str:
+    def _replace_vars_in_expr(self, expr: str, state: CNCState) -> str:
         # replace occurrences like #500 -> v500 so Python name lookup works
-        return self.VAR_RE.sub(lambda m: f"v{m.group(1)}", expr)
+        # or R500 -> v500
+        var_re = self._get_var_regex(state)
+        return var_re.sub(lambda m: f"v{m.group(1)}", expr)
 
     def _eval_expression(self, expr: str, state: CNCState) -> float:
         expr = expr.strip()
@@ -126,7 +134,7 @@ class VariableHandler(Handler):
             except Exception:
                 # fallback to original expr if replacement fails
                 pass
-        expr_py = self._replace_vars_in_expr(expr)
+        expr_py = self._replace_vars_in_expr(expr, state)
         var_map = self._build_variable_map(state)
         return _safe_eval(expr_py, var_map)
 
@@ -168,25 +176,36 @@ class VariableHandler(Handler):
         return out
 
     def handle(self, node: NCCommandNode, state: CNCState) -> Tuple[Optional[list], Optional[float]]:
-        # 1) variable assignment via node.variable_command (e.g. "#500=[10+5]")
+        # 1) variable assignment via node.variable_command (e.g. "#500=[10+5]" or "R500=...")
         vc = node.variable_command
         if vc:
-            vc = vc.strip()
-            if vc.startswith("#") and "=" in vc:
-                left, right = vc.split("=", 1)
-                var_index = left.strip()[1:]
-                try:
-                    # allow right side to be an expression (possibly bracketed)
-                    expr = right.strip()
-                    # if expression is wrapped in [] remove them
-                    if expr.startswith("[") and expr.endswith("]"):
-                        expr = expr[1:-1]
-                    val = self._eval_expression(expr, state)
-                    state.parameters[var_index] = float(val)
-                except Exception as e:
-                    # silent fallback to 0.0 to preserve current behaviour; in future
-                    # we could raise a domain-specific exception with a log_route.
-                    state.parameters[var_index] = 0.0
+            # Split by space to handle multiple assignments like "R1=10 R2=20"
+            # The parser ensures assignments are space-separated and expressions have no spaces.
+            assignments = vc.strip().split()
+            
+            for assign in assignments:
+                if "=" in assign:
+                    left, right = assign.split("=", 1)
+                    left = left.strip()
+                    
+                    # Check if left side matches variable pattern
+                    var_re = self._get_var_regex(state)
+                    match = var_re.fullmatch(left)
+                    
+                    if match:
+                        var_index = match.group(1)
+                        try:
+                            # allow right side to be an expression (possibly bracketed)
+                            expr = right.strip()
+                            # if expression is wrapped in [] remove them
+                            if expr.startswith("[") and expr.endswith("]"):
+                                expr = expr[1:-1]
+                            val = self._eval_expression(expr, state)
+                            state.parameters[var_index] = float(val)
+                        except Exception as e:
+                            # silent fallback to 0.0 to preserve current behaviour; in future
+                            # we could raise a domain-specific exception with a log_route.
+                            state.parameters[var_index] = 0.0
 
         # 2) replace bracketed expressions in command parameters
         if node.command_parameter:
