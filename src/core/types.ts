@@ -154,11 +154,24 @@ export interface PlotSegment {
   toolNumber?: number;
 }
 
+export interface ToolValue {
+  toolNumber: number;
+  qValue?: number;
+  rValue?: number;
+}
+
+export interface CustomVariable {
+  name: string;
+  value: number;
+}
+
 export interface PlotRequest {
   machinedata: Array<{
     program: string;
     machineName: MachineType;
     canalNr: string | number;
+    toolValues?: ToolValue[];
+    customVariables?: CustomVariable[];
   }>;
 }
 

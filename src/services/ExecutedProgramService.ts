@@ -6,6 +6,8 @@ import type {
   ExecutedProgramResult,
   PlotRequest,
   PlotResponse,
+  ToolValue,
+  CustomVariable,
 } from '@core/types';
 import { BackendGateway } from './BackendGateway';
 import { EventBus, EVENT_NAMES } from './EventBus';
@@ -14,6 +16,8 @@ export interface ExecutionRequest {
   channelId: ChannelId;
   program: string;
   machineName: MachineType;
+  toolValues?: ToolValue[];
+  customVariables?: CustomVariable[];
 }
 
 export class ExecutedProgramService {
@@ -38,6 +42,8 @@ export class ExecutedProgramService {
             program: cleanProgram,
             machineName: request.machineName,
             canalNr: request.channelId,
+            toolValues: request.toolValues,
+            customVariables: request.customVariables,
           },
         ],
       };
@@ -78,6 +84,8 @@ export class ExecutedProgramService {
         program: this.preprocessProgram(req.program),
         machineName: req.machineName,
         canalNr: req.channelId,
+        toolValues: req.toolValues,
+        customVariables: req.customVariables,
       }));
 
       // Build plot request

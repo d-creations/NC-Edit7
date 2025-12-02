@@ -72,18 +72,57 @@ def get_mock_machines() -> List[Dict[str, Any]]:
     return machines
 
 
-def parse_nc_program(program: str, machine_name: str) -> Dict[str, Any]:
+def parse_nc_program(program: str, machine_name: str, 
+                      tool_values: Optional[List[Dict[str, Any]]] = None,
+                      custom_variables: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     Parse NC program and generate mock plot data
     In production, this would call the actual NC parser
+    
+    Args:
+        program: The NC program code
+        machine_name: The machine type
+        tool_values: List of tool values with Q and R parameters
+        custom_variables: List of custom variables with name and value
     """
     lines = [line.strip() for line in program.split('\n') if line.strip()]
+    
+    # Process tool values into a dictionary for easy lookup
+    tool_params = {}
+    if tool_values:
+        for tv in tool_values:
+            tool_num = tv.get("toolNumber")
+            if tool_num is not None:
+                tool_params[tool_num] = {
+                    "qValue": tv.get("qValue"),
+                    "rValue": tv.get("rValue")
+                }
+    
+    # Process custom variables into a dictionary
+    variables = {}
+    if custom_variables:
+        for cv in custom_variables:
+            var_name = cv.get("name", "")
+            var_value = cv.get("value")
+            if var_name and var_value is not None:
+                variables[var_name] = var_value
     
     # Generate mock plot segments
     segments = []
     current_pos = {"x": 0, "y": 0, "z": 0}
+    current_tool = 1
     
     for i, line in enumerate(lines):
+        # Check for tool change
+        if line.startswith('T'):
+            try:
+                # Extract tool number (e.g., T1, T02, T100)
+                tool_str = line.split()[0] if ' ' in line else line
+                tool_num = int(''.join(filter(str.isdigit, tool_str)))
+                current_tool = tool_num
+            except (ValueError, IndexError):
+                pass
+        
         # Simple G-code parsing for demo
         if line.startswith('G0') or line.startswith('G1'):
             # Extract coordinates
@@ -111,20 +150,27 @@ def parse_nc_program(program: str, machine_name: str) -> Dict[str, Any]:
             segment = {
                 "type": "RAPID" if line.startswith('G0') else "LINEAR",
                 "lineNumber": i + 1,
-                "toolNumber": 1,
+                "toolNumber": current_tool,
                 "points": [
                     current_pos.copy(),
                     new_pos.copy()
                 ]
             }
+            
+            # Add tool parameters if available
+            if current_tool in tool_params:
+                segment["toolParams"] = tool_params[current_tool]
+            
             segments.append(segment)
             current_pos = new_pos
     
     return {
         "segments": segments,
         "executedLines": list(range(1, len(lines) + 1)),
-        "variables": {},
-        "timing": [0.1] * len(lines)
+        "variables": variables,
+        "timing": [0.1] * len(lines),
+        "toolValues": tool_params,
+        "customVariables": variables
     }
 
 
@@ -145,6 +191,8 @@ def handle_execute_programs(programs: List[Dict[str, Any]]) -> Dict[str, Any]:
         program = program_entry.get("program", "")
         machine_name = program_entry.get("machineName", "ISO_MILL")
         canal_nr = program_entry.get("canalNr", "1")
+        tool_values = program_entry.get("toolValues", [])
+        custom_variables = program_entry.get("customVariables", [])
         
         # Validate machine name
         valid_machines = ["SB12RG_F", "FANUC_T", "SR20JII_F", "SB12RG_B", "SR20JII_B", "ISO_MILL"]
@@ -154,9 +202,15 @@ def handle_execute_programs(programs: List[Dict[str, Any]]) -> Dict[str, Any]:
         
         # Parse program
         try:
-            result = parse_nc_program(program, machine_name)
+            result = parse_nc_program(program, machine_name, tool_values, custom_variables)
             canal_results[canal_nr] = result
             messages.append(f"Successfully processed {machine_name} canal {canal_nr}")
+            
+            # Log count of tool values and custom variables (not the actual values for security)
+            if tool_values:
+                messages.append(f"Tool values received: {len(tool_values)} tool(s)")
+            if custom_variables:
+                messages.append(f"Custom variables received: {len(custom_variables)} variable(s)")
         except Exception as e:
             messages.append(f"Error processing {machine_name} canal {canal_nr}: {str(e)}")
     
