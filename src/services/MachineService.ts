@@ -90,7 +90,7 @@ export class MachineService {
       },
       keywords: {
         pattern:
-          '(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G[0-3]|M[035]|M30|M0|M1)',
+          '(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G[0-3]|M(0|1|3|5|30))',
         description: 'Keywords: T100-T9999, M200-M888, M82, M83, M20, G0-G3, M0, M1, M3, M5, M30',
         codes: {
           extended_tools: {

@@ -37,7 +37,7 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
             "range": {"min": 1, "max": 999}
         },
         "keywords": {
-            "pattern": r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G[0-3]|M[035]|M30|M0|M1)",
+            "pattern": r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G[0-3]|M(0|1|3|5|30))",
             "description": "Keywords: T100-T9999, M200-M888, M82, M83, M20, G0-G3, M0, M1, M3, M5, M30",
             "codes": {
                 "extended_tools": {"pattern": r"T(100|[1-9][0-9]{2,3})", "range": {"min": 100, "max": 9999}},
@@ -49,16 +49,8 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
         }
     }
 
-    # Customize patterns based on control type
-    if control_type == "TURN":
-        # Turning machines may have different tool ranges
-        base_patterns["tools"]["pattern"] = r"T([1-9]|[1-9][0-9])(?!\d)"
-        base_patterns["tools"]["range"] = {"min": 1, "max": 99}
-    elif control_type == "MILL":
-        # Milling machines standard patterns
-        base_patterns["tools"]["pattern"] = r"T([1-9]|[1-9][0-9])(?!\d)"
-        base_patterns["tools"]["range"] = {"min": 1, "max": 99}
-
+    # Patterns are currently the same for all control types
+    # This structure allows future customization per control type if needed
     return base_patterns
 
 
