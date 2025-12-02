@@ -54,7 +54,7 @@ export class ExecutedProgramService {
       console.debug('Plot response for channel', request.channelId, response);
 
       // Parse response
-      const result = this.parseExecutionResponse(response);
+      const result = this.parseExecutionResponse(response, request.channelId);
 
       // Cache result
       const cacheKey = this.getCacheKey(request);
@@ -96,8 +96,8 @@ export class ExecutedProgramService {
       console.debug('Plot response for multi-channel request', response);
 
       // Parse response for each channel
-      const results = requests.map(() => {
-        return this.parseExecutionResponse(response);
+      const results = requests.map((req) => {
+        return this.parseExecutionResponse(response, req.channelId);
       });
 
       // Publish events
@@ -130,7 +130,7 @@ export class ExecutedProgramService {
     return cleaned;
   }
 
-  private parseExecutionResponse(response: PlotResponse): ExecutedProgramResult {
+  private parseExecutionResponse(response: PlotResponse, targetChannelId?: string): ExecutedProgramResult {
     const result: ExecutedProgramResult = {
       executedLines: [],
       variableSnapshot: new Map(),
@@ -139,11 +139,29 @@ export class ExecutedProgramService {
         points: [],
         segments: [],
       },
+      errors: [],
     };
 
     // Check for errors in response
-    if (response.message_TEST) {
-      throw new Error(`Server error: ${response.message_TEST}`);
+    if (response.message && typeof response.message === 'string' && response.message.startsWith('Error')) {
+      throw new Error(`Server error: ${response.message}`);
+    }
+
+    // Parse top-level errors
+    if (response.errors && Array.isArray(response.errors)) {
+      response.errors.forEach((err) => {
+        // Filter by channel if targetChannelId is specified
+        // Backend returns canal as number, targetChannelId is string
+        if (targetChannelId && err.canal !== parseInt(targetChannelId, 10)) {
+          return;
+        }
+
+        result.errors!.push({
+          lineNumber: err.line,
+          message: err.message,
+          severity: 'error',
+        });
+      });
     }
 
     // Parse canal data if available
@@ -163,11 +181,24 @@ export class ExecutedProgramService {
           executedLines?: number[];
           variables?: Record<string, number>;
           timing?: number[];
+          errors?: Array<{
+            type: string;
+            code: number;
+            line: number;
+            message: string;
+            value: string;
+            canal: number;
+          }>;
         }
       >;
 
       // Merge data from all canals
       for (const canalNr of Object.keys(canalData)) {
+        // If a specific channel was requested, only process data for that channel
+        if (targetChannelId && canalNr !== targetChannelId) {
+          continue;
+        }
+
         const canal = canalData[canalNr];
 
         // Parse executed lines

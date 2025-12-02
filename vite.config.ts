@@ -7,11 +7,8 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src'),
       '@core': resolve(__dirname, './src/core'),
-      '@domain': resolve(__dirname, './src/domain'),
       '@services': resolve(__dirname, './src/services'),
       '@components': resolve(__dirname, './src/components'),
-      '@adapters': resolve(__dirname, './src/adapters'),
-      '@workers': resolve(__dirname, './src/workers'),
     },
   },
   build: {
@@ -20,7 +17,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        test: resolve(__dirname, 'test.html'),
       },
     },
   },

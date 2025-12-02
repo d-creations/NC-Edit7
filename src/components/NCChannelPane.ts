@@ -3,6 +3,7 @@ import './NCKeywordPanel';
 import './NCVariableList';
 import './NCToolList';
 import './NCExecutedList';
+import './NCBottomPanel';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
@@ -126,7 +127,7 @@ export class NCChannelPane extends HTMLElement {
           <div class="channel-editor-wrapper">
             <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
           </div>
-          <nc-variable-list channel-id="${this.channelId}" id="variable-drawer"></nc-variable-list>
+          <nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>
         </div>
       </div>
     `;

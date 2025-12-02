@@ -134,6 +134,7 @@ export interface ExecutedProgramResult {
   variableSnapshot: Map<number, number>;
   timingData: Map<number, number>;
   plotMetadata?: PlotMetadata;
+  errors?: FaultDetail[];
 }
 
 export interface PlotMetadata {
@@ -178,8 +179,16 @@ export interface PlotRequest {
 
 export interface PlotResponse {
   canal?: unknown;
-  message?: string;
-  message_TEST?: string;
+  message?: string | string[];
+  errors?: Array<{
+    type: string;
+    code: number;
+    line: number;
+    message: string;
+    value: string;
+    canal: number;
+  }>;
+  success?: boolean;
 }
 
 export interface ServerMachineListRequest {

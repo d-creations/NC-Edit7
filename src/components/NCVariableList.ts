@@ -16,10 +16,7 @@ export class NCVariableList extends HTMLElement {
   private variables = new Map<number, number>();
   private customVariables = new Map<string, number>();
   private channelId: string = '';
-  private isOpen = false;
   private filterText = '';
-  private lastHeight = 280;
-  private minHeight = 120;
   private variablePrefix = '#';
   private stateService?: StateService;
 
@@ -45,10 +42,6 @@ export class NCVariableList extends HTMLElement {
   }
 
   connectedCallback() {
-    // default to open on start
-    this.isOpen = true;
-    this.setAttribute('open', '');
-    this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
     this.render();
     this.setupEventListeners();
     this.syncVariablePrefix();
@@ -105,138 +98,43 @@ export class NCVariableList extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
-          height: 34px; /* closed tab height (increased to avoid clipping) */
+          display: flex;
+          flex-direction: column;
+          height: 100%;
           overflow: hidden;
           background: #252526;
           color: #d4d4d4;
           font-family: monospace;
           font-size: 12px;
-          border-top: 1px solid #3e3e42;
-          transition: height 0.15s ease;
         }
 
-        :host([open]) {
-          height: var(--drawer-height, 280px);
-        }
-
-        .resizer {
-          height: 8px;
-          cursor: ns-resize;
-          display: block;
-          background: transparent;
-        }
-
-        /* Hide resizer when closed to avoid extra vertical space that clips the button */
-        :host(:not([open])) #resizer {
-          display: none;
-        }
-
-        .drawer-header {
+        .toolbar {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 8px;
+          gap: 8px;
+          padding: 4px 8px;
           background: #2d2d30;
           border-bottom: 1px solid #3e3e42;
         }
 
-        /* Closed state: hide title and make the toggle centered and full-width */
-        :host(:not([open])) .drawer-header {
-          justify-content: center;
-          padding: 4px 0;
-          box-sizing: border-box;
-          height: 34px;
-        }
-
-        :host(:not([open])) .drawer-title {
-          display: none;
-        }
-
-        :host(:not([open])) .drawer-controls {
-          gap: 0;
-          width: 100%;
-          display: flex;
-          justify-content: center;
-          padding: 0 8px;
-        }
-
-        :host(:not([open])) .close-button {
-          width: 100%;
-          max-width: none;
-          border-radius: 0;
-          text-align: center;
-          padding: 6px 8px;
-          line-height: 1;
-          box-sizing: border-box;
-          height: auto;
-        }
-
-        /* Ensure the button is not visually clipped */
-        :host(:not([open])) {
-          padding-bottom: 0;
-        }
-
-        .drawer-title {
-          font-weight: bold;
-          color: #569cd6;
-        }
-
-        .drawer-controls {
-          display: flex;
-          gap: 8px;
-        }
-
-        /* Open state: stack controls and make the close button full width */
-        :host([open]) .drawer-controls {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          padding: 0 8px;
-        }
-
-        :host([open]) .filter-input,
-        :host([open]) .close-button {
-          width: 100%;
-          box-sizing: border-box;
-        }
-
-        :host([open]) .close-button {
-          max-width: none;
-          border-radius: 3px;
-        }
-
-        :host(:not([open])) .filter-input {
-          display: none;
-        }
-
         .filter-input {
+          flex: 1;
           padding: 2px 8px;
           background: #3c3c3c;
           color: #d4d4d4;
           border: 1px solid #555;
           border-radius: 3px;
           font-size: 11px;
-        }
-
-        .close-button, .add-button {
-          padding: 2px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
-          border-radius: 3px;
-          cursor: pointer;
-          font-size: 11px;
-        }
-
-        .close-button:hover, .add-button:hover {
-          background: #4c4c4c;
         }
 
         .add-button {
+          padding: 2px 8px;
           background: #0e639c;
-          border-color: #0e639c;
           color: #fff;
+          border: 1px solid #0e639c;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 11px;
         }
 
         .add-button:hover {
@@ -319,7 +217,7 @@ export class NCVariableList extends HTMLElement {
         }
 
         .variable-list {
-          height: calc(100% - 150px);
+          flex: 1;
           overflow-y: auto;
           padding: 4px;
         }
@@ -355,13 +253,8 @@ export class NCVariableList extends HTMLElement {
         }
       </style>
 
-      <div id="resizer" class="resizer" title="Drag to resize / click to toggle"></div>
-      <div class="drawer-header">
-        <span class="drawer-title">Variables (1-999)</span>
-        <div class="drawer-controls">
-          <input type="text" class="filter-input" id="filter" placeholder="Filter (e.g., 100-200)">
-          <button class="close-button" id="close-toggle">Close</button>
-        </div>
+      <div class="toolbar">
+        <input type="text" class="filter-input" id="filter" placeholder="Filter (e.g., 100-200)">
       </div>
       <div class="custom-section">
         <div class="custom-section-title">Custom Variables</div>
@@ -380,62 +273,6 @@ export class NCVariableList extends HTMLElement {
   }
 
   private attachControlListeners() {
-    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
-    if (closeButton) {
-      closeButton.textContent = this.isOpen ? 'Close' : 'Open';
-      closeButton.addEventListener('click', () => {
-        this.toggle();
-        closeButton.textContent = this.isOpen ? 'Close' : 'Open';
-      });
-    }
-
-    // Resizer: click toggles, drag resizes
-    const resizer = this.shadowRoot?.getElementById('resizer');
-    if (resizer) {
-      let dragging = false;
-      let startY = 0;
-      let startHeight = 0;
-
-      const onPointerMove = (ev: PointerEvent) => {
-        if (!dragging) return;
-        const delta = startY - ev.clientY; // dragging up increases height
-        const newHeight = Math.max(this.minHeight, startHeight + delta);
-        this.lastHeight = newHeight;
-        this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-        // ensure open while resizing
-        if (!this.isOpen) {
-          this.isOpen = true;
-          this.setAttribute('open', '');
-          if (closeButton) closeButton.textContent = 'Close';
-        }
-      };
-
-      const onPointerUp = () => {
-        if (!dragging) return;
-        dragging = false;
-        window.removeEventListener('pointermove', onPointerMove);
-        window.removeEventListener('pointerup', onPointerUp);
-      };
-
-      resizer.addEventListener('pointerdown', (e: PointerEvent) => {
-        // start dragging
-        dragging = true;
-        startY = e.clientY;
-        startHeight = this.getBoundingClientRect().height;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        window.addEventListener('pointermove', onPointerMove);
-        window.addEventListener('pointerup', onPointerUp);
-      });
-
-      // Simple click (no drag) toggles open/close
-      resizer.addEventListener('click', () => {
-        if (!dragging) {
-          this.toggle();
-          if (closeButton) closeButton.textContent = this.isOpen ? 'Close' : 'Open';
-        }
-      });
-    }
-
     const filterInput = this.shadowRoot?.getElementById('filter') as HTMLInputElement;
     filterInput?.addEventListener('input', (e) => {
       this.filterText = (e.target as HTMLInputElement).value;
@@ -630,27 +467,6 @@ export class NCVariableList extends HTMLElement {
 
     // Text search
     return entries.filter((e) => e.register.toString().includes(filter));
-  }
-
-  toggle() {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
-      this.setAttribute('open', '');
-      this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-    } else {
-      this.removeAttribute('open');
-    }
-  }
-
-  open() {
-    this.isOpen = true;
-    this.setAttribute('open', '');
-    this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-  }
-
-  close() {
-    this.isOpen = false;
-    this.removeAttribute('open');
   }
 }
 

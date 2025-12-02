@@ -3,7 +3,7 @@ import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@cor
 import { ParserService } from '@services/ParserService';
 import { StateService } from '@services/StateService';
 import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
-import type { ExecutedProgramResult } from '@core/types';
+import type { ExecutedProgramResult, FaultDetail } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
@@ -17,6 +17,7 @@ export class NCCodePane extends HTMLElement {
   private channelId: string = '';
   private resizeObserver?: ResizeObserver;
   private executedLineMarkers: number[] = [];
+  private errorMarkers: number[] = [];
   private executionSubscription?: EventSubscription;
   private plotClearedSubscription?: EventSubscription;
   private machineChangedSubscription?: EventSubscription;
@@ -65,6 +66,12 @@ export class NCCodePane extends HTMLElement {
         // Only highlight if this is for our channel
         if (executionData.channelId === this.channelId && executionData.result) {
           this.highlightExecutedLines(executionData.result);
+          
+          if (executionData.result.errors && executionData.result.errors.length > 0) {
+            this.showErrors(executionData.result.errors);
+          } else {
+            this.clearErrors();
+          }
         }
       },
     );
@@ -72,6 +79,7 @@ export class NCCodePane extends HTMLElement {
     // Listen for plot cleared events to remove executed line highlighting
     this.plotClearedSubscription = this.eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
       this.clearExecutedLineMarkers();
+      this.clearErrors();
     });
 
     // Listen for machine changes to re-parse with new regex patterns
@@ -136,6 +144,12 @@ export class NCCodePane extends HTMLElement {
             position: absolute;
             background-color: rgba(0, 128, 0, 0.2) !important;
             border-left: 3px solid #4ec9b0 !important;
+        }
+
+        .ace_error-line {
+            position: absolute;
+            background-color: rgba(255, 0, 0, 0.2) !important;
+            border-bottom: 1px dotted #ff0000 !important;
         }
         
         /* Improve active line visibility */
@@ -334,6 +348,47 @@ G1 Z5`;
       this.editor?.session.removeMarker(markerId);
     });
     this.executedLineMarkers = [];
+  }
+
+  showErrors(errors: FaultDetail[]): void {
+    if (!this.editor) return;
+    this.clearErrors();
+
+    const annotations: ace.Ace.Annotation[] = [];
+    const Range = ace.require('ace/range').Range;
+
+    errors.forEach((error) => {
+      const line = error.lineNumber - 1;
+      if (line >= 0 && line < this.editor!.session.getLength()) {
+        // Add gutter annotation
+        annotations.push({
+          row: line,
+          column: 0,
+          text: error.message,
+          type: error.severity, // 'error' or 'warning'
+        });
+
+        // Add marker
+        const markerId = this.editor!.session.addMarker(
+          new Range(line, 0, line, 1),
+          'ace_error-line',
+          'fullLine',
+          false,
+        );
+        this.errorMarkers.push(markerId);
+      }
+    });
+
+    this.editor.session.setAnnotations(annotations);
+  }
+
+  clearErrors(): void {
+    if (!this.editor) return;
+    this.errorMarkers.forEach((markerId) => {
+      this.editor?.session.removeMarker(markerId);
+    });
+    this.errorMarkers = [];
+    this.editor.session.clearAnnotations();
   }
 }
 

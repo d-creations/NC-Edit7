@@ -1,14 +1,22 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
 import traceback
 import sys
 from pathlib import Path
+import os
+
+# Simple security: API Key to prevent basic bot requests
+API_KEY = os.environ.get("API_KEY", "nc-edit7-secret-key")
+
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid or missing API Key")
 
 # Ensure ncplot7py/src is in sys.path for F1/Code deployment where PYTHONPATH env var might not be set easily
 # We assume this file is in backend/main_import.py, and ncplot7py is at ../ncplot7py
@@ -295,7 +303,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-@app.post("/cgiserver_import")
+@app.post("/cgiserver_import", dependencies=[Depends(verify_api_key)])
 async def cgiserver_import(request: Request):
     if NCExecutionEngine is None or StatefulIsoTurnControl is None:
         logging.warning("ncplot7py package not importable in this environment; some actions will be limited")
@@ -529,6 +537,12 @@ async def legacy_cgiserver(request: Request):
         return {"service": "ncplot7py-adapter-import", "status": "ok"}
 
     # For POST, reuse the cgiserver_import handler to process the body.
+    # Manually verify API key for legacy endpoint since it handles multiple methods
+    if request.method == "POST":
+        x_api_key = request.headers.get("X-API-Key")
+        if x_api_key != API_KEY:
+             raise HTTPException(status_code=403, detail="Invalid or missing API Key")
+
     try:
         return await cgiserver_import(request)
     except HTTPException:
