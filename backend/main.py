@@ -21,6 +21,24 @@ CGI_TIMEOUT = int(os.environ.get("CGI_TIMEOUT", "30"))
 logging.basicConfig(level=logging.INFO)
 
 
+def strip_cgi_headers(output: str) -> str:
+    """Strip CGI HTTP headers from output, returning just the body.
+
+    CGI scripts output HTTP headers followed by a blank line, then the body.
+    This function extracts just the body content (typically JSON).
+    """
+    # Split on double newline (blank line separating headers from body)
+    parts = output.split("\n\n", 1)
+    if len(parts) == 2:
+        return parts[1].strip()
+    # If no blank line found, try \r\n\r\n (Windows-style)
+    parts = output.split("\r\n\r\n", 1)
+    if len(parts) == 2:
+        return parts[1].strip()
+    # No headers found, return original (might already be just JSON)
+    return output.strip()
+
+
 async def run_cgi(input_data: str, timeout: int = CGI_TIMEOUT) -> str:
     """Run the existing CGI script as a subprocess and return stdout as string.
 
@@ -52,7 +70,9 @@ async def run_cgi(input_data: str, timeout: int = CGI_TIMEOUT) -> str:
         logging.error("CGI stderr: %s", stderr.decode("utf-8", errors="ignore"))
         raise HTTPException(status_code=500, detail="CGI subprocess returned error")
 
-    return stdout.decode("utf-8")
+    raw_output = stdout.decode("utf-8")
+    # Strip CGI headers (Content-Type, etc.) before returning JSON body
+    return strip_cgi_headers(raw_output)
 
 
 @app.get("/")

@@ -1,24 +1,37 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { MACHINE_SERVICE_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { MACHINE_SERVICE_TOKEN, STATE_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
 import { MachineService } from '@services/MachineService';
 import { StateService } from '@services/StateService';
-import type { MachineType } from '@core/types';
+import { EventBus, EVENT_NAMES } from '@services/EventBus';
+import type { MachineType, MachineProfile } from '@core/types';
 
 export class NCMachineSelector extends HTMLElement {
   private machineService: MachineService;
   private stateService: StateService;
+  private eventBus: EventBus;
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this.machineService = ServiceRegistry.getInstance().get(MACHINE_SERVICE_TOKEN);
     this.stateService = ServiceRegistry.getInstance().get(STATE_SERVICE_TOKEN);
+    this.eventBus = ServiceRegistry.getInstance().get(EVENT_BUS_TOKEN);
   }
 
   connectedCallback() {
     this.render();
     this.updateOptions();
     this.attachEventListeners();
+
+    // Listen for state changes to update the machine list when machines are fetched
+    this.eventBus.subscribe(
+      EVENT_NAMES.STATE_CHANGED,
+      (data: { machines?: MachineProfile[] }) => {
+        if (data.machines) {
+          this.updateOptions();
+        }
+      },
+    );
   }
 
   private render() {
