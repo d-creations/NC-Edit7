@@ -28,3 +28,4 @@ backend/Dockerfile
 .yml
 build-plan.md
 docker-compose.yml
+launch.json
