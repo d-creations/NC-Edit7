@@ -7,6 +7,9 @@ import type {
   ServerMachineListResponse,
 } from '@core/types';
 
+// Simple API Key for basic security
+const API_KEY = 'nc-edit7-secret-key';
+
 export interface BackendConfig {
   baseUrl: string;
   timeout: number;
@@ -54,6 +57,7 @@ export class BackendGateway {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
           },
           body: JSON.stringify(data),
           signal: controller.signal,

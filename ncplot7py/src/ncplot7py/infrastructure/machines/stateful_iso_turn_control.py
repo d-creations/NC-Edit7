@@ -21,10 +21,12 @@ from ncplot7py.domain.handlers.star_machine.star_turn_handler import StarTurnHan
 from ncplot7py.domain.handlers.motion import MotionHandler
 from ncplot7py.domain.handlers.variable import VariableHandler
 from ncplot7py.domain.handlers.control_flow import ControlFlowHandler
+from ncplot7py.domain.handlers.tool_handler import ToolHandler
 from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group2_speed_mode import GCodeGroup2SpeedModeExecChainLink
 from ncplot7py.shared.point import Point
 from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared.nc_nodes import NCCommandNode
+from ncplot7py.domain.machines import FANUC_STAR_CONFIG
 
 
 class StatefulIsoTurnCanal(BaseNCCanalInterface):
@@ -37,6 +39,12 @@ class StatefulIsoTurnCanal(BaseNCCanalInterface):
     def __init__(self, name: str, init_state: Optional[CNCState] = None):
         self._name = name
         self._state = init_state or CNCState()
+        
+        # Ensure machine config is set to Star if it's the default generic one
+        # or if it's None (though CNCState sets a default)
+        if self._state.machine_config is None or self._state.machine_config.name == "FANUC_GENERIC":
+            self._state.machine_config = FANUC_STAR_CONFIG
+
         # Chain: variables -> control flow -> group2 (speed mode) -> group0 -> motion
         motion = MotionHandler()
         gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=motion)
@@ -63,7 +71,9 @@ class StatefulIsoTurnCanal(BaseNCCanalInterface):
             gcode5 = GCodeGroup5FeedModeExecChainLink(next_handler=gcode21)
             # insert precheck before group5 so we validate parameters early
             precheck = GcodePreCheckExecChainLink(next_handler=gcode5)
-            control = ControlFlowHandler(next_handler=precheck)
+            # Tool Handler
+            tool_h = ToolHandler(next_handler=precheck)
+            control = ControlFlowHandler(next_handler=tool_h)
         except Exception:
             # Fallback: if import fails, wire control directly to group2
             control = ControlFlowHandler(next_handler=gcode2)
@@ -193,7 +203,7 @@ class StatefulIsoTurnCanal(BaseNCCanalInterface):
         return getattr(self, "_exec_sequence", self._nodes)
 
 
-class StatefulIsoTurnNCControl(BaseNCControlInterface):
+class StatefulIsoTurnControl(BaseNCControlInterface):
     """Control managing multiple `StatefulIsoTurnCanal` instances.
 
     Implements the `NCControl` abstract interface while delegating per-canal
@@ -250,4 +260,4 @@ class StatefulIsoTurnNCControl(BaseNCControlInterface):
         return None
 
 
-__all__ = ["StatefulIsoTurnNCControl"]
+__all__ = ["StatefulIsoTurnControl"]

@@ -10,6 +10,35 @@ export type MachineType =
   | 'SR20JII_B'
   | 'ISO_MILL';
 
+export interface PatternRange {
+  min: number;
+  max: number;
+}
+
+export interface PatternDefinition {
+  pattern: string;
+  description: string;
+  range?: PatternRange;
+}
+
+export interface KeywordCodes {
+  extended_tools?: PatternDefinition;
+  m_codes_range?: PatternDefinition;
+  special_m_codes?: string[];
+  g_codes?: string[];
+  program_control?: string[];
+}
+
+export interface KeywordPatternDefinition extends PatternDefinition {
+  codes?: KeywordCodes;
+}
+
+export interface MachineRegexPatterns {
+  tools: PatternDefinition;
+  variables: PatternDefinition;
+  keywords: KeywordPatternDefinition;
+}
+
 export interface MachineProfile {
   machineName: MachineType;
   controlType: string;
@@ -18,6 +47,8 @@ export interface MachineProfile {
   defaultTools: ToolInfo[];
   kinematics?: unknown;
   availableChannels: number;
+  regexPatterns?: MachineRegexPatterns;
+  variablePrefix?: string;
 }
 
 export interface ToolInfo {
@@ -103,6 +134,7 @@ export interface ExecutedProgramResult {
   variableSnapshot: Map<number, number>;
   timingData: Map<number, number>;
   plotMetadata?: PlotMetadata;
+  errors?: FaultDetail[];
 }
 
 export interface PlotMetadata {
@@ -124,27 +156,53 @@ export interface PlotSegment {
   toolNumber?: number;
 }
 
+export interface ToolValue {
+  toolNumber: number;
+  qValue?: number;
+  rValue?: number;
+}
+
+export interface CustomVariable {
+  name: string;
+  value: number;
+}
+
 export interface PlotRequest {
   machinedata: Array<{
     program: string;
     machineName: MachineType;
     canalNr: string | number;
+    toolValues?: ToolValue[];
+    customVariables?: CustomVariable[];
   }>;
 }
 
 export interface PlotResponse {
   canal?: unknown;
-  message?: string;
-  message_TEST?: string;
+  message?: string | string[];
+  errors?: Array<{
+    type: string;
+    code: number;
+    line: number;
+    message: string;
+    value: string;
+    canal: number;
+  }>;
+  success?: boolean;
 }
 
 export interface ServerMachineListRequest {
   action: 'list_machines' | 'get_machines';
 }
 
+export interface ServerMachineData {
+  machineName: MachineType;
+  controlType: string;
+  variablePrefix?: string;
+  regexPatterns?: MachineRegexPatterns;
+}
+
 export interface ServerMachineListResponse {
-  machines: Array<{
-    machineName: MachineType;
-    controlType: string;
-  }>;
+  machines: ServerMachineData[];
+  success?: boolean;
 }

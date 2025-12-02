@@ -144,3 +144,6 @@ See `build-plan.md` for the complete implementation roadmap including:
 - Channel management UI
 - Variable and tool displays
 - Server execution flow
+
+
+

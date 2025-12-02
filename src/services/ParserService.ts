@@ -6,8 +6,13 @@ import type {
   KeywordEntry,
   ToolRegisterEntry,
   TimingMetadata,
+  MachineRegexPatterns,
 } from '@core/types';
 import { EventBus, EVENT_NAMES } from './EventBus';
+
+export interface ParseOptions {
+  regexPatterns?: MachineRegexPatterns;
+}
 
 export class ParserService {
   private eventBus: EventBus;
@@ -25,6 +30,7 @@ export class ParserService {
   async parse(
     program: string,
     channelId: string,
+    options?: ParseOptions,
   ): Promise<{ result: NcParseResult; artifacts: ParseArtifacts }> {
     try {
       // Basic parsing logic - in production this would be in a worker
@@ -36,28 +42,68 @@ export class ParserService {
       const faults: Array<{ lineNumber: number; message: string; severity: 'error' | 'warning' }> =
         [];
 
-      // Simple keyword detection
-      const toolPattern = /T(\d+)/i;
+      // Use server-provided patterns or defaults
+      const patterns = options?.regexPatterns;
+      const toolPatternStr = patterns?.tools?.pattern ?? 'T(\\d+)';
+      const keywordPatternStr =
+        patterns?.keywords?.pattern ?? '\\b(M30|M0|M1)\\b';
+      const variablePatternStr = patterns?.variables?.pattern ?? '#(\\d+)';
+
+      // Create regex patterns safely (catching errors for invalid patterns)
+      let toolPattern: RegExp;
+      let keywordPattern: RegExp;
+      let variablePattern: RegExp;
+
+      try {
+        toolPattern = new RegExp(toolPatternStr, 'gi');
+      } catch {
+        toolPattern = /T(\d+)/gi;
+      }
+
+      try {
+        keywordPattern = new RegExp(keywordPatternStr, 'gi');
+      } catch {
+        keywordPattern = /\b(M30|M0)\b/gi;
+      }
+
+      try {
+        variablePattern = new RegExp(variablePatternStr, 'g');
+      } catch {
+        variablePattern = /#(\d+)/g;
+      }
 
       lines.forEach((line, index) => {
         const lineNumber = index + 1;
 
-        // Find keywords - recreate regex for each line to avoid state issues
-        const keywordPatterns = /\b(G0|G1|G2|G3|M3|M5|M30|M0|M1)\b/gi;
+        // Reset regex lastIndex for each line to avoid state issues
+        keywordPattern.lastIndex = 0;
         let match;
-        while ((match = keywordPatterns.exec(line)) !== null) {
+        while ((match = keywordPattern.exec(line)) !== null) {
           keywords.push({
             keyword: match[0].toUpperCase(),
             lineNumber,
           });
         }
 
-        // Find tool changes
-        const toolMatch = line.match(toolPattern);
-        if (toolMatch) {
+        // Find tool changes - reset lastIndex
+        toolPattern.lastIndex = 0;
+        const toolMatch = toolPattern.exec(line);
+        if (toolMatch && toolMatch[1]) {
           const toolNumber = parseInt(toolMatch[1]);
-          if (!toolRegisters.find((t) => t.toolNumber === toolNumber)) {
+          if (!isNaN(toolNumber) && !toolRegisters.find((t) => t.toolNumber === toolNumber)) {
             toolRegisters.push({ toolNumber });
+          }
+        }
+
+        // Find variables
+        variablePattern.lastIndex = 0;
+        let varMatch;
+        while ((varMatch = variablePattern.exec(line)) !== null) {
+          if (varMatch[1]) {
+            const varNumber = parseInt(varMatch[1]);
+            if (!isNaN(varNumber) && !variableSnapshot.has(varNumber)) {
+              variableSnapshot.set(varNumber, 0); // Initialize with default value
+            }
           }
         }
 

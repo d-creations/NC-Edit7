@@ -3,7 +3,7 @@ import './NCKeywordPanel';
 import './NCVariableList';
 import './NCToolList';
 import './NCExecutedList';
-import type { NCVariableList } from './NCVariableList';
+import './NCBottomPanel';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
@@ -114,7 +114,6 @@ export class NCChannelPane extends HTMLElement {
       <div class="channel-header">
         <span>Channel ${this.channelId}</span>
         <div class="channel-controls">
-          <button class="channel-button" id="toggle-variables">📊 Variables</button>
         </div>
       </div>
       <div class="channel-content">
@@ -128,20 +127,12 @@ export class NCChannelPane extends HTMLElement {
           <div class="channel-editor-wrapper">
             <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
           </div>
-          <nc-variable-list channel-id="${this.channelId}" id="variable-drawer"></nc-variable-list>
+          <nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>
         </div>
       </div>
     `;
 
-    // Attach control listeners
-    const toggleVariablesBtn = this.querySelector('#toggle-variables');
-    toggleVariablesBtn?.addEventListener('click', () => {
-      const drawer = this.querySelector('#variable-drawer') as NCVariableList | null;
-      if (drawer) {
-        drawer.toggle();
-        toggleVariablesBtn.classList.toggle('active');
-      }
-    });
+    // variable drawer is self-contained (toggle/resize handled inside component)
   }
 }
 

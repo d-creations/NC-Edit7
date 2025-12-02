@@ -9,6 +9,14 @@ from dataclasses import dataclass, field, asdict
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
+# Import MachineConfig (using string forward ref or direct import if possible)
+# To avoid circular imports if machines imports cnc_state (it doesn't), we can import here.
+# However, to be safe, we'll use Any or object for now, or try import.
+try:
+    from ncplot7py.domain.machines import MachineConfig, FANUC_GENERIC_CONFIG
+except ImportError:
+    MachineConfig = object
+    FANUC_GENERIC_CONFIG = None
 
 AxisName = str
 Numeric = float
@@ -27,6 +35,7 @@ class CNCState:
     - tool_radius: numeric tool radius (for compensation)
     - parameters: generic user/parameter variables (#-style) stored as dict
     - extra: place to store vendor-specific flags (e.g., polar mode axis name)
+    - machine_config: Configuration for the specific machine (Fanuc/Siemens, etc.)
 
     Methods on the state are intentionally small and side-effecting; callers
     should control transactional behaviour (clone/restore) when needed.
@@ -64,6 +73,13 @@ class CNCState:
     line_number: int = 0
     loop_command: List[str] = field(default_factory=list)
     extra: Dict[str, object] = field(default_factory=dict)
+    
+    # Machine Configuration
+    machine_config: Optional[MachineConfig] = field(default=None)
+
+    def __post_init__(self):
+        if self.machine_config is None and FANUC_GENERIC_CONFIG is not None:
+            self.machine_config = FANUC_GENERIC_CONFIG
 
     def clone(self) -> "CNCState":
         """Return a deep copy of the state for transactional updates."""

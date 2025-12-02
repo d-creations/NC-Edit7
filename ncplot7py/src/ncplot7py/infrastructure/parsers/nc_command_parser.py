@@ -80,6 +80,14 @@ class NCCommandStringParser(BaseNCCommandParser):
                         line=line_nr or 0,
                         source_line=nc_command_string,
                     )
+            elif re.match(r"^[A-Z][0-9]+=", code):
+                # Heuristic for variable assignment like R1=10 or X1=10
+                # We treat this as part of the variable command string.
+                # This allows multiple assignments like "R1=10 R2=20" without parameter duplication error.
+                if var_calculation_str:
+                    var_calculation_str += " " + code
+                else:
+                    var_calculation_str = code
             elif code.startswith(','):
                 is_dddp = True
             elif is_dddp is True and (code.startswith(',R') or code.startswith(',C') or code.startswith(',A')):
