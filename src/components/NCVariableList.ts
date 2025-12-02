@@ -321,6 +321,19 @@ export class NCVariableList extends HTMLElement {
     const value = parseFloat(valueInput.value);
 
     if (!name || isNaN(value)) {
+      // Show visual feedback for invalid input
+      if (!name) {
+        nameInput.style.borderColor = '#f14c4c';
+        setTimeout(() => {
+          nameInput.style.borderColor = '';
+        }, 1500);
+      }
+      if (isNaN(value)) {
+        valueInput.style.borderColor = '#f14c4c';
+        setTimeout(() => {
+          valueInput.style.borderColor = '';
+        }, 1500);
+      }
       return;
     }
 
@@ -345,27 +358,31 @@ export class NCVariableList extends HTMLElement {
     customList.innerHTML = '';
 
     if (this.customVariables.size === 0) {
-      customList.innerHTML = '<div style="color: #666; font-size: 10px;">No custom variables</div>';
+      const noVarsDiv = document.createElement('div');
+      noVarsDiv.style.color = '#666';
+      noVarsDiv.style.fontSize = '10px';
+      noVarsDiv.textContent = 'No custom variables';
+      customList.appendChild(noVarsDiv);
       return;
     }
 
     this.customVariables.forEach((value, name) => {
       const item = document.createElement('div');
       item.className = 'custom-item';
-      item.innerHTML = `
-        <span class="custom-item-info">${name} = ${value}</span>
-        <button class="remove-button" data-name="${name}" title="Remove">×</button>
-      `;
-      customList.appendChild(item);
-    });
 
-    // Attach remove listeners
-    const removeButtons = customList.querySelectorAll('.remove-button');
-    removeButtons.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const name = (e.target as HTMLElement).dataset.name;
-        if (name) this.removeCustomVariable(name);
-      });
+      const infoSpan = document.createElement('span');
+      infoSpan.className = 'custom-item-info';
+      infoSpan.textContent = `${name} = ${value}`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-button';
+      removeBtn.title = 'Remove';
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => this.removeCustomVariable(name));
+
+      item.appendChild(infoSpan);
+      item.appendChild(removeBtn);
+      customList.appendChild(item);
     });
   }
 

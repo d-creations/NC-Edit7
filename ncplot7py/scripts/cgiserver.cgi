@@ -206,11 +206,11 @@ def handle_execute_programs(programs: List[Dict[str, Any]]) -> Dict[str, Any]:
             canal_results[canal_nr] = result
             messages.append(f"Successfully processed {machine_name} canal {canal_nr}")
             
-            # Log received tool values and custom variables for debugging
+            # Log count of tool values and custom variables (not the actual values for security)
             if tool_values:
-                messages.append(f"Tool values received: {tool_values}")
+                messages.append(f"Tool values received: {len(tool_values)} tool(s)")
             if custom_variables:
-                messages.append(f"Custom variables received: {custom_variables}")
+                messages.append(f"Custom variables received: {len(custom_variables)} variable(s)")
         except Exception as e:
             messages.append(f"Error processing {machine_name} canal {canal_nr}: {str(e)}")
     
