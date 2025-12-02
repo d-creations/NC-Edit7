@@ -46,7 +46,7 @@ export class ParserService {
       const patterns = options?.regexPatterns;
       const toolPatternStr = patterns?.tools?.pattern ?? 'T(\\d+)';
       const keywordPatternStr =
-        patterns?.keywords?.pattern ?? '\\b(G0|G1|G2|G3|M3|M5|M30|M0|M1)\\b';
+        patterns?.keywords?.pattern ?? '\\b(M30|M0|M1)\\b';
       const variablePatternStr = patterns?.variables?.pattern ?? '#(\\d+)';
 
       // Create regex patterns safely (catching errors for invalid patterns)
@@ -63,7 +63,7 @@ export class ParserService {
       try {
         keywordPattern = new RegExp(keywordPatternStr, 'gi');
       } catch {
-        keywordPattern = /\b(G0|G1|G2|G3|M3|M5|M30|M0|M1)\b/gi;
+        keywordPattern = /\b(M30|M0)\b/gi;
       }
 
       try {

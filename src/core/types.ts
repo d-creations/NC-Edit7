@@ -48,6 +48,7 @@ export interface MachineProfile {
   kinematics?: unknown;
   availableChannels: number;
   regexPatterns?: MachineRegexPatterns;
+  variablePrefix?: string;
 }
 
 export interface ToolInfo {
@@ -188,6 +189,7 @@ export interface ServerMachineListRequest {
 export interface ServerMachineData {
   machineName: MachineType;
   controlType: string;
+  variablePrefix?: string;
   regexPatterns?: MachineRegexPatterns;
 }
 

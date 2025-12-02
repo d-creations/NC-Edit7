@@ -26,7 +26,11 @@ try:
     from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
     from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
-    from ncplot7py.domain.machines import get_available_machines, get_machine_regex_patterns
+    from ncplot7py.domain.machines import (
+        get_available_machines,
+        get_machine_regex_patterns,
+        get_machine_config,
+    )
     from ncplot7py.domain.cnc_state import CNCState
     from ncplot7py.domain.exceptions import ExceptionNode
 except Exception as e:
@@ -89,6 +93,8 @@ def list_machines() -> Dict[str, Any]:
     for machine in machines:
         if get_machine_regex_patterns:
             machine["regexPatterns"] = get_machine_regex_patterns(machine["controlType"])
+        config = get_machine_config(machine["machineName"])
+        machine["variablePrefix"] = config.variable_prefix
 
     return {
         "machines": machines,

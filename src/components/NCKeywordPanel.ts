@@ -79,6 +79,7 @@ export class NCKeywordPanel extends HTMLElement {
     if (!list) return;
 
     list.innerHTML = '';
+    // Render all keywords that the parser produced (do not filter out G-codes here).
     this.keywords.forEach((k) => {
       const item = document.createElement('div');
       item.className = 'keyword-item';

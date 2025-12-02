@@ -8,6 +8,9 @@ import type { ChannelState } from "../domain/models.js";
 import { BackendGateway } from "../services/BackendGateway.js";
 import { ExecutedProgramService } from "../services/ExecutedProgramService.js";
 import { EventBus as ServiceEventBus } from "../services/EventBus.js";
+import { ServiceRegistry } from '@core/ServiceRegistry';
+import { STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import type { StateService } from '@services/StateService';
 import { NcToolList } from "./nc-tool-list.js";
 import { NcVariableList } from "./nc-variable-list.js";
 
@@ -118,10 +121,8 @@ template.innerHTML = `
         </div>
         
         <div style="margin-bottom: 0.5rem;">
-            <label for="machineSelector" style="display:block; margin-bottom: 0.25rem; font-size: 0.9rem;">Machine Control</label>
-            <select id="machineSelector" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: #0b0d1b; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
-                <option value="ISO_MILL">Loading machines...</option>
-            </select>
+          <label style="display:block; margin-bottom: 0.25rem; font-size: 0.9rem;">Machine Control</label>
+          <nc-machine-selector></nc-machine-selector>
         </div>
 
         <label for="programInput">NC Program</label>
@@ -152,6 +153,7 @@ export class NcEditorApp extends HTMLElement {
   private statusLabel?: HTMLElement;
   private executedProgramService: ExecutedProgramService;
   private backend: BackendGateway;
+  private stateService?: StateService;
 
   constructor() {
     super();
@@ -164,6 +166,11 @@ export class NcEditorApp extends HTMLElement {
     this.backend = new BackendGateway();
     const serviceEventBus = new ServiceEventBus();
     this.executedProgramService = new ExecutedProgramService(this.backend, serviceEventBus);
+    try {
+      this.stateService = ServiceRegistry.getInstance().get(STATE_SERVICE_TOKEN) as StateService;
+    } catch (e) {
+      // ServiceRegistry may not be initialized yet; that's OK
+    }
   }
 
   connectedCallback() {
@@ -193,35 +200,9 @@ export class NcEditorApp extends HTMLElement {
     );
 
     this.dispatchInitialParse();
-    this.loadMachines();
   }
 
-  private async loadMachines() {
-    const selector = this.shadowRoot?.querySelector("#machineSelector") as HTMLSelectElement;
-    if (!selector) return;
-
-    try {
-      const response = await this.backend.listMachines();
-      if (response.success && response.machines) {
-        selector.innerHTML = "";
-        response.machines.forEach(m => {
-            const opt = document.createElement("option");
-            opt.value = m.machineName;
-            opt.textContent = `${m.machineName} (${m.controlType})`;
-            selector.appendChild(opt);
-        });
-        // Select ISO_MILL by default if available, or the first one
-        if (response.machines.some(m => m.machineName === "ISO_MILL")) {
-            selector.value = "ISO_MILL";
-        }
-      } else {
-          selector.innerHTML = "<option>Failed to load machines</option>";
-      }
-    } catch (e) {
-        console.error("Failed to load machines", e);
-        selector.innerHTML = "<option>Error loading machines</option>";
-    }
-  }
+  
 
   disconnectedCallback() {
     for (const cleanup of this.subscriptions) {
@@ -248,8 +229,7 @@ export class NcEditorApp extends HTMLElement {
 
     const toolList = this.shadowRoot?.querySelector("nc-tool-list") as NcToolList;
     const variableList = this.shadowRoot?.querySelector("nc-variable-list") as NcVariableList;
-    const selector = this.shadowRoot?.querySelector("#machineSelector") as HTMLSelectElement;
-    const machineName = selector?.value || "ISO_MILL";
+    const machineName = this.stateService?.getState().activeMachine?.machineName || 'ISO_MILL';
 
     const toolValues = toolList?.getToolValues();
     const customVariables = variableList?.getCustomVariables();

@@ -91,13 +91,13 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
             "range": {"min": 1, "max": 999}
         },
         "keywords": {
-            "pattern": r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G[0-3]|M(0|1|3|5|30))",
-            "description": "Keywords: T100-T9999, M200-M888, M82, M83, M20, G0-G3, M0, M1, M3, M5, M30",
+            "pattern": r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G(?:255|266)|M30)",
+            "description": "Keywords: T100-T9999, M200-M888, M82, M83, M20, G255, G266, M30",
             "codes": {
                 "extended_tools": {"pattern": r"T(100|[1-9][0-9]{2,3})", "range": {"min": 100, "max": 9999}},
                 "m_codes_range": {"pattern": r"M(2[0-9]{2}|[3-8][0-8]{2})", "range": {"min": 200, "max": 888}},
                 "special_m_codes": ["M82", "M83", "M20"],
-                "g_codes": ["G0", "G1", "G2", "G3"],
+                "g_codes": ["G255", "G266"],
                 "program_control": ["M0", "M1", "M3", "M5", "M30"]
             }
         }
@@ -108,7 +108,7 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
 def get_available_machines() -> List[Dict[str, str]]:
     """Return a list of available machines and their control types."""
     return [
-        {"machineName": "ISO_MILL", "controlType": "SIEMENS_840D"},
+        {"machineName": "SIEMENS_MILL", "controlType": "SIEMENS_840D"},
         {"machineName": "FANUC_T", "controlType": "FANUC_STAR"},
         {"machineName": "SB12RG_F", "controlType": "FANUC_STAR"},
         {"machineName": "SB12RG_B", "controlType": "FANUC_STAR"},

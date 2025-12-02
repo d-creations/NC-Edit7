@@ -52,6 +52,7 @@ export class MachineService {
       defaultTools: [],
       availableChannels: 3,
       regexPatterns: data.regexPatterns,
+      variablePrefix: data.variablePrefix,
     };
   }
 
@@ -73,6 +74,7 @@ export class MachineService {
       defaultTools: [],
       availableChannels: 3,
       regexPatterns: this.getDefaultRegexPatterns(),
+      variablePrefix: machineType === 'ISO_MILL' ? 'R' : '#',
     }));
   }
 

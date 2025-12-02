@@ -1,7 +1,8 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
+import { EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import type { ParseArtifacts, NcParseResult, CustomVariable } from '@core/types';
+import type { StateService } from '@services/StateService';
 
 interface VariableEntry {
   register: number;
@@ -17,6 +18,10 @@ export class NCVariableList extends HTMLElement {
   private channelId: string = '';
   private isOpen = false;
   private filterText = '';
+  private lastHeight = 280;
+  private minHeight = 120;
+  private variablePrefix = '#';
+  private stateService?: StateService;
 
   static get observedAttributes() {
     return ['channel-id'];
@@ -26,6 +31,11 @@ export class NCVariableList extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.eventBus = ServiceRegistry.getInstance().get(EVENT_BUS_TOKEN);
+    try {
+      this.stateService = ServiceRegistry.getInstance().get(STATE_SERVICE_TOKEN) as StateService;
+    } catch (err) {
+      // StateService may not be registered yet; ignore
+    }
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -35,8 +45,13 @@ export class NCVariableList extends HTMLElement {
   }
 
   connectedCallback() {
+    // default to open on start
+    this.isOpen = true;
+    this.setAttribute('open', '');
+    this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
     this.render();
     this.setupEventListeners();
+    this.syncVariablePrefix();
   }
 
   private setupEventListeners() {
@@ -50,6 +65,12 @@ export class NCVariableList extends HTMLElement {
         }
       },
     );
+    this.eventBus.subscribe(EVENT_NAMES.MACHINE_CHANGED, () => {
+      this.syncVariablePrefix();
+    });
+    this.eventBus.subscribe(EVENT_NAMES.STATE_CHANGED, () => {
+      this.syncVariablePrefix();
+    });
 
     // Listen for execution results
     this.eventBus.subscribe(EVENT_NAMES.EXECUTION_COMPLETED, (data: unknown) => {
@@ -85,18 +106,30 @@ export class NCVariableList extends HTMLElement {
       <style>
         :host {
           display: block;
-          height: 0;
+          height: 34px; /* closed tab height (increased to avoid clipping) */
           overflow: hidden;
           background: #252526;
           color: #d4d4d4;
           font-family: monospace;
           font-size: 12px;
           border-top: 1px solid #3e3e42;
-          transition: height 0.3s ease;
+          transition: height 0.15s ease;
         }
 
         :host([open]) {
-          height: 280px;
+          height: var(--drawer-height, 280px);
+        }
+
+        .resizer {
+          height: 8px;
+          cursor: ns-resize;
+          display: block;
+          background: transparent;
+        }
+
+        /* Hide resizer when closed to avoid extra vertical space that clips the button */
+        :host(:not([open])) #resizer {
+          display: none;
         }
 
         .drawer-header {
@@ -108,6 +141,42 @@ export class NCVariableList extends HTMLElement {
           border-bottom: 1px solid #3e3e42;
         }
 
+        /* Closed state: hide title and make the toggle centered and full-width */
+        :host(:not([open])) .drawer-header {
+          justify-content: center;
+          padding: 4px 0;
+          box-sizing: border-box;
+          height: 34px;
+        }
+
+        :host(:not([open])) .drawer-title {
+          display: none;
+        }
+
+        :host(:not([open])) .drawer-controls {
+          gap: 0;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          padding: 0 8px;
+        }
+
+        :host(:not([open])) .close-button {
+          width: 100%;
+          max-width: none;
+          border-radius: 0;
+          text-align: center;
+          padding: 6px 8px;
+          line-height: 1;
+          box-sizing: border-box;
+          height: auto;
+        }
+
+        /* Ensure the button is not visually clipped */
+        :host(:not([open])) {
+          padding-bottom: 0;
+        }
+
         .drawer-title {
           font-weight: bold;
           color: #569cd6;
@@ -116,6 +185,29 @@ export class NCVariableList extends HTMLElement {
         .drawer-controls {
           display: flex;
           gap: 8px;
+        }
+
+        /* Open state: stack controls and make the close button full width */
+        :host([open]) .drawer-controls {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          padding: 0 8px;
+        }
+
+        :host([open]) .filter-input,
+        :host([open]) .close-button {
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        :host([open]) .close-button {
+          max-width: none;
+          border-radius: 3px;
+        }
+
+        :host(:not([open])) .filter-input {
+          display: none;
         }
 
         .filter-input {
@@ -263,11 +355,12 @@ export class NCVariableList extends HTMLElement {
         }
       </style>
 
+      <div id="resizer" class="resizer" title="Drag to resize / click to toggle"></div>
       <div class="drawer-header">
         <span class="drawer-title">Variables (1-999)</span>
         <div class="drawer-controls">
           <input type="text" class="filter-input" id="filter" placeholder="Filter (e.g., 100-200)">
-          <button class="close-button" id="close">Close</button>
+          <button class="close-button" id="close-toggle">Close</button>
         </div>
       </div>
       <div class="custom-section">
@@ -287,8 +380,61 @@ export class NCVariableList extends HTMLElement {
   }
 
   private attachControlListeners() {
-    const closeButton = this.shadowRoot?.getElementById('close');
-    closeButton?.addEventListener('click', () => this.toggle());
+    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.textContent = this.isOpen ? 'Close' : 'Open';
+      closeButton.addEventListener('click', () => {
+        this.toggle();
+        closeButton.textContent = this.isOpen ? 'Close' : 'Open';
+      });
+    }
+
+    // Resizer: click toggles, drag resizes
+    const resizer = this.shadowRoot?.getElementById('resizer');
+    if (resizer) {
+      let dragging = false;
+      let startY = 0;
+      let startHeight = 0;
+
+      const onPointerMove = (ev: PointerEvent) => {
+        if (!dragging) return;
+        const delta = startY - ev.clientY; // dragging up increases height
+        const newHeight = Math.max(this.minHeight, startHeight + delta);
+        this.lastHeight = newHeight;
+        this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
+        // ensure open while resizing
+        if (!this.isOpen) {
+          this.isOpen = true;
+          this.setAttribute('open', '');
+          if (closeButton) closeButton.textContent = 'Close';
+        }
+      };
+
+      const onPointerUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+      };
+
+      resizer.addEventListener('pointerdown', (e: PointerEvent) => {
+        // start dragging
+        dragging = true;
+        startY = e.clientY;
+        startHeight = this.getBoundingClientRect().height;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      });
+
+      // Simple click (no drag) toggles open/close
+      resizer.addEventListener('click', () => {
+        if (!dragging) {
+          this.toggle();
+          if (closeButton) closeButton.textContent = this.isOpen ? 'Close' : 'Open';
+        }
+      });
+    }
 
     const filterInput = this.shadowRoot?.getElementById('filter') as HTMLInputElement;
     filterInput?.addEventListener('input', (e) => {
@@ -416,6 +562,8 @@ export class NCVariableList extends HTMLElement {
     const maxVisible = 100;
     const toRender = filtered.slice(0, maxVisible);
 
+    const prefix = this.variablePrefix || '#';
+
     toRender.forEach((entry) => {
       const item = document.createElement('div');
       item.className = 'variable-item';
@@ -424,7 +572,7 @@ export class NCVariableList extends HTMLElement {
       }
 
       item.innerHTML = `
-        <span class="variable-register">R${entry.register}</span>
+        <span class="variable-register">${prefix}${entry.register}</span>
         <span class="variable-value">${entry.value.toFixed(4)}</span>
       `;
 
@@ -437,6 +585,32 @@ export class NCVariableList extends HTMLElement {
       moreMessage.textContent = `... and ${filtered.length - maxVisible} more`;
       list.appendChild(moreMessage);
     }
+  }
+
+  private syncVariablePrefix() {
+    const activeMachine = this.stateService?.getState().activeMachine;
+    const derivedPrefix = activeMachine?.variablePrefix ?? this.inferPrefixFromPattern(activeMachine?.regexPatterns?.variables?.pattern);
+    if (derivedPrefix && derivedPrefix !== this.variablePrefix) {
+      this.variablePrefix = derivedPrefix;
+      this.updateList();
+    }
+  }
+
+  private inferPrefixFromPattern(pattern?: string): string | undefined {
+    if (!pattern) return undefined;
+
+    for (let i = 0; i < pattern.length; i += 1) {
+      const char = pattern[i];
+      if (char === '\\') {
+        i += 1; // skip escaped character
+        continue;
+      }
+      if (/^[A-Za-z#]$/.test(char)) {
+        return char;
+      }
+    }
+
+    return undefined;
   }
 
   private applyFilter(entries: VariableEntry[], filter: string): VariableEntry[] {
@@ -462,6 +636,7 @@ export class NCVariableList extends HTMLElement {
     this.isOpen = !this.isOpen;
     if (this.isOpen) {
       this.setAttribute('open', '');
+      this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
     } else {
       this.removeAttribute('open');
     }
@@ -470,6 +645,7 @@ export class NCVariableList extends HTMLElement {
   open() {
     this.isOpen = true;
     this.setAttribute('open', '');
+    this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
   }
 
   close() {
