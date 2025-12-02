@@ -8,7 +8,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 .env
-
+.devcontainer/
+.vscode/
 # Editor/IDE
 .vscode/
 .idea/
@@ -30,3 +31,5 @@ build-plan.md
 docker-compose.yml
 launch.json
 docs/ncplot7py-integration.md
+build-plan.md
+DEVELOPMENT.md
