@@ -126,12 +126,6 @@ class SiemensISOCutterCompHandler(Handler):
                                 value=str(r_value),
                                 line=line_nr,
                             )
-                
-                # Validate that we have a tool radius if compensation is active
-                if state.tool_radius is None or state.tool_radius <= 0:
-                    # Only warn, don't fail - allow execution to continue
-                    # The motion handler will use 0 offset if no radius is set
-                    pass
 
         if self.next_handler is not None:
             return self.next_handler.handle(node, state)

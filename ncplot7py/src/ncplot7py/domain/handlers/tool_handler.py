@@ -1,12 +1,15 @@
 """Handler for Tool Changes (T-codes)."""
 from __future__ import annotations
 
+import logging
 from typing import Optional, Tuple, List
 
 from ncplot7py.domain.exec_chain import Handler
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.domain.exceptions import raise_nc_error, ExceptionTyps
+
+logger = logging.getLogger(__name__)
 
 
 class ToolHandler(Handler):
@@ -85,15 +88,15 @@ class ToolHandler(Handler):
                     if r_value is not None:
                         try:
                             state.extra["pending_tool_radius"] = float(r_value)
-                        except (ValueError, TypeError):
-                            pass
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool radius value '{r_value}' for tool T{t_val}: {e}")
                     # Preload tool quadrant if available
                     q_value = tool_data.get("qValue")
                     if q_value is not None:
                         try:
                             state.extra["pending_tool_quadrant"] = int(q_value)
-                        except (ValueError, TypeError):
-                            pass
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool quadrant value '{q_value}' for tool T{t_val}: {e}")
 
             except ValueError:
                 # T might be a string name (Siemens allows T="EndMill")

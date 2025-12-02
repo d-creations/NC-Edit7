@@ -391,8 +391,16 @@ async def cgiserver_import(request: Request):
             init_states.append(None)
 
     # Determine control type based on machine name
-    first_machine = machine_names[0] if machine_names else "ISO_MILL"
-    is_siemens_mill = "SIEMENS" in first_machine.upper() or "MILL" in first_machine.upper() or first_machine == "ISO_MILL"
+    # Default to ISO_MILL (Siemens-style) when no machine is specified
+    first_machine = machine_names[0] if machine_names else ""
+    is_siemens_mill = (
+        "SIEMENS" in first_machine.upper() or 
+        first_machine.upper() == "ISO_MILL" or
+        (first_machine.upper().endswith("_MILL") and "FANUC" not in first_machine.upper())
+    )
+    # If no machine specified, default to Siemens mill for ISO compatibility
+    if not first_machine:
+        is_siemens_mill = True
 
     # Create a control that can handle multiple canals and run the engine.
     engine_output = None
@@ -486,7 +494,8 @@ async def cgiserver_import(request: Request):
     # Include errors array in the response even if execution succeeded partially
     if errors:
         response["errors"] = errors
-        response["success"] = len(errors) == 0  # Mark as unsuccessful if there were errors
+        # Keep success=True for partial results, add hasErrors flag for clarity
+        response["hasErrors"] = True
     return response
 
 

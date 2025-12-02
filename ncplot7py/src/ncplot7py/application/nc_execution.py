@@ -58,6 +58,13 @@ class NCExecutionEngine:
         # Ensure logging and i18n are configured (caller can reconfigure)
         configure_logging(console=True, web_buffer=False)
         configure_i18n()
+        
+        # Default language for error messages
+        self._error_lang = "en"
+    
+    def set_error_language(self, lang: str) -> None:
+        """Set the language for error messages (e.g., 'en', 'de')."""
+        self._error_lang = lang
     
     def _add_error(self, exc: Exception, line: int = 0, canal: int = 0) -> None:
         """Add an error to the errors list for reporting to frontend.
@@ -76,7 +83,7 @@ class NCExecutionEngine:
                 "type": exc.typ.name if hasattr(exc.typ, 'name') else str(exc.typ),
                 "code": exc.code,
                 "line": exc.line if exc.line else line,
-                "message": exc.localized("en"),
+                "message": exc.localized(self._error_lang),
                 "value": str(exc.value) if exc.value else "",
                 "canal": canal,
             }
