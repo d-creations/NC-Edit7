@@ -122,11 +122,11 @@ export class ExecutedProgramService {
   }
 
   private preprocessProgram(program: string): string {
-    // Remove forbidden characters: () {} as per server requirements
-    const cleaned = program.replace(/[(){}]/g, '');
-
+    // We no longer strip () or {} here because the backend parser handles comments correctly.
+    // Previously this was stripping brackets but leaving content, causing parsing errors.
+    
     // Server expects semicolons as line separators
-    return cleaned.replace(/\n/g, ';');
+    return program.replace(/\n/g, ';');
   }
 
   private parseExecutionResponse(response: PlotResponse, targetChannelId?: string): ExecutedProgramResult {

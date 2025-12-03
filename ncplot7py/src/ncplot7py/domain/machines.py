@@ -19,7 +19,7 @@ FANUC_STAR_CONFIG = MachineConfig(
     control_type="FANUC",
     variable_pattern=r"#(\d+)",
     variable_prefix="#",
-    tool_range=(1, 99),
+    tool_range=(0, 99),
     default_plane="G18", # Lathe default
     default_feed_mode="G95" # Feed/rev default
 )
@@ -29,7 +29,7 @@ FANUC_GENERIC_CONFIG = MachineConfig(
     control_type="FANUC",
     variable_pattern=r"#(\d+)",
     variable_prefix="#",
-    tool_range=(100, 9999),
+    tool_range=(0, 9999),
     default_plane="G17",
     default_feed_mode="G94"
 )
@@ -39,7 +39,7 @@ SIEMENS_840D_CONFIG = MachineConfig(
     control_type="SIEMENS",
     variable_pattern=r"R(\d+)",
     variable_prefix="R",
-    tool_range=(100, 9999),
+    tool_range=(0, 9999),
     default_plane="G17",
     default_feed_mode="G94"
 )

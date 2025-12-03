@@ -42,8 +42,13 @@ class NCCommandStringParser(BaseNCCommandParser):
         if nc_command_string is None:
             nc_command_string = ""
 
+        # remove comments (parentheses)
+        # We must remove the content inside parentheses too, otherwise it gets parsed as commands.
+        # e.g. T2100(BACK MILLING) -> T2100
+        nc_line = re.sub(r"\(.*?\)", "", nc_command_string)
+
         # remove spaces for initial trimming but keep some tokenization later
-        nc_line = re.sub(" ", "", nc_command_string)
+        nc_line = re.sub(" ", "", nc_line)
         if nc_line.startswith('/'):
             nc_line = nc_line[1:]
 
