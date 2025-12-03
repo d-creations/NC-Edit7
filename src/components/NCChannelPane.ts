@@ -5,12 +5,13 @@ import './NCToolList';
 import './NCExecutedList';
 import './NCBottomPanel';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
+import { EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
   private eventBus: EventBus;
+  private stateService: import('@services/StateService').StateService;
 
   static get observedAttributes() {
     return ['channel-id'];
@@ -18,7 +19,9 @@ export class NCChannelPane extends HTMLElement {
 
   constructor() {
     super();
-    this.eventBus = ServiceRegistry.getInstance().get(EVENT_BUS_TOKEN);
+    const registry = ServiceRegistry.getInstance();
+    this.eventBus = registry.get(EVENT_BUS_TOKEN);
+    this.stateService = registry.get(STATE_SERVICE_TOKEN);
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -51,6 +54,13 @@ export class NCChannelPane extends HTMLElement {
     // Plot button
     const plotButton = this.querySelector('#plot-channel-btn');
     plotButton?.addEventListener('click', () => {
+      try {
+        // Ensure the plot viewer is opened (same UX as mobile)
+        this.stateService.updateUISettings({ plotViewerOpen: true });
+      } catch (e) {
+        console.warn('StateService unavailable when opening plot viewer from channel', e);
+      }
+
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, { channelId: this.channelId });
     });
 

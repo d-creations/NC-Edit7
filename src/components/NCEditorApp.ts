@@ -73,7 +73,8 @@ export class NCEditorApp extends HTMLElement {
           display: flex;
           align-items: center;
           gap: 16px;
-          padding: 8px 16px;
+          /* Use safe area inset so header content won't be covered by iPhone URL/notch */
+          padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
           background: #252526;
           border-bottom: 1px solid #3e3e42;
         }
@@ -120,10 +121,39 @@ export class NCEditorApp extends HTMLElement {
           color: #fff;
         }
 
+        /* Small open-bar that shows when plot panel is hidden */
+        .plot-open-bar {
+          /* integrated as a normal flex child between channels and plot container */
+          width: 36px;
+          height: 100%;
+          flex: 0 0 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #0e639c;
+          color: #fff;
+          cursor: pointer;
+          border-radius: 6px 0 0 6px;
+          border: 1px solid #084a70;
+          z-index: 200;
+          /* make the label render vertically so it's readable in narrow bar */
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+          font-weight: 600;
+          font-size: 13px;
+        }
+        .plot-open-bar:hover {
+          background: #1177bb;
+        }
+        .plot-open-bar.hidden {
+          display: none;
+        }
+
         .app-main-content {
           display: flex;
           flex: 1;
           overflow: hidden;
+          position: relative; /* anchor absolute open-bar */
         }
 
         .app-sidebar {
@@ -248,7 +278,12 @@ export class NCEditorApp extends HTMLElement {
         /* Mobile Styles */
         @media (max-width: 768px) {
           .app-header {
-            padding: 8px;
+            /* add extra top padding on iOS devices (safe area) */
+            padding-top: calc(8px + env(safe-area-inset-top, 0px));
+            padding-right: 12px;
+            padding-bottom: 8px;
+            padding-left: 12px;
+            box-sizing: border-box;
           }
           
           .app-channel-controls {
@@ -282,7 +317,8 @@ export class NCEditorApp extends HTMLElement {
 
           .app-plot-container {
             position: absolute;
-            top: 0;
+            /* ensure full-screen mobile plot respects iPhone safe area */
+            top: env(safe-area-inset-top, 0px);
             left: 0;
             width: 100% !important;
             height: 100%;
@@ -296,6 +332,9 @@ export class NCEditorApp extends HTMLElement {
           }
 
           .plot-resize-handle, .plot-hide-bar {
+            display: none;
+          }
+          .plot-open-bar {
             display: none;
           }
 
@@ -338,6 +377,8 @@ export class NCEditorApp extends HTMLElement {
             font-size: 18px;
             margin-bottom: 2px;
           }
+          /* add extra bottom padding for iPhone bottom bar (home indicator) */
+          .app-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
         }
 
         @media (min-width: 769px) {
@@ -354,7 +395,7 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
-          <button class="app-plot-toggle" id="plot-toggle">🎯 Plot Panel</button>
+          <!-- plot toggle removed from header — small open bar sits beside the plot container when hidden -->
         </div>
         <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
       </div>
@@ -367,6 +408,9 @@ export class NCEditorApp extends HTMLElement {
             <nc-channel-pane channel-id="3" data-channel="3"></nc-channel-pane>
           </div>
         </div>
+        <!-- small open bar that appears when plot panel is hidden and integrated into layout -->
+        <div id="plot-open-bar" class="plot-open-bar hidden" title="Open plot panel">📈 Plot</div>
+        
         <div class="app-plot-container" id="plot-container">
           <div class="plot-resize-handle" id="plot-resize-handle"></div>
           <div class="plot-content">
@@ -402,6 +446,14 @@ export class NCEditorApp extends HTMLElement {
     `;
 
     this.attachEventListeners();
+
+    // Ensure the open-bar / plot panel initial visibility matches saved UI state
+    try {
+      const visible = this.stateService.getState().uiSettings.plotViewerOpen;
+      this.setPlotViewerVisible(visible);
+    } catch (e) {
+      // ignore if state unavailable
+    }
   }
 
   private attachEventListeners(): void {
@@ -437,11 +489,10 @@ export class NCEditorApp extends HTMLElement {
     // Initialize channel display on load
     this.updateChannelDisplay();
 
-    const plotToggle = this.querySelector('#plot-toggle');
-    plotToggle?.addEventListener('click', () => {
-      const plotContainer = this.querySelector('#plot-container');
-      const isVisible = plotContainer?.classList.contains('visible');
-      this.setPlotViewerVisible(!isVisible);
+    // Header plot toggle removed — handle the new open-bar element instead
+    const plotOpenBar = this.querySelector('#plot-open-bar');
+    plotOpenBar?.addEventListener('click', () => {
+      this.setPlotViewerVisible(true);
     });
 
     const plotRequest = this.querySelector('#plot-request');
@@ -450,8 +501,12 @@ export class NCEditorApp extends HTMLElement {
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, undefined);
     });
 
-    // Listen for plot requests from channels to switch view on mobile
+    // Listen for plot requests — open the plot viewer on desktop and switch mobile view
     this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, () => {
+      // Always open the plot viewer (so channel plot opens the panel on desktop too)
+      this.setPlotViewerVisible(true);
+
+      // On mobile, also switch to the dedicated plot view
       if (window.innerWidth <= 768) {
         this.switchMobileView('plot');
       }
@@ -652,15 +707,20 @@ export class NCEditorApp extends HTMLElement {
 
   private setPlotViewerVisible(visible: boolean): void {
     const plotContainer = this.querySelector('#plot-container');
-    const plotToggle = this.querySelector('#plot-toggle');
-    if (!plotContainer || !plotToggle) return;
+    const plotToggle = this.querySelector('#plot-toggle') as HTMLElement | null;
+    const plotOpenBar = this.querySelector('#plot-open-bar');
+    if (!plotContainer) return;
 
     if (visible) {
       plotContainer.classList.add('visible');
-      plotToggle.classList.add('active');
+      // hide the small open bar when the panel is visible
+      plotOpenBar?.classList.add('hidden');
+      plotToggle?.classList.add('active');
     } else {
       plotContainer.classList.remove('visible');
-      plotToggle.classList.remove('active');
+      // show the small open bar so user has a clickable open affordance
+      plotOpenBar?.classList.remove('hidden');
+      plotToggle?.classList.remove('active');
     }
 
     this.stateService.updateUISettings({ plotViewerOpen: visible });
