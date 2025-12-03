@@ -1,0 +1,36 @@
+; Siemens Arcs and Cutter Comp Example
+; Requires R10 to be set before execution (e.g. R10=20)
+; Requires Tool 100 to be defined with Radius (e.g. R5)
+
+G290
+G17 G90 G94
+G54
+
+; Select Tool 100
+T100
+
+; Move to start point
+G0 X0 Y0 Z10
+
+; Activate Cutter Comp Left (G41)
+; Move to approach point
+G41 X0 Y-10
+
+; Linear move
+G1 X50 Y-10 F500
+
+; CCW Arc (G3) with Radius R10
+; From (50, -10) to (70, 10) -> Radius 20 (if R10=20)
+G3 X70 Y10 R=R10
+
+; Linear move up
+G1 X70 Y50
+
+; CW Arc (G2)
+; From (70, 50) to (50, 70) with R20
+G2 X50 Y70 R=R10
+
+; Cancel Comp
+G40 X0 Y70
+
+M30

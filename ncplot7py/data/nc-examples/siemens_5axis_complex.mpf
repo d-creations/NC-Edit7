@@ -1,0 +1,36 @@
+; Siemens 5-Axis Complex Example
+; This program demonstrates variables, loops, 5-axis moves, and cycles.
+
+G290
+G17 G90 G94
+G54
+
+; Variables
+R1=0
+R2=5
+
+; Safe Move
+G0 X0 Y0 Z100
+
+; Loop for drilling 5 holes
+WHILE R1 LT R2 DO1
+    G0 Z10
+    G1 Z-5 F100
+    G0 Z10
+    R1 = R1 + 1
+END1
+
+; 5-Axis Moves (Swiveling)
+G0 X100 Y0 Z50 A0 B0
+G1 X100 Y0 Z50 A45 B0 F500
+G1 X100 Y0 Z50 A45 B90
+G1 X100 Y0 Z50 A0 B90
+G1 X100 Y0 Z50 A0 B0
+
+; Cycle Test (Drilling)
+G0 X0 Y0 Z10
+G81 X50 Y50 Z-10 R2 F200
+X60
+G80
+
+M30

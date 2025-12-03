@@ -53,7 +53,7 @@ class NCCommandStringParser(BaseNCCommandParser):
             nc_line = ""
 
         # Insert spaces before tokens so we can split
-        nc_line = re.sub(r"(SQRT|ASIN|SIN|[A-Z,])", r" \1", nc_line)
+        nc_line = re.sub(r"(SQRT|ASIN|SIN|(?<![=\+\-\*\/\[])[A-Z,])", r" \1", nc_line)
         # quickfix for the behaviour in the original snippet
         nc_line = nc_line.replace(" SQRT", "SQRT")
         nc_line = nc_line.replace(" ASIN", "ASIN")
