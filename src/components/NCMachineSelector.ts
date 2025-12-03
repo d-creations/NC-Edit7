@@ -49,6 +49,16 @@ export class NCMachineSelector extends HTMLElement {
           border-radius: 4px;
           cursor: pointer;
         }
+
+        /* Mobile styles - make select bigger */
+        @media (max-width: 768px) {
+          select {
+            padding: 8px 12px;
+            font-size: 16px;
+            min-height: 40px;
+            min-width: 120px;
+          }
+        }
       </style>
       <select id="selector">
         <option value="">Select Machine...</option>

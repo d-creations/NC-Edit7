@@ -158,9 +158,9 @@ export class NCChannelPane extends HTMLElement {
           .channel-sidebar {
             display: none;
             position: absolute;
-            top: 35px; /* Below header */
+            top: 45px; /* Increased from 35px to account for taller buttons */
             left: 0;
-            height: calc(100% - 35px);
+            height: calc(100% - 45px); /* Updated to match new top position */
             width: 85%;
             max-width: 300px;
             background: #252526;
@@ -177,14 +177,13 @@ export class NCChannelPane extends HTMLElement {
             display: block !important;
           }
           
-          /* Overlay when sidebar is open */
           .sidebar-overlay {
             display: none;
             position: absolute;
-            top: 35px;
+            top: 45px; /* Updated to match sidebar top position */
             left: 0;
             width: 100%;
-            height: calc(100% - 35px);
+            height: calc(100% - 45px); /* Updated to match sidebar height */
             background: rgba(0,0,0,0.5);
             z-index: 40;
           }
@@ -192,10 +191,19 @@ export class NCChannelPane extends HTMLElement {
           .sidebar-overlay.visible {
             display: block;
           }
-        }
 
-        .mobile-sidebar-toggle {
-          display: none;
+          .mobile-sidebar-toggle {
+            display: block !important;
+            padding: 8px 16px !important;
+            font-size: 14px !important;
+            min-height: 36px !important;
+          }
+
+          .channel-button {
+            padding: 6px 12px !important;
+            font-size: 13px !important;
+            min-height: 32px !important;
+          }
         }
       </style>
       <div class="channel-header">

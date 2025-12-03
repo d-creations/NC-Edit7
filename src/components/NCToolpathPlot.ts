@@ -204,6 +204,75 @@ export class NCToolpathPlot extends HTMLElement {
           padding: 4px 8px;
           border-radius: 4px;
         }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+          .plot-controls {
+            top: 8px;
+            right: 8px;
+            left: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .plot-button {
+            padding: 4px 6px;
+            font-size: 11px;
+            min-width: auto;
+            flex: 1;
+            max-width: calc(25% - 3px);
+            min-height: 32px;
+          }
+
+          .view-controls {
+            top: 52px;
+            left: 8px;
+            right: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .view-controls .plot-button {
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+            min-height: 32px;
+          }
+
+          .zoom-controls {
+            top: 96px;
+            right: 8px;
+            left: 8px;
+            flex-direction: row;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .zoom-button {
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+          }
+
+          .plot-info {
+            bottom: 50px;
+            left: 8px;
+            right: 8px;
+            text-align: center;
+            font-size: 11px;
+          }
+
+          .orbit-hint {
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            text-align: center;
+            font-size: 9px;
+          }
+        }
       </style>
       <div id="plot-container">
         <div class="plot-controls">

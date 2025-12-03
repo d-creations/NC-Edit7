@@ -293,11 +293,14 @@ export class NCEditorApp extends HTMLElement {
           .mobile-channels-btn {
             display: block !important;
             margin-left: auto;
+            padding: 8px 16px !important;
+            font-size: 14px !important;
+            min-height: 36px !important;
           }
 
           .app-main-content {
             flex-direction: column;
-            padding-bottom: 50px; /* Space for bottom nav */
+            padding-bottom: 70px; /* Updated from 60px to match new nav height */
           }
 
           .app-channel-container {
@@ -344,7 +347,7 @@ export class NCEditorApp extends HTMLElement {
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 50px;
+            height: 70px; /* Increased from 60px */
             background: #252526;
             border-top: 1px solid #3e3e42;
             z-index: 200;
@@ -357,10 +360,12 @@ export class NCEditorApp extends HTMLElement {
             align-items: center;
             justify-content: center;
             color: #888;
-            font-size: 10px;
+            font-size: 14px; /* Increased from 12px */
             cursor: pointer;
             border: none;
             background: transparent;
+            padding: 10px; /* Increased from 8px */
+            min-height: 60px; /* Increased from 50px */
           }
 
           .nav-item.active {
@@ -374,8 +379,8 @@ export class NCEditorApp extends HTMLElement {
           }
 
           .nav-icon {
-            font-size: 18px;
-            margin-bottom: 2px;
+            font-size: 24px; /* Increased from 20px */
+            margin-bottom: 6px; /* Increased from 4px */
           }
           /* add extra bottom padding for iPhone bottom bar (home indicator) */
           .app-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -593,12 +598,15 @@ export class NCEditorApp extends HTMLElement {
       const toggle = document.createElement('button');
       toggle.textContent = channel?.active ? 'ON' : 'OFF';
       toggle.style.cssText = `
-        padding: 4px 12px;
+        padding: 8px 16px;
         background: ${channel?.active ? '#0e639c' : '#3c3c3c'};
         color: #fff;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
+        font-size: 14px;
+        min-width: 60px;
+        min-height: 36px;
       `;
       
       toggle.addEventListener('click', () => {
@@ -623,12 +631,15 @@ export class NCEditorApp extends HTMLElement {
     closeBtn.textContent = 'Close';
     closeBtn.style.cssText = `
       margin-top: 10px;
-      padding: 8px;
+      padding: 10px 20px;
       background: #3c3c3c;
       color: #fff;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
+      font-size: 14px;
+      min-height: 40px;
+      width: 100%;
     `;
     closeBtn.addEventListener('click', () => {
       document.body.removeChild(dialog);
