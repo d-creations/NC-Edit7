@@ -21,6 +21,7 @@ export class NCEditorApp extends HTMLElement {
   private stateService: StateService;
   private machineService: MachineService;
   private eventBus: EventBus;
+  private activeMobileView: string = 'channel-1';
 
   constructor() {
     super();
@@ -102,20 +103,6 @@ export class NCEditorApp extends HTMLElement {
         .app-channel-toggle.inactive {
           background: #3c3c3c;
           color: #888;
-        }
-
-        .app-channel-action {
-          padding: 4px 12px;
-          background: #0e639c;
-          color: #fff;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-        }
-
-        .app-channel-action:hover {
-          background: #1177bb;
         }
 
         .app-plot-toggle {
@@ -257,6 +244,107 @@ export class NCEditorApp extends HTMLElement {
           margin: 8px;
           border-radius: 4px;
         }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+          .app-header {
+            padding: 8px;
+          }
+          
+          .app-channel-controls {
+            display: none; /* Hide desktop controls on mobile */
+          }
+
+          .mobile-channels-btn {
+            display: block !important;
+            margin-left: auto;
+          }
+
+          .app-main-content {
+            flex-direction: column;
+            padding-bottom: 50px; /* Space for bottom nav */
+          }
+
+          .app-channel-container {
+            width: 100%;
+            height: 100%;
+          }
+
+          .app-channels {
+            flex-direction: column;
+          }
+
+          nc-channel-pane {
+            width: 100%;
+            height: 100%;
+            display: none; /* Controlled by JS */
+          }
+
+          .app-plot-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100%;
+            z-index: 100;
+            border-left: none;
+          }
+
+          .app-plot-container.visible {
+            display: flex;
+            max-width: 100%;
+          }
+
+          .plot-resize-handle, .plot-hide-bar {
+            display: none;
+          }
+
+          .app-bottom-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            z-index: 200;
+          }
+
+          .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 10px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+          }
+
+          .nav-item.active {
+            color: #0e639c;
+            background: rgba(255, 255, 255, 0.05);
+          }
+
+          .nav-item.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+          }
+
+          .nav-icon {
+            font-size: 18px;
+            margin-bottom: 2px;
+          }
+        }
+
+        @media (min-width: 769px) {
+          .app-bottom-nav {
+            display: none;
+          }
+        }
       </style>
 
       <div class="app-header">
@@ -266,9 +354,9 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
-          <button class="app-channel-action" id="plot-request">▶️ Plot Active</button>
           <button class="app-plot-toggle" id="plot-toggle">🎯 Plot Panel</button>
         </div>
+        <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
       </div>
 
       <div class="app-main-content">
@@ -291,6 +379,25 @@ export class NCEditorApp extends HTMLElement {
       <div class="app-status-bar">
         <nc-status-indicator></nc-status-indicator>
         <span id="status-details"></span>
+      </div>
+
+      <div class="app-bottom-nav">
+        <button class="nav-item active" data-view="channel-1">
+          <span class="nav-icon">1️⃣</span>
+          <span>CH 1</span>
+        </button>
+        <button class="nav-item" data-view="channel-2">
+          <span class="nav-icon">2️⃣</span>
+          <span>CH 2</span>
+        </button>
+        <button class="nav-item" data-view="channel-3">
+          <span class="nav-icon">3️⃣</span>
+          <span>CH 3</span>
+        </button>
+        <button class="nav-item" data-view="plot">
+          <span class="nav-icon">📈</span>
+          <span>Plot</span>
+        </button>
       </div>
     `;
 
@@ -343,6 +450,13 @@ export class NCEditorApp extends HTMLElement {
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, undefined);
     });
 
+    // Listen for plot requests from channels to switch view on mobile
+    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, () => {
+      if (window.innerWidth <= 768) {
+        this.switchMobileView('plot');
+      }
+    });
+
     // Hide bar to close the plot panel
     const plotHideBar = this.querySelector('#plot-hide-bar');
     plotHideBar?.addEventListener('click', () => {
@@ -351,6 +465,150 @@ export class NCEditorApp extends HTMLElement {
 
     // Resize handle for plot panel
     this.setupResizeHandle();
+
+    // Window resize listener
+    window.addEventListener('resize', () => {
+      this.updateChannelDisplay();
+    });
+
+    // Mobile Bottom Nav
+    const navItems = this.querySelectorAll('.nav-item');
+    navItems?.forEach((item) => {
+      item.addEventListener('click', (e) => {
+        const button = (e.currentTarget as HTMLElement);
+        const view = button.dataset.view;
+        if (view) {
+          this.switchMobileView(view);
+        }
+      });
+    });
+
+    // Mobile Channels Button
+    const mobileChannelsBtn = this.querySelector('#mobile-channels-btn');
+    mobileChannelsBtn?.addEventListener('click', () => {
+      this.showMobileChannelDialog();
+    });
+  }
+
+  private showMobileChannelDialog(): void {
+    // Simple dialog to toggle channels
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: #252526;
+      padding: 20px;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    `;
+
+    const title = document.createElement('h3');
+    title.textContent = 'Active Channels';
+    title.style.margin = '0 0 10px 0';
+    content.appendChild(title);
+
+    ['1', '2', '3'].forEach(id => {
+      const channelId = id as ChannelId;
+      const channel = this.stateService.getChannel(channelId);
+      
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+      
+      const label = document.createElement('span');
+      label.textContent = `Channel ${id}`;
+      
+      const toggle = document.createElement('button');
+      toggle.textContent = channel?.active ? 'ON' : 'OFF';
+      toggle.style.cssText = `
+        padding: 4px 12px;
+        background: ${channel?.active ? '#0e639c' : '#3c3c3c'};
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      `;
+      
+      toggle.addEventListener('click', () => {
+        if (channel?.active) {
+          this.stateService.deactivateChannel(channelId);
+          toggle.textContent = 'OFF';
+          toggle.style.background = '#3c3c3c';
+        } else {
+          this.stateService.activateChannel(channelId);
+          toggle.textContent = 'ON';
+          toggle.style.background = '#0e639c';
+        }
+        this.updateChannelDisplay();
+      });
+      
+      row.appendChild(label);
+      row.appendChild(toggle);
+      content.appendChild(row);
+    });
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = `
+      margin-top: 10px;
+      padding: 8px;
+      background: #3c3c3c;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(dialog);
+    });
+    content.appendChild(closeBtn);
+
+    dialog.appendChild(content);
+    document.body.appendChild(dialog);
+  }
+
+  private switchMobileView(view: string): void {
+    this.activeMobileView = view;
+    
+    // Update nav items
+    const navItems = this.querySelectorAll('.nav-item');
+    navItems?.forEach((item) => {
+      if ((item as HTMLElement).dataset.view === view) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    if (view === 'plot') {
+      this.setPlotViewerVisible(true);
+    } else if (view.startsWith('channel-')) {
+      this.setPlotViewerVisible(false);
+      
+      // Ensure the channel is active in state service if needed
+      // For now, we just assume we want to see it. 
+      // But we should probably activate it if it's not active?
+      // Or just show it. Let's just show it.
+      
+      this.updateChannelDisplay();
+    }
   }
 
   private setupResizeHandle(): void {
@@ -413,6 +671,7 @@ export class NCEditorApp extends HTMLElement {
     if (!channelsContainer) return;
 
     const activeChannels = this.stateService.getActiveChannels();
+    const isMobile = window.innerWidth <= 768;
 
     // Hide all channel panes first
     const panes = this.querySelectorAll('nc-channel-pane');
@@ -420,13 +679,80 @@ export class NCEditorApp extends HTMLElement {
       (pane as HTMLElement).style.display = 'none';
     });
 
-    // Show active channels
-    activeChannels.forEach((channel) => {
-      const pane = this.querySelector(`nc-channel-pane[data-channel="${channel.id}"]`);
-      if (pane) {
-        (pane as HTMLElement).style.display = 'flex';
+    if (isMobile) {
+      // Update nav items state based on active channels
+      const navItems = this.querySelectorAll('.nav-item');
+      navItems?.forEach((item) => {
+        const view = (item as HTMLElement).dataset.view;
+        if (view && view.startsWith('channel-')) {
+          const channelId = view.split('-')[1] as ChannelId;
+          const channel = this.stateService.getChannel(channelId);
+          
+          if (channel?.active) {
+            item.classList.remove('disabled');
+          } else {
+            item.classList.add('disabled');
+          }
+        }
+      });
+
+      // Check if current view is valid (active)
+      let currentViewValid = true;
+      if (this.activeMobileView.startsWith('channel-')) {
+         const channelId = this.activeMobileView.split('-')[1] as ChannelId;
+         const channel = this.stateService.getChannel(channelId);
+         if (!channel?.active) {
+             currentViewValid = false;
+         }
       }
-    });
+
+      if (!currentViewValid) {
+          // Switch to first active channel or plot
+          if (activeChannels.length > 0) {
+              this.activeMobileView = `channel-${activeChannels[0].id}`;
+          } else {
+              this.activeMobileView = 'plot';
+          }
+          
+          // Update nav items active state
+          navItems?.forEach((item) => {
+            if ((item as HTMLElement).dataset.view === this.activeMobileView) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+          });
+      }
+
+      // On mobile, only show the active mobile view channel
+      if (this.activeMobileView.startsWith('channel-')) {
+        const channelId = this.activeMobileView.split('-')[1];
+        const pane = this.querySelector(`nc-channel-pane[data-channel="${channelId}"]`);
+        if (pane) {
+          (pane as HTMLElement).style.display = 'flex';
+        }
+        
+        // Ensure plot is hidden
+        const plotContainer = this.querySelector('#plot-container');
+        if (plotContainer?.classList.contains('visible')) {
+             this.setPlotViewerVisible(false);
+        }
+      } else if (this.activeMobileView === 'plot') {
+        // Ensure plot is visible
+        const plotContainer = this.querySelector('#plot-container');
+        if (plotContainer && !plotContainer.classList.contains('visible')) {
+             this.setPlotViewerVisible(true);
+        }
+      }
+    } else {
+      // Show active channels
+      activeChannels.forEach((channel) => {
+        const pane = this.querySelector(`nc-channel-pane[data-channel="${channel.id}"]`);
+        if (pane) {
+          (pane as HTMLElement).style.display = 'flex';
+        }
+      });
+    }
   }
 
   private showError(message: string): void {

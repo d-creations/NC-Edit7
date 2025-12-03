@@ -11,7 +11,7 @@ import { PlotService } from '@services/PlotService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { StateService } from '@services/StateService';
-import type { PlotMetadata, MachineType, ToolValue, CustomVariable } from '@core/types';
+import type { PlotMetadata, MachineType, ToolValue, CustomVariable, ChannelId } from '@core/types';
 import type { NCToolList } from './NCToolList';
 import type { NCBottomPanel } from './NCBottomPanel';
 
@@ -73,8 +73,9 @@ export class NCToolpathPlot extends HTMLElement {
     });
 
     // Allow external UI elements to request a plot
-    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, () => {
-      this.plotNCCode();
+    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, (data: unknown) => {
+      const requestData = data as { channelId?: string } | undefined;
+      this.plotNCCode(requestData?.channelId);
     });
 
     // Listen for plot toggle
@@ -206,7 +207,6 @@ export class NCToolpathPlot extends HTMLElement {
       </style>
       <div id="plot-container">
         <div class="plot-controls">
-          <button class="plot-button primary" id="plot-nc-code">📊 Plot NC Code</button>
           <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
           <button class="plot-button" id="reset-camera">Reset View</button>
           <button class="plot-button" id="toggle-axes">Axes</button>
@@ -234,9 +234,6 @@ export class NCToolpathPlot extends HTMLElement {
   }
 
   private attachControlListeners() {
-    const plotButton = this.shadowRoot?.getElementById('plot-nc-code');
-    plotButton?.addEventListener('click', () => this.plotNCCode());
-
     const clearButton = this.shadowRoot?.getElementById('clear-plot');
     clearButton?.addEventListener('click', () => this.clearPlot());
 
@@ -269,18 +266,13 @@ export class NCToolpathPlot extends HTMLElement {
     viewYZButton?.addEventListener('click', () => this.setViewYZ());
   }
 
-  private async plotNCCode() {
+  private async plotNCCode(targetChannelId?: string) {
     if (this.isPlotting) return;
 
-    const plotButton = this.shadowRoot?.getElementById('plot-nc-code') as HTMLButtonElement;
     const statusElement = this.shadowRoot?.getElementById('plot-status');
 
     try {
       this.isPlotting = true;
-      if (plotButton) {
-        plotButton.disabled = true;
-        plotButton.textContent = '⏳ Plotting...';
-      }
       if (statusElement) {
         statusElement.textContent = 'Generating plot...';
       }
@@ -294,8 +286,26 @@ export class NCToolpathPlot extends HTMLElement {
         throw new Error('No active channels');
       }
 
+      // Filter channels if a specific target was requested
+      const channelsToPlot = targetChannelId 
+        ? activeChannels.filter(c => c.id === targetChannelId)
+        : activeChannels;
+
+      if (channelsToPlot.length === 0 && targetChannelId) {
+        // If target channel is not active, maybe we should activate it or just plot it anyway?
+        // For now, let's try to find it even if not active
+        const channel = this.stateService.getChannel(targetChannelId as ChannelId);
+        if (channel) {
+            channelsToPlot.push(channel);
+        }
+      }
+
+      if (channelsToPlot.length === 0) {
+        throw new Error('No channels to plot');
+      }
+
       // Get the code from the editor elements in the DOM
-      const requests = activeChannels.map((channel) => {
+      const requests = channelsToPlot.map((channel) => {
         // Query the nc-code-pane element for this channel
         const codePane = document.querySelector(
           `nc-channel-pane[data-channel="${channel.id}"] nc-code-pane`,
@@ -327,16 +337,39 @@ export class NCToolpathPlot extends HTMLElement {
       // Execute the programs to get plot data
       const results = await this.executedProgramService.executeMultipleChannels(requests);
 
+      // Clear existing plot before adding new ones
+      // Note: If we are plotting a single channel, we might want to keep others?
+      // But currently updatePlot clears everything.
+      // If we want to support multi-channel plotting where we add one by one, we need to change updatePlot.
+      // For now, let's assume plotting a channel clears the view and shows only that channel (or all if global plot).
+      
+      // If we are plotting a specific channel, we should probably clear the cache/view first
+      // But updatePlot does that.
+      
       // Update the plot with the results
       let totalPoints = 0;
       let totalSegments = 0;
+      
+      // We need to handle multiple results. 
+      // Since updatePlot clears the scene, we can only call it once or modify it.
+      // Let's modify updatePlot to NOT clear if we are adding?
+      // Or better, combine the metadata.
+      
+      const combinedMetadata: PlotMetadata = {
+        points: [],
+        segments: []
+      };
+
       results.forEach((result) => {
         if (result.plotMetadata) {
-          totalPoints += result.plotMetadata.points.length;
-          totalSegments += result.plotMetadata.segments.length;
-          this.updatePlot(result.plotMetadata);
+          combinedMetadata.points.push(...result.plotMetadata.points);
+          combinedMetadata.segments.push(...result.plotMetadata.segments);
         }
       });
+      
+      totalPoints = combinedMetadata.points.length;
+      totalSegments = combinedMetadata.segments.length;
+      this.updatePlot(combinedMetadata);
 
       if (statusElement) {
         statusElement.textContent = `Points: ${totalPoints}, Segments: ${totalSegments}`;
@@ -348,10 +381,6 @@ export class NCToolpathPlot extends HTMLElement {
       }
     } finally {
       this.isPlotting = false;
-      if (plotButton) {
-        plotButton.disabled = false;
-        plotButton.textContent = '📊 Plot NC Code';
-      }
     }
   }
 

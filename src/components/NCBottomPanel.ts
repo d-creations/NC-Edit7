@@ -73,6 +73,13 @@ export class NCBottomPanel extends HTMLElement {
           height: var(--drawer-height, 280px);
         }
 
+        @media (max-width: 768px) {
+          :host([open]) {
+            height: var(--drawer-height, 200px);
+            max-height: 50%;
+          }
+        }
+
         .resizer {
           height: 8px;
           cursor: ns-resize;

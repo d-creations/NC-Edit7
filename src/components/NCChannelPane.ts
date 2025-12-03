@@ -4,9 +4,13 @@ import './NCVariableList';
 import './NCToolList';
 import './NCExecutedList';
 import './NCBottomPanel';
+import { ServiceRegistry } from '@core/ServiceRegistry';
+import { EVENT_BUS_TOKEN } from '@core/ServiceTokens';
+import { EventBus, EVENT_NAMES } from '@services/EventBus';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
+  private eventBus: EventBus;
 
   static get observedAttributes() {
     return ['channel-id'];
@@ -14,6 +18,7 @@ export class NCChannelPane extends HTMLElement {
 
   constructor() {
     super();
+    this.eventBus = ServiceRegistry.getInstance().get(EVENT_BUS_TOKEN);
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -29,6 +34,26 @@ export class NCChannelPane extends HTMLElement {
   }
 
   private setupEventListeners() {
+    // Mobile Sidebar Toggle
+    const sidebarToggle = this.querySelector('#sidebar-toggle');
+    const sidebar = this.querySelector('#channel-sidebar');
+    const overlay = this.querySelector('#sidebar-overlay');
+
+    const toggleSidebar = () => {
+      sidebar?.classList.toggle('visible');
+      overlay?.classList.toggle('visible');
+      sidebarToggle?.classList.toggle('active');
+    };
+
+    sidebarToggle?.addEventListener('click', toggleSidebar);
+    overlay?.addEventListener('click', toggleSidebar);
+
+    // Plot button
+    const plotButton = this.querySelector('#plot-channel-btn');
+    plotButton?.addEventListener('click', () => {
+      this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, { channelId: this.channelId });
+    });
+
     // Forward keyword-click events to the code pane
     this.addEventListener('keyword-click', ((e: CustomEvent) => {
       const codePaneElement = this.querySelector('nc-code-pane');
@@ -39,6 +64,13 @@ export class NCChannelPane extends HTMLElement {
             bubbles: false,
           }),
         );
+      }
+      
+      // On mobile, close sidebar after selection
+      if (window.innerWidth <= 768) {
+        sidebar?.classList.remove('visible');
+        overlay?.classList.remove('visible');
+        sidebarToggle?.classList.remove('active');
       }
     }) as EventListener);
   }
@@ -110,14 +142,62 @@ export class NCChannelPane extends HTMLElement {
           height: 150px;
           border-top: 1px solid #3e3e42;
         }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+          .channel-sidebar {
+            display: none;
+            position: absolute;
+            top: 35px; /* Below header */
+            left: 0;
+            height: calc(100% - 35px);
+            width: 85%;
+            max-width: 300px;
+            background: #252526;
+            z-index: 50;
+            border-right: 1px solid #3e3e42;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+          }
+          
+          .channel-sidebar.visible {
+            display: flex;
+          }
+
+          .mobile-sidebar-toggle {
+            display: block !important;
+          }
+          
+          /* Overlay when sidebar is open */
+          .sidebar-overlay {
+            display: none;
+            position: absolute;
+            top: 35px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 35px);
+            background: rgba(0,0,0,0.5);
+            z-index: 40;
+          }
+          
+          .sidebar-overlay.visible {
+            display: block;
+          }
+        }
+
+        .mobile-sidebar-toggle {
+          display: none;
+        }
       </style>
       <div class="channel-header">
         <span>Channel ${this.channelId}</span>
         <div class="channel-controls">
+          <button class="channel-button" id="plot-channel-btn">▶️ Plot</button>
+          <button class="channel-button mobile-sidebar-toggle" id="sidebar-toggle">Tools & Keywords</button>
         </div>
       </div>
       <div class="channel-content">
-        <div class="channel-sidebar">
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <div class="channel-sidebar" id="channel-sidebar">
           <nc-keyword-panel channel-id="${this.channelId}" style="flex: 1;"></nc-keyword-panel>
           <div class="channel-tools-panel">
             <nc-tool-list channel-id="${this.channelId}"></nc-tool-list>

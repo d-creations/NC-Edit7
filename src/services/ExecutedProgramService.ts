@@ -125,9 +125,8 @@ export class ExecutedProgramService {
     // Remove forbidden characters: () {} as per server requirements
     const cleaned = program.replace(/[(){}]/g, '');
 
-    // Server converts newlines to semicolons and removes spaces
-    // We'll leave the newlines as is since the server handles this
-    return cleaned;
+    // Server expects semicolons as line separators
+    return cleaned.replace(/\n/g, ';');
   }
 
   private parseExecutionResponse(response: PlotResponse, targetChannelId?: string): ExecutedProgramResult {
