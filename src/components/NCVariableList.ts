@@ -279,7 +279,7 @@ export class NCVariableList extends HTMLElement {
         
         .input-hint {
           font-size: 10px;
-          color: #666;
+          color: #999;
           margin-top: 4px;
           width: 100%;
         }

@@ -9,6 +9,9 @@ import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
 import 'ace-builds/src-noconflict/theme-monokai';
 
+// Mobile breakpoint - matches the media query in NCEditorApp.ts
+const MOBILE_BREAKPOINT = 768;
+
 export class NCCodePane extends HTMLElement {
   private editor?: ace.Ace.Editor;
   private parserService: ParserService;
@@ -235,7 +238,8 @@ G1 Z5`;
     this.editor.setOption('useWorker', false);
 
     // Check if mobile and adjust settings for better touch handling
-    if (window.innerWidth <= 768 || 'ontouchstart' in window) {
+    const isMobile = window.innerWidth <= MOBILE_BREAKPOINT || 'ontouchstart' in window;
+    if (isMobile) {
       this.editor.setOption('enableMobileMenu', true);
       // Larger font for easier touch interaction on mobile
       this.editor.setFontSize(16);

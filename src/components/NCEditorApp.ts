@@ -67,6 +67,8 @@ export class NCEditorApp extends HTMLElement {
           height: 100%;
           background: #1e1e1e;
           color: #d4d4d4;
+          /* CSS custom properties for consistent sizing */
+          --bottom-nav-height: 70px;
         }
 
         .app-header {
@@ -300,7 +302,7 @@ export class NCEditorApp extends HTMLElement {
 
           .app-main-content {
             flex-direction: column;
-            padding-bottom: 70px; /* Updated from 60px to match new nav height */
+            padding-bottom: var(--bottom-nav-height);
           }
 
           .app-channel-container {
@@ -324,7 +326,7 @@ export class NCEditorApp extends HTMLElement {
             top: 0;
             left: 0;
             width: 100% !important;
-            bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
             height: auto;
             z-index: 100;
             border-left: none;
@@ -348,7 +350,7 @@ export class NCEditorApp extends HTMLElement {
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 70px; /* Increased from 60px */
+            height: var(--bottom-nav-height);
             background: #252526;
             border-top: 1px solid #3e3e42;
             z-index: 200;
