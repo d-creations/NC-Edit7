@@ -66,7 +66,7 @@ export class NCCodePane extends HTMLElement {
         // Only highlight if this is for our channel
         if (executionData.channelId === this.channelId && executionData.result) {
           this.highlightExecutedLines(executionData.result);
-          
+
           if (executionData.result.errors && executionData.result.errors.length > 0) {
             this.showErrors(executionData.result.errors);
           } else {
@@ -166,6 +166,29 @@ export class NCCodePane extends HTMLElement {
             color: #f8f8f2 !important;
             border-left: 2px solid #f8f8f2 !important;
         }
+        
+        /* Mobile touch support for text selection and copy */
+        @media (max-width: 768px) {
+          .ace_editor {
+            /* Enable text selection on touch devices */
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            /* Prevent zooming interference with selection */
+            touch-action: manipulation;
+          }
+          .ace_content {
+            -webkit-user-select: text !important;
+            user-select: text !important;
+          }
+          .ace_text-layer {
+            -webkit-user-select: text !important;
+            user-select: text !important;
+          }
+          .ace_scroller {
+            /* Improve scrolling behavior on mobile */
+            -webkit-overflow-scrolling: touch;
+          }
+        }
       </style>
       <div class="ace-editor-container" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
     `;
@@ -207,6 +230,17 @@ G1 Z5`;
       value: demoProgram, // Demo program for Channel 1
     });
 
+    // Enable native scrolling and better mobile support
+    this.editor.setOption('scrollPastEnd', 0.5);
+    this.editor.setOption('useWorker', false);
+
+    // Check if mobile and adjust settings for better touch handling
+    if (window.innerWidth <= 768 || 'ontouchstart' in window) {
+      this.editor.setOption('enableMobileMenu', true);
+      // Larger font for easier touch interaction on mobile
+      this.editor.setFontSize(16);
+    }
+
     // Use ResizeObserver to handle dynamic layout changes
     this.resizeObserver = new ResizeObserver(() => {
       this.editor?.resize();
@@ -236,10 +270,10 @@ G1 Z5`;
       const cursorPosition = this.editor.getCursorPosition();
       // Ace uses 0-based rows, but our NC parser/plotter uses 1-based line numbers
       const lineNumber = cursorPosition.row + 1;
-      
+
       this.eventBus.publish(EVENT_NAMES.EDITOR_CURSOR_MOVED, {
         channelId: this.channelId,
-        lineNumber: lineNumber
+        lineNumber: lineNumber,
       });
     });
   }
@@ -249,7 +283,7 @@ G1 Z5`;
     const value = this.editor.getValue();
     const activeMachine = this.stateService.getState().activeMachine;
     const regexPatterns = activeMachine?.regexPatterns;
-    
+
     this.parserService.parse(value, this.channelId, { regexPatterns });
   }
 

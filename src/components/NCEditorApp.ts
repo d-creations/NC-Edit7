@@ -320,11 +320,12 @@ export class NCEditorApp extends HTMLElement {
 
           .app-plot-container {
             position: absolute;
-            /* ensure full-screen mobile plot respects iPhone safe area */
-            top: env(safe-area-inset-top, 0px);
+            /* ensure full-screen mobile plot respects iPhone safe area and bottom nav */
+            top: 0;
             left: 0;
             width: 100% !important;
-            height: 100%;
+            bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+            height: auto;
             z-index: 100;
             border-left: none;
           }
@@ -535,7 +536,7 @@ export class NCEditorApp extends HTMLElement {
     const navItems = this.querySelectorAll('.nav-item');
     navItems?.forEach((item) => {
       item.addEventListener('click', (e) => {
-        const button = (e.currentTarget as HTMLElement);
+        const button = e.currentTarget as HTMLElement;
         const view = button.dataset.view;
         if (view) {
           this.switchMobileView(view);
@@ -583,18 +584,18 @@ export class NCEditorApp extends HTMLElement {
     title.style.margin = '0 0 10px 0';
     content.appendChild(title);
 
-    ['1', '2', '3'].forEach(id => {
+    ['1', '2', '3'].forEach((id) => {
       const channelId = id as ChannelId;
       const channel = this.stateService.getChannel(channelId);
-      
+
       const row = document.createElement('div');
       row.style.display = 'flex';
       row.style.alignItems = 'center';
       row.style.justifyContent = 'space-between';
-      
+
       const label = document.createElement('span');
       label.textContent = `Channel ${id}`;
-      
+
       const toggle = document.createElement('button');
       toggle.textContent = channel?.active ? 'ON' : 'OFF';
       toggle.style.cssText = `
@@ -608,7 +609,7 @@ export class NCEditorApp extends HTMLElement {
         min-width: 60px;
         min-height: 36px;
       `;
-      
+
       toggle.addEventListener('click', () => {
         if (channel?.active) {
           this.stateService.deactivateChannel(channelId);
@@ -621,7 +622,7 @@ export class NCEditorApp extends HTMLElement {
         }
         this.updateChannelDisplay();
       });
-      
+
       row.appendChild(label);
       row.appendChild(toggle);
       content.appendChild(row);
@@ -652,7 +653,7 @@ export class NCEditorApp extends HTMLElement {
 
   private switchMobileView(view: string): void {
     this.activeMobileView = view;
-    
+
     // Update nav items
     const navItems = this.querySelectorAll('.nav-item');
     navItems?.forEach((item) => {
@@ -667,12 +668,12 @@ export class NCEditorApp extends HTMLElement {
       this.setPlotViewerVisible(true);
     } else if (view.startsWith('channel-')) {
       this.setPlotViewerVisible(false);
-      
+
       // Ensure the channel is active in state service if needed
-      // For now, we just assume we want to see it. 
+      // For now, we just assume we want to see it.
       // But we should probably activate it if it's not active?
       // Or just show it. Let's just show it.
-      
+
       this.updateChannelDisplay();
     }
   }
@@ -758,7 +759,7 @@ export class NCEditorApp extends HTMLElement {
         if (view && view.startsWith('channel-')) {
           const channelId = view.split('-')[1] as ChannelId;
           const channel = this.stateService.getChannel(channelId);
-          
+
           if (channel?.active) {
             item.classList.remove('disabled');
           } else {
@@ -770,29 +771,29 @@ export class NCEditorApp extends HTMLElement {
       // Check if current view is valid (active)
       let currentViewValid = true;
       if (this.activeMobileView.startsWith('channel-')) {
-         const channelId = this.activeMobileView.split('-')[1] as ChannelId;
-         const channel = this.stateService.getChannel(channelId);
-         if (!channel?.active) {
-             currentViewValid = false;
-         }
+        const channelId = this.activeMobileView.split('-')[1] as ChannelId;
+        const channel = this.stateService.getChannel(channelId);
+        if (!channel?.active) {
+          currentViewValid = false;
+        }
       }
 
       if (!currentViewValid) {
-          // Switch to first active channel or plot
-          if (activeChannels.length > 0) {
-              this.activeMobileView = `channel-${activeChannels[0].id}`;
+        // Switch to first active channel or plot
+        if (activeChannels.length > 0) {
+          this.activeMobileView = `channel-${activeChannels[0].id}`;
+        } else {
+          this.activeMobileView = 'plot';
+        }
+
+        // Update nav items active state
+        navItems?.forEach((item) => {
+          if ((item as HTMLElement).dataset.view === this.activeMobileView) {
+            item.classList.add('active');
           } else {
-              this.activeMobileView = 'plot';
+            item.classList.remove('active');
           }
-          
-          // Update nav items active state
-          navItems?.forEach((item) => {
-            if ((item as HTMLElement).dataset.view === this.activeMobileView) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
-          });
+        });
       }
 
       // On mobile, only show the active mobile view channel
@@ -802,17 +803,17 @@ export class NCEditorApp extends HTMLElement {
         if (pane) {
           (pane as HTMLElement).style.display = 'flex';
         }
-        
+
         // Ensure plot is hidden
         const plotContainer = this.querySelector('#plot-container');
         if (plotContainer?.classList.contains('visible')) {
-             this.setPlotViewerVisible(false);
+          this.setPlotViewerVisible(false);
         }
       } else if (this.activeMobileView === 'plot') {
         // Ensure plot is visible
         const plotContainer = this.querySelector('#plot-container');
         if (plotContainer && !plotContainer.classList.contains('visible')) {
-             this.setPlotViewerVisible(true);
+          this.setPlotViewerVisible(true);
         }
       }
     } else {

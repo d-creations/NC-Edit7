@@ -356,8 +356,8 @@ export class NCToolpathPlot extends HTMLElement {
       }
 
       // Filter channels if a specific target was requested
-      const channelsToPlot = targetChannelId 
-        ? activeChannels.filter(c => c.id === targetChannelId)
+      const channelsToPlot = targetChannelId
+        ? activeChannels.filter((c) => c.id === targetChannelId)
         : activeChannels;
 
       if (channelsToPlot.length === 0 && targetChannelId) {
@@ -365,7 +365,7 @@ export class NCToolpathPlot extends HTMLElement {
         // For now, let's try to find it even if not active
         const channel = this.stateService.getChannel(targetChannelId as ChannelId);
         if (channel) {
-            channelsToPlot.push(channel);
+          channelsToPlot.push(channel);
         }
       }
 
@@ -411,22 +411,22 @@ export class NCToolpathPlot extends HTMLElement {
       // But currently updatePlot clears everything.
       // If we want to support multi-channel plotting where we add one by one, we need to change updatePlot.
       // For now, let's assume plotting a channel clears the view and shows only that channel (or all if global plot).
-      
+
       // If we are plotting a specific channel, we should probably clear the cache/view first
       // But updatePlot does that.
-      
+
       // Update the plot with the results
       let totalPoints = 0;
       let totalSegments = 0;
-      
-      // We need to handle multiple results. 
+
+      // We need to handle multiple results.
       // Since updatePlot clears the scene, we can only call it once or modify it.
       // Let's modify updatePlot to NOT clear if we are adding?
       // Or better, combine the metadata.
-      
+
       const combinedMetadata: PlotMetadata = {
         points: [],
-        segments: []
+        segments: [],
       };
 
       results.forEach((result) => {
@@ -435,7 +435,7 @@ export class NCToolpathPlot extends HTMLElement {
           combinedMetadata.segments.push(...result.plotMetadata.segments);
         }
       });
-      
+
       totalPoints = combinedMetadata.points.length;
       totalSegments = combinedMetadata.segments.length;
       this.updatePlot(combinedMetadata);
@@ -575,7 +575,7 @@ export class NCToolpathPlot extends HTMLElement {
     // Find segments corresponding to this line number
     // We check endPoint.lineNumber as it represents the move to that point
     const segments = this.currentPlotMetadata.segments.filter(
-      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber
+      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber,
     );
 
     if (segments.length === 0) return;
@@ -589,7 +589,7 @@ export class NCToolpathPlot extends HTMLElement {
         segment.startPoint.z,
         segment.endPoint.x,
         segment.endPoint.y,
-        segment.endPoint.z
+        segment.endPoint.z,
       );
     });
 
@@ -598,18 +598,18 @@ export class NCToolpathPlot extends HTMLElement {
 
     // Create a bright material for highlighting (e.g., yellow)
     // We use LineSegments because we might have multiple disconnected segments
-    const material = new THREE.LineBasicMaterial({ 
+    const material = new THREE.LineBasicMaterial({
       color: 0xffff00, // Yellow
       depthTest: false, // Make it visible on top of other lines
-      linewidth: 3 // Note: might not work in all browsers
+      linewidth: 3, // Note: might not work in all browsers
     });
 
     this.highlightObject = new THREE.LineSegments(geometry, material);
     // Ensure it renders on top
     this.highlightObject.renderOrder = 999;
-    
+
     this.scene.add(this.highlightObject);
-    
+
     // Force a re-render if not animating
     if (!this.animationFrameId && this.renderer && this.camera) {
       this.renderer.render(this.scene, this.camera);

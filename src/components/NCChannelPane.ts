@@ -75,7 +75,7 @@ export class NCChannelPane extends HTMLElement {
           }),
         );
       }
-      
+
       // On mobile, close sidebar after selection
       if (window.innerWidth <= 768) {
         sidebar?.classList.remove('visible');

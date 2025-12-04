@@ -124,12 +124,15 @@ export class ExecutedProgramService {
   private preprocessProgram(program: string): string {
     // We no longer strip () or {} here because the backend parser handles comments correctly.
     // Previously this was stripping brackets but leaving content, causing parsing errors.
-    
+
     // Server expects semicolons as line separators
     return program.replace(/\n/g, ';');
   }
 
-  private parseExecutionResponse(response: PlotResponse, targetChannelId?: string): ExecutedProgramResult {
+  private parseExecutionResponse(
+    response: PlotResponse,
+    targetChannelId?: string,
+  ): ExecutedProgramResult {
     const result: ExecutedProgramResult = {
       executedLines: [],
       variableSnapshot: new Map(),
@@ -142,7 +145,11 @@ export class ExecutedProgramService {
     };
 
     // Check for errors in response
-    if (response.message && typeof response.message === 'string' && response.message.startsWith('Error')) {
+    if (
+      response.message &&
+      typeof response.message === 'string' &&
+      response.message.startsWith('Error')
+    ) {
       throw new Error(`Server error: ${response.message}`);
     }
 
