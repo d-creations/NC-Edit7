@@ -1,6 +1,11 @@
 // MachineService for managing machine profiles
 
-import type { MachineProfile, MachineType, MachineRegexPatterns, ServerMachineData } from '@core/types';
+import type {
+  MachineProfile,
+  MachineType,
+  MachineRegexPatterns,
+  ServerMachineData,
+} from '@core/types';
 import { BackendGateway } from './BackendGateway';
 import { EventBus, EVENT_NAMES } from './EventBus';
 

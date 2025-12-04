@@ -19,7 +19,9 @@ export class NCBottomPanel extends HTMLElement {
   }
 
   getCustomVariables(): CustomVariable[] {
-    const variableList = this.shadowRoot?.querySelector('nc-variable-list') as NCVariableList | null;
+    const variableList = this.shadowRoot?.querySelector(
+      'nc-variable-list',
+    ) as NCVariableList | null;
     return variableList ? variableList.getCustomVariables() : [];
   }
 
@@ -223,7 +225,7 @@ export class NCBottomPanel extends HTMLElement {
         const newHeight = Math.max(this.minHeight, startHeight + delta);
         this.lastHeight = newHeight;
         this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-        
+
         if (!this.isOpen) {
           this.isOpen = true;
           this.setAttribute('open', '');
@@ -257,7 +259,7 @@ export class NCBottomPanel extends HTMLElement {
 
     // Tabs
     const tabs = this.shadowRoot?.querySelectorAll('.tab');
-    tabs?.forEach(tab => {
+    tabs?.forEach((tab) => {
       tab.addEventListener('click', () => {
         const tabName = (tab as HTMLElement).dataset.tab;
         if (tabName) {
@@ -270,38 +272,38 @@ export class NCBottomPanel extends HTMLElement {
         }
       });
     });
-    
+
     // Listen for error updates from the error list
     this.addEventListener('errors-updated', ((e: CustomEvent) => {
-        const count = e.detail.count;
-        const errorTab = this.shadowRoot?.querySelector('.tab[data-tab="errors"]');
-        const errorCountSpan = this.shadowRoot?.getElementById('error-count');
-        
-        if (errorCountSpan) {
-            errorCountSpan.textContent = count > 0 ? `(${count})` : '';
+      const count = e.detail.count;
+      const errorTab = this.shadowRoot?.querySelector('.tab[data-tab="errors"]');
+      const errorCountSpan = this.shadowRoot?.getElementById('error-count');
+
+      if (errorCountSpan) {
+        errorCountSpan.textContent = count > 0 ? `(${count})` : '';
+      }
+
+      if (errorTab) {
+        if (count > 0) {
+          errorTab.classList.add('has-errors');
+          // Auto-switch to errors tab if we have errors
+          this.switchTab('errors');
+          // And ensure panel is open
+          if (!this.isOpen) {
+            this.toggle();
+            if (closeButton) closeButton.textContent = 'Close';
+          }
+        } else {
+          errorTab.classList.remove('has-errors');
         }
-        
-        if (errorTab) {
-            if (count > 0) {
-                errorTab.classList.add('has-errors');
-                // Auto-switch to errors tab if we have errors
-                this.switchTab('errors');
-                // And ensure panel is open
-                if (!this.isOpen) {
-                    this.toggle();
-                    if (closeButton) closeButton.textContent = 'Close';
-                }
-            } else {
-                errorTab.classList.remove('has-errors');
-            }
-        }
+      }
     }) as EventListener);
   }
 
   private switchTab(tabName: string) {
     // Update tabs
     const tabs = this.shadowRoot?.querySelectorAll('.tab');
-    tabs?.forEach(tab => {
+    tabs?.forEach((tab) => {
       if ((tab as HTMLElement).dataset.tab === tabName) {
         tab.classList.add('active');
       } else {
@@ -311,7 +313,7 @@ export class NCBottomPanel extends HTMLElement {
 
     // Update panes
     const panes = this.shadowRoot?.querySelectorAll('.tab-pane');
-    panes?.forEach(pane => {
+    panes?.forEach((pane) => {
       if (pane.id === `pane-${tabName}`) {
         pane.classList.add('active');
       } else {

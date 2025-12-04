@@ -24,14 +24,11 @@ export class NCMachineSelector extends HTMLElement {
     this.attachEventListeners();
 
     // Listen for state changes to update the machine list when machines are fetched
-    this.eventBus.subscribe(
-      EVENT_NAMES.STATE_CHANGED,
-      (data: { machines?: MachineProfile[] }) => {
-        if (data.machines) {
-          this.updateOptions();
-        }
-      },
-    );
+    this.eventBus.subscribe(EVENT_NAMES.STATE_CHANGED, (data: { machines?: MachineProfile[] }) => {
+      if (data.machines) {
+        this.updateOptions();
+      }
+    });
   }
 
   private render() {

@@ -156,8 +156,21 @@ export class NCVariableList extends HTMLElement {
 
         .custom-input-row {
           display: flex;
-          gap: 8px;
+          gap: 4px;
           align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .prefix-display {
+          padding: 4px 6px;
+          background: #444;
+          color: #dcdcaa;
+          border: 1px solid #555;
+          border-radius: 3px 0 0 3px;
+          font-size: 11px;
+          font-family: monospace;
+          min-width: 20px;
+          text-align: center;
         }
 
         .custom-input {
@@ -176,11 +189,23 @@ export class NCVariableList extends HTMLElement {
         }
 
         .custom-input.name {
-          width: 80px;
+          width: 60px;
+          border-radius: 0 3px 3px 0;
+          border-left: none;
+        }
+
+        .name-group {
+          display: flex;
+          align-items: stretch;
+        }
+
+        .equals-sign {
+          color: #888;
+          padding: 0 4px;
         }
 
         .custom-input.value {
-          width: 80px;
+          width: 70px;
         }
 
         .custom-list {
@@ -251,6 +276,13 @@ export class NCVariableList extends HTMLElement {
           text-align: center;
           color: #858585;
         }
+        
+        .input-hint {
+          font-size: 10px;
+          color: #999;
+          margin-top: 4px;
+          width: 100%;
+        }
       </style>
 
       <div class="toolbar">
@@ -259,10 +291,15 @@ export class NCVariableList extends HTMLElement {
       <div class="custom-section">
         <div class="custom-section-title">Custom Variables</div>
         <div class="custom-input-row">
-          <input type="text" class="custom-input name" id="custom-name" placeholder="Name (e.g., #100)">
+          <div class="name-group">
+            <span class="prefix-display" id="var-prefix">${this.variablePrefix}</span>
+            <input type="text" class="custom-input name" id="custom-name" placeholder="100">
+          </div>
+          <span class="equals-sign">=</span>
           <input type="number" class="custom-input value" id="custom-value" placeholder="Value" step="any">
           <button class="add-button" id="add-custom">+ Add</button>
         </div>
+        <div class="input-hint">Enter register number (e.g., 5, 100) or full name (e.g., R5, #100)</div>
         <div class="custom-list" id="custom-list"></div>
       </div>
       <div class="variable-list" id="list"></div>
@@ -300,7 +337,7 @@ export class NCVariableList extends HTMLElement {
 
     if (!nameInput || !valueInput) return;
 
-    const name = nameInput.value.trim();
+    let name = nameInput.value.trim();
     const value = parseFloat(valueInput.value);
 
     if (!name || isNaN(value)) {
@@ -318,6 +355,11 @@ export class NCVariableList extends HTMLElement {
         }, 1500);
       }
       return;
+    }
+
+    // If the name is just a number, prepend the current variable prefix
+    if (/^\d+$/.test(name)) {
+      name = `${this.variablePrefix}${name}`;
     }
 
     this.customVariables.set(name, value);
@@ -426,10 +468,17 @@ export class NCVariableList extends HTMLElement {
 
   private syncVariablePrefix() {
     const activeMachine = this.stateService?.getState().activeMachine;
-    const derivedPrefix = activeMachine?.variablePrefix ?? this.inferPrefixFromPattern(activeMachine?.regexPatterns?.variables?.pattern);
+    const derivedPrefix =
+      activeMachine?.variablePrefix ??
+      this.inferPrefixFromPattern(activeMachine?.regexPatterns?.variables?.pattern);
     if (derivedPrefix && derivedPrefix !== this.variablePrefix) {
       this.variablePrefix = derivedPrefix;
       this.updateList();
+      // Update the prefix display in the custom variable input
+      const prefixDisplay = this.shadowRoot?.getElementById('var-prefix');
+      if (prefixDisplay) {
+        prefixDisplay.textContent = this.variablePrefix;
+      }
     }
   }
 

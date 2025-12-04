@@ -45,8 +45,7 @@ export class ParserService {
       // Use server-provided patterns or defaults
       const patterns = options?.regexPatterns;
       const toolPatternStr = patterns?.tools?.pattern ?? 'T(\\d+)';
-      const keywordPatternStr =
-        patterns?.keywords?.pattern ?? '\\b(M30|M0|M1)\\b';
+      const keywordPatternStr = patterns?.keywords?.pattern ?? '\\b(M30|M0|M1)\\b';
       const variablePatternStr = patterns?.variables?.pattern ?? '#(\\d+)';
 
       // Create regex patterns safely (catching errors for invalid patterns)
