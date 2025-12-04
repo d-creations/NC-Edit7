@@ -42,8 +42,13 @@ class NCCommandStringParser(BaseNCCommandParser):
         if nc_command_string is None:
             nc_command_string = ""
 
+        # remove comments (parentheses)
+        # We must remove the content inside parentheses too, otherwise it gets parsed as commands.
+        # e.g. T2100(BACK MILLING) -> T2100
+        nc_line = re.sub(r"\(.*?\)", "", nc_command_string)
+
         # remove spaces for initial trimming but keep some tokenization later
-        nc_line = re.sub(" ", "", nc_command_string)
+        nc_line = re.sub(" ", "", nc_line)
         if nc_line.startswith('/'):
             nc_line = nc_line[1:]
 
@@ -53,7 +58,7 @@ class NCCommandStringParser(BaseNCCommandParser):
             nc_line = ""
 
         # Insert spaces before tokens so we can split
-        nc_line = re.sub(r"(SQRT|ASIN|SIN|[A-Z,])", r" \1", nc_line)
+        nc_line = re.sub(r"(SQRT|ASIN|SIN|(?<![=\+\-\*\/\[])[A-Z,])", r" \1", nc_line)
         # quickfix for the behaviour in the original snippet
         nc_line = nc_line.replace(" SQRT", "SQRT")
         nc_line = nc_line.replace(" ASIN", "ASIN")

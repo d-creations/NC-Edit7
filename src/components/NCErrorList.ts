@@ -35,51 +35,69 @@ export class NCErrorList extends HTMLElement {
       if (execData.channelId === this.channelId) {
         this.errors = execData.result.errors || [];
         this.render();
-        
-        // If we have errors, we might want to signal the parent to switch tabs
-        if (this.errors.length > 0) {
-            this.dispatchEvent(new CustomEvent('errors-updated', { 
-                detail: { count: this.errors.length },
-                bubbles: true,
-                composed: true
-            }));
-        }
+
+        // Always dispatch errors-updated event (including when count is 0 to reset the badge)
+        this.dispatchEvent(
+          new CustomEvent('errors-updated', {
+            detail: { count: this.errors.length },
+            bubbles: true,
+            composed: true,
+          }),
+        );
       }
     });
-    
+
     this.eventBus.subscribe(EVENT_NAMES.EXECUTION_ERROR, (data: unknown) => {
-        const errorData = data as { channelId: string; error: any };
-        if (errorData.channelId === this.channelId) {
-            this.errors = [{
-                lineNumber: 0,
-                message: errorData.error.message || 'Unknown execution error',
-                severity: 'error'
-            }];
-            this.render();
-            
-            this.dispatchEvent(new CustomEvent('errors-updated', { 
-                detail: { count: this.errors.length },
-                bubbles: true,
-                composed: true
-            }));
-        }
-    });
-    
-    this.eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
-        this.errors = [];
+      const errorData = data as { channelId: string; error: unknown };
+      if (errorData.channelId === this.channelId) {
+        const error = errorData.error as { message?: string };
+        this.errors = [
+          {
+            lineNumber: 0,
+            message: error.message || 'Unknown execution error',
+            severity: 'error',
+          },
+        ];
         this.render();
+
+        this.dispatchEvent(
+          new CustomEvent('errors-updated', {
+            detail: { count: this.errors.length },
+            bubbles: true,
+            composed: true,
+          }),
+        );
+      }
+    });
+
+    this.eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
+      this.errors = [];
+      this.render();
+
+      // Dispatch errors-updated with count 0 to reset the error tab badge
+      this.dispatchEvent(
+        new CustomEvent('errors-updated', {
+          detail: { count: 0 },
+          bubbles: true,
+          composed: true,
+        }),
+      );
     });
   }
 
   private render() {
     if (!this.shadowRoot) return;
 
-    const errorItems = this.errors.map(error => `
+    const errorItems = this.errors
+      .map(
+        (error) => `
       <div class="error-item ${error.severity}">
         <span class="line-number">Line ${error.lineNumber}</span>
         <span class="message">${error.message}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -132,19 +150,19 @@ export class NCErrorList extends HTMLElement {
 
       ${this.errors.length > 0 ? errorItems : '<div class="empty-message">No errors</div>'}
     `;
-    
+
     // Add click listeners to jump to line
     const items = this.shadowRoot.querySelectorAll('.error-item');
     items.forEach((item, index) => {
-        item.addEventListener('click', () => {
-            const error = this.errors[index];
-            if (error.lineNumber > 0) {
-                this.eventBus.publish(EVENT_NAMES.EDITOR_CURSOR_MOVED, {
-                    channelId: this.channelId,
-                    lineNumber: error.lineNumber
-                });
-            }
-        });
+      item.addEventListener('click', () => {
+        const error = this.errors[index];
+        if (error.lineNumber > 0) {
+          this.eventBus.publish(EVENT_NAMES.EDITOR_CURSOR_MOVED, {
+            channelId: this.channelId,
+            lineNumber: error.lineNumber,
+          });
+        }
+      });
     });
   }
 }

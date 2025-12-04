@@ -157,24 +157,35 @@ class NCExecutionEngine:
         for program in programs:
             # Parse program into a list of command nodes
             node_list = []
-            i = 0
-            try:
-                for raw_line in [p for p in program.split(";") if p.strip()]:
-                    try:
-                        node = parser.parse(raw_line, i)
-                        node_list.append(node)
-                    except Exception as parse_exc:
-                        # Catch parsing errors for individual lines but continue
-                        self._add_error(parse_exc, line=i+1, canal=canal_number+1)
-                        # Don't break - try to continue with other lines
-                    i += 1
+            # Split by semicolon but preserve empty lines to maintain line numbering
+            # We assume the input program uses ';' as line separator or we handle it.
+            # If the input string comes from a file with newlines, we might need to handle that.
+            # But based on existing code `program.split(";")`, we stick to that but don't filter empty ones immediately for counting.
+            
+            raw_lines = program.split(";")
+            for i, raw_line in enumerate(raw_lines):
+                # Skip empty lines for parsing, but 'i' (line number) increments naturally
+                if not raw_line.strip():
+                    continue
+                
+                try:
+                    # Pass 1-based line number
+                    node = parser.parse(raw_line, i + 1)
+                    node_list.append(node)
+                except Exception as parse_exc:
+                    # Catch parsing errors for individual lines but continue
+                    self._add_error(parse_exc, line=i+1, canal=canal_number+1)
+                    # Don't break - try to continue with other lines
 
-                # Delegate execution to control; many controls accept an iterable
-                # of nodes. Keep canal numbering consistent with callers (+1).
+            # Delegate execution to control; many controls accept an iterable
+            # of nodes. Keep canal numbering consistent with callers (+1).
+            try:
                 self.cnc_control.run_nc_code_list(node_list, canal_number + 1)
             except ExceptionNode as exc:
                 # Handle structured NC errors with localization
-                self._add_error(exc, line=exc.line if exc.line else i+1, canal=canal_number+1)
+                # Use exc.line if available, otherwise fallback to 0 or last line
+                err_line = exc.line if exc.line else (i + 1 if 'i' in locals() else 0)
+                self._add_error(exc, line=err_line, canal=canal_number+1)
                 error = True
                 break
             except Exception as exc:
@@ -193,10 +204,10 @@ class NCExecutionEngine:
                                 msg = catalog.format_exception(node)
                                 print_error(msg)
                     except Exception:
-                        self._add_error(exc, line=i+1, canal=canal_number+1)
+                        self._add_error(exc, line=(i + 1 if 'i' in locals() else 0), canal=canal_number+1)
                 else:
                     # generic parser/control error
-                    self._add_error(exc, line=i+1, canal=canal_number+1)
+                    self._add_error(exc, line=(i + 1 if 'i' in locals() else 0), canal=canal_number+1)
                 error = True
                 break
 

@@ -211,10 +211,20 @@ class VariableHandler(Handler):
         if node.command_parameter:
             new_params: Dict[str, str] = {}
             for k, v in node.command_parameter.items():
-                try:
-                    new_v = self._eval_and_replace_in_string(str(v), state)
-                except Exception:
-                    new_v = str(v)
+                val_str = str(v)
+                # Handle Siemens style assignment X=R1 -> value is "=R1"
+                if val_str.startswith("="):
+                    try:
+                        expr = val_str[1:]
+                        val = self._eval_expression(expr, state)
+                        new_v = str(val)
+                    except Exception:
+                        new_v = val_str
+                else:
+                    try:
+                        new_v = self._eval_and_replace_in_string(val_str, state)
+                    except Exception:
+                        new_v = val_str
                 new_params[k] = new_v
             # mutate node parameters so downstream handlers see decoded values
             try:

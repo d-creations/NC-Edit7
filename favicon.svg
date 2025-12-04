@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="NC-Edit7">
+  <title>NC-Edit7</title>
+  <rect width="100%" height="100%" rx="40" fill="#1e88e5" />
+  <!-- white circular badge -->
+  <circle cx="128" cy="112" r="70" fill="#ffffff" />
+  <!-- Large NC label -->
+  <text x="50%" y="46%" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial" font-size="72" fill="#1e1e1e" font-weight="700">NC</text>
+  <!-- Smaller descriptor line -->
+  <text x="50%" y="62%" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial" font-size="20" fill="#1e1e1e" font-weight="600">NC 7 edit</text>
+</svg>

@@ -24,14 +24,11 @@ export class NCMachineSelector extends HTMLElement {
     this.attachEventListeners();
 
     // Listen for state changes to update the machine list when machines are fetched
-    this.eventBus.subscribe(
-      EVENT_NAMES.STATE_CHANGED,
-      (data: { machines?: MachineProfile[] }) => {
-        if (data.machines) {
-          this.updateOptions();
-        }
-      },
-    );
+    this.eventBus.subscribe(EVENT_NAMES.STATE_CHANGED, (data: { machines?: MachineProfile[] }) => {
+      if (data.machines) {
+        this.updateOptions();
+      }
+    });
   }
 
   private render() {
@@ -48,6 +45,16 @@ export class NCMachineSelector extends HTMLElement {
           border: 1px solid #555;
           border-radius: 4px;
           cursor: pointer;
+        }
+
+        /* Mobile styles - make select bigger */
+        @media (max-width: 768px) {
+          select {
+            padding: 8px 12px;
+            font-size: 16px;
+            min-height: 40px;
+            min-width: 120px;
+          }
         }
       </style>
       <select id="selector">

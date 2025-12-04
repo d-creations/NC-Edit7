@@ -26,10 +26,11 @@ DEPLOY_TO_AZURE.md
 backend/Dockerfile
 
 
-.yml
+*.yml
 build-plan.md
 docker-compose.yml
 launch.json
 docs/ncplot7py-integration.md
-build-plan.md
 DEVELOPMENT.md
+BUILD_SUMMARY.md
+package-lock.json

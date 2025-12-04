@@ -33,51 +33,42 @@ class ToolHandler(Handler):
                 t_val = int(float(t_str))
                 
                 # Store current tool number in state for compensation handlers
-                state.extra["current_tool_number"] = t_val
+                # But first, handle Fanuc Lathe TXXYY format if needed
                 
-                # If machine config is present, validate
+                # If machine config is present, validate and adjust t_val
                 if state.machine_config:
                     min_t, max_t = state.machine_config.tool_range
                     
-                    # Heuristic for Fanuc Lathe TXXYY:
-                    # If T > 99 and max_t is 99, we might need to extract the tool part.
-                    # But the user requirement says:
-                    # "Fanuc Star with T1-T99" -> implies T1, T2...
-                    # "Other Fanuc and Siemens with T100-T9999"
+                    # Handle Fanuc Lathe TXXYY format (e.g. T2100 -> Tool 21, Offset 00)
+                    # If the value is out of range AND it's a Fanuc control, try to extract tool number.
+                    # Fanuc Lathe: T0101 -> Tool 1, Offset 1. T2100 -> Tool 21, Offset 00.
+                    # So first 2 digits are Tool, last 2 are Offset.
+                    
+                    if t_val > max_t and "FANUC" in state.machine_config.control_type and t_val >= 100:
+                         # Try to interpret as TXXYY
+                         potential_tool = t_val // 100
+                         if min_t <= potential_tool <= max_t:
+                             # It's likely a TXXYY code.
+                             # Use potential_tool as the tool number for validation and state.
+                             # t_val = potential_tool # User requested NOT to change the value, just ignore error
+                             pass
                     
                     # If the value is within range, good.
                     if not (min_t <= t_val <= max_t):
-                        # If it's Fanuc Star (max 99) and we got e.g. 101, it might be T0101?
-                        # But T0101 is usually 101 as int.
-                        # If the machine expects T1-T99, T101 is likely invalid OR it's T1 + Offset 1.
-                        # For now, we enforce the range strictly as requested.
-                        
-                        # However, for Fanuc Lathe, T0101 is standard. 
-                        # If the user says "T1-T99", maybe they mean the physical tool number?
-                        # Let's assume strict validation for now based on the request.
-                        # "Fanuc Star with T1-T99"
-                        
-                        # If we are in Fanuc Star mode and get T0101 (101), we might want to allow it 
-                        # if we interpret it as Tool 1.
-                        # But let's stick to the requested range for the *value* passed in T.
-                        
-                        # Wait, if the user says "T1-T99", they probably mean the T-code itself.
-                        # If I program T0101, the value is 101.
-                        # If the machine only supports T1-T99, then T0101 is technically out of range 
-                        # UNLESS the controller parses it differently.
-                        # Given the explicit request "T1-T99" vs "T100-T9999", I will warn/error if out of range.
-                        
-                        # Let's just log a warning or raise error?
-                        # The user asked to "check that the tool Data is in Fanuc Star with T1-T99".
-                        # I'll raise an error if it's out of range.
-                        
-                        raise_nc_error(
-                            ExceptionTyps.NCCodeErrors, 
-                            200, 
-                            message=f"Tool number T{t_val} out of range ({min_t}-{max_t}) for {state.machine_config.name}", 
-                            value=t_str,
-                            line=getattr(node, 'nc_code_line_nr', 0) or 0,
-                        )
+                        # Check if we should ignore the error for Fanuc Star
+                        if "FANUC" in state.machine_config.control_type and t_val >= 100:
+                             # Assume it's a valid TXXYY code that we just don't validate strictly
+                             pass
+                        else:
+                            raise_nc_error(
+                                ExceptionTyps.NCCodeErrors, 
+                                200, 
+                                message=f"Tool number T{t_val} out of range ({min_t}-{max_t}) for {state.machine_config.name}", 
+                                value=t_str,
+                                line=getattr(node, 'nc_code_line_nr', 0) or 0,
+                            )
+
+                state.extra["current_tool_number"] = t_val
                 
                 # Load tool compensation data if available
                 tool_comp_data = state.extra.get("tool_compensation_data", {})

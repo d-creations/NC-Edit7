@@ -11,7 +11,7 @@ import { PlotService } from '@services/PlotService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { StateService } from '@services/StateService';
-import type { PlotMetadata, MachineType, ToolValue, CustomVariable } from '@core/types';
+import type { PlotMetadata, MachineType, ToolValue, CustomVariable, ChannelId } from '@core/types';
 import type { NCToolList } from './NCToolList';
 import type { NCBottomPanel } from './NCBottomPanel';
 
@@ -73,8 +73,9 @@ export class NCToolpathPlot extends HTMLElement {
     });
 
     // Allow external UI elements to request a plot
-    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, () => {
-      this.plotNCCode();
+    this.eventBus.subscribe(EVENT_NAMES.PLOT_REQUEST, (data: unknown) => {
+      const requestData = data as { channelId?: string } | undefined;
+      this.plotNCCode(requestData?.channelId);
     });
 
     // Listen for plot toggle
@@ -203,10 +204,78 @@ export class NCToolpathPlot extends HTMLElement {
           padding: 4px 8px;
           border-radius: 4px;
         }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+          .plot-controls {
+            top: 8px;
+            right: 8px;
+            left: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .plot-button {
+            padding: 4px 6px;
+            font-size: 11px;
+            min-width: auto;
+            flex: 1;
+            max-width: calc(25% - 3px);
+            min-height: 32px;
+          }
+
+          .view-controls {
+            top: 52px;
+            left: 8px;
+            right: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .view-controls .plot-button {
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+            min-height: 32px;
+          }
+
+          .zoom-controls {
+            top: 96px;
+            right: 8px;
+            left: 8px;
+            flex-direction: row;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .zoom-button {
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+          }
+
+          .plot-info {
+            bottom: 50px;
+            left: 8px;
+            right: 8px;
+            text-align: center;
+            font-size: 11px;
+          }
+
+          .orbit-hint {
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            text-align: center;
+            font-size: 9px;
+          }
+        }
       </style>
       <div id="plot-container">
         <div class="plot-controls">
-          <button class="plot-button primary" id="plot-nc-code">📊 Plot NC Code</button>
           <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
           <button class="plot-button" id="reset-camera">Reset View</button>
           <button class="plot-button" id="toggle-axes">Axes</button>
@@ -234,9 +303,6 @@ export class NCToolpathPlot extends HTMLElement {
   }
 
   private attachControlListeners() {
-    const plotButton = this.shadowRoot?.getElementById('plot-nc-code');
-    plotButton?.addEventListener('click', () => this.plotNCCode());
-
     const clearButton = this.shadowRoot?.getElementById('clear-plot');
     clearButton?.addEventListener('click', () => this.clearPlot());
 
@@ -269,18 +335,13 @@ export class NCToolpathPlot extends HTMLElement {
     viewYZButton?.addEventListener('click', () => this.setViewYZ());
   }
 
-  private async plotNCCode() {
+  private async plotNCCode(targetChannelId?: string) {
     if (this.isPlotting) return;
 
-    const plotButton = this.shadowRoot?.getElementById('plot-nc-code') as HTMLButtonElement;
     const statusElement = this.shadowRoot?.getElementById('plot-status');
 
     try {
       this.isPlotting = true;
-      if (plotButton) {
-        plotButton.disabled = true;
-        plotButton.textContent = '⏳ Plotting...';
-      }
       if (statusElement) {
         statusElement.textContent = 'Generating plot...';
       }
@@ -294,8 +355,26 @@ export class NCToolpathPlot extends HTMLElement {
         throw new Error('No active channels');
       }
 
+      // Filter channels if a specific target was requested
+      const channelsToPlot = targetChannelId
+        ? activeChannels.filter((c) => c.id === targetChannelId)
+        : activeChannels;
+
+      if (channelsToPlot.length === 0 && targetChannelId) {
+        // If target channel is not active, maybe we should activate it or just plot it anyway?
+        // For now, let's try to find it even if not active
+        const channel = this.stateService.getChannel(targetChannelId as ChannelId);
+        if (channel) {
+          channelsToPlot.push(channel);
+        }
+      }
+
+      if (channelsToPlot.length === 0) {
+        throw new Error('No channels to plot');
+      }
+
       // Get the code from the editor elements in the DOM
-      const requests = activeChannels.map((channel) => {
+      const requests = channelsToPlot.map((channel) => {
         // Query the nc-code-pane element for this channel
         const codePane = document.querySelector(
           `nc-channel-pane[data-channel="${channel.id}"] nc-code-pane`,
@@ -327,16 +406,39 @@ export class NCToolpathPlot extends HTMLElement {
       // Execute the programs to get plot data
       const results = await this.executedProgramService.executeMultipleChannels(requests);
 
+      // Clear existing plot before adding new ones
+      // Note: If we are plotting a single channel, we might want to keep others?
+      // But currently updatePlot clears everything.
+      // If we want to support multi-channel plotting where we add one by one, we need to change updatePlot.
+      // For now, let's assume plotting a channel clears the view and shows only that channel (or all if global plot).
+
+      // If we are plotting a specific channel, we should probably clear the cache/view first
+      // But updatePlot does that.
+
       // Update the plot with the results
       let totalPoints = 0;
       let totalSegments = 0;
+
+      // We need to handle multiple results.
+      // Since updatePlot clears the scene, we can only call it once or modify it.
+      // Let's modify updatePlot to NOT clear if we are adding?
+      // Or better, combine the metadata.
+
+      const combinedMetadata: PlotMetadata = {
+        points: [],
+        segments: [],
+      };
+
       results.forEach((result) => {
         if (result.plotMetadata) {
-          totalPoints += result.plotMetadata.points.length;
-          totalSegments += result.plotMetadata.segments.length;
-          this.updatePlot(result.plotMetadata);
+          combinedMetadata.points.push(...result.plotMetadata.points);
+          combinedMetadata.segments.push(...result.plotMetadata.segments);
         }
       });
+
+      totalPoints = combinedMetadata.points.length;
+      totalSegments = combinedMetadata.segments.length;
+      this.updatePlot(combinedMetadata);
 
       if (statusElement) {
         statusElement.textContent = `Points: ${totalPoints}, Segments: ${totalSegments}`;
@@ -348,10 +450,6 @@ export class NCToolpathPlot extends HTMLElement {
       }
     } finally {
       this.isPlotting = false;
-      if (plotButton) {
-        plotButton.disabled = false;
-        plotButton.textContent = '📊 Plot NC Code';
-      }
     }
   }
 
@@ -477,7 +575,7 @@ export class NCToolpathPlot extends HTMLElement {
     // Find segments corresponding to this line number
     // We check endPoint.lineNumber as it represents the move to that point
     const segments = this.currentPlotMetadata.segments.filter(
-      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber
+      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber,
     );
 
     if (segments.length === 0) return;
@@ -491,7 +589,7 @@ export class NCToolpathPlot extends HTMLElement {
         segment.startPoint.z,
         segment.endPoint.x,
         segment.endPoint.y,
-        segment.endPoint.z
+        segment.endPoint.z,
       );
     });
 
@@ -500,18 +598,18 @@ export class NCToolpathPlot extends HTMLElement {
 
     // Create a bright material for highlighting (e.g., yellow)
     // We use LineSegments because we might have multiple disconnected segments
-    const material = new THREE.LineBasicMaterial({ 
+    const material = new THREE.LineBasicMaterial({
       color: 0xffff00, // Yellow
       depthTest: false, // Make it visible on top of other lines
-      linewidth: 3 // Note: might not work in all browsers
+      linewidth: 3, // Note: might not work in all browsers
     });
 
     this.highlightObject = new THREE.LineSegments(geometry, material);
     // Ensure it renders on top
     this.highlightObject.renderOrder = 999;
-    
+
     this.scene.add(this.highlightObject);
-    
+
     // Force a re-render if not animating
     if (!this.animationFrameId && this.renderer && this.camera) {
       this.renderer.render(this.scene, this.camera);
