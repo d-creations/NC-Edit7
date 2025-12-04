@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
@@ -97,3 +99,40 @@ async def cgiserver(request: Request):
         # If CGI returned non-JSON, pass raw output as error message
         logging.error("Invalid JSON from CGI: %s", output)
         raise HTTPException(status_code=502, detail="Invalid JSON from CGI subprocess")
+
+
+# Serve favicon files directly so browsers requesting /favicon.svg or /favicon.ico
+# don't get a 404 when the FastAPI backend is the same origin as the frontend.
+@app.get("/favicon.svg")
+async def favicon_svg():
+    # Look for files in repository root and public/ (deployment may copy to either)
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = [repo_root / "favicon.svg", repo_root / "public" / "favicon.svg"]
+    checked = []
+    for p in candidates:
+        exists = p.exists()
+        checked.append({"path": str(p), "exists": exists})
+        logging.info("favicon check: %s exists=%s", p, exists)
+        if exists:
+            return FileResponse(p, media_type="image/svg+xml")
+    # None found — include the checked paths in the error detail to aid debugging
+    detail = {"error": "favicon.svg not found", "checked": checked, "cwd": str(Path.cwd())}
+    logging.warning("favicon.svg not found; checked: %s", checked)
+    raise HTTPException(status_code=404, detail=detail)
+
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    # Prefer an existing .ico file, but fall back to converted PNG if present.
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = [repo_root / "favicon.ico", repo_root / "public" / "favicon.ico"]
+    checked = []
+    for p in candidates:
+        exists = p.exists()
+        checked.append({"path": str(p), "exists": exists})
+        logging.info("favicon.ico check: %s exists=%s", p, exists)
+        if exists:
+            return FileResponse(p, media_type="image/x-icon")
+    detail = {"error": "favicon.ico not found", "checked": checked, "cwd": str(Path.cwd())}
+    logging.warning("favicon.ico not found; checked: %s", checked)
+    raise HTTPException(status_code=404, detail=detail)

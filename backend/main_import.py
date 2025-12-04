@@ -91,6 +91,24 @@ if STATIC_DIR is not None:
     # Note: the index route (`/`) will return index.html explicitly.
 
 
+@app.get("/favicon.svg")
+async def favicon_svg():
+    candidates = [ROOT_DIR / "favicon.svg", ROOT_DIR / "public" / "favicon.svg"]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="image/svg+xml")
+    raise HTTPException(status_code=404, detail="favicon.svg not found")
+
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    candidates = [ROOT_DIR / "favicon.ico", ROOT_DIR / "public" / "favicon.ico"]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="image/x-icon")
+    raise HTTPException(status_code=404, detail="favicon.ico not found")
+
+
 def list_machines() -> Dict[str, Any]:
     if get_available_machines is None:
         return {"machines": [], "success": False, "message": "ncplot7py not available"}
