@@ -8,7 +8,9 @@ The editor integrates the ACE text editor and enables the plotting of toolpaths 
 
 You can find the new version of the editor here: https://ncedit7.azurewebsites.net/
 
-![NC-Edit7 Pro Screenshot](./image.png)
+<img width="1919" height="951" alt="grafik" src="https://github.com/user-attachments/assets/ae701634-f7ea-49fa-b9ec-fdf44af50e7e" />
+
+
 
 ## Local Development
 
