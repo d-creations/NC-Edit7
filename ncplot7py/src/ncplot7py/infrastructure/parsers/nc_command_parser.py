@@ -58,10 +58,10 @@ class NCCommandStringParser(BaseNCCommandParser):
         nc_line = re.sub(r'"[^"]*"', mask_match, nc_command_string)
         
         # 2. Mask Siemens Calls/Keywords
-        # Keywords: CYCLE..., POCKET..., WORKPIECE, MCALL, REPEAT, MSG
+        # Keywords: CYCLE..., POCKET..., WORKPIECE, MCALL, REPEAT, MSG, HOLES..., SLOT..., LONGHOLE
         # We match the keyword and optional following (...) block
         # Allow matching if preceded by word boundary OR a digit (e.g. N100CYCLE800)
-        siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|WORKPIECE|MCALL|REPEAT|MSG)\b(?:\s*\([^)]*\))?"
+        siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|HOLES\d+|SLOT\d+|LONGHOLE|WORKPIECE|MCALL|REPEAT|MSG)\b(?:\s*\([^)]*\))?"
         nc_line = re.sub(siemens_pattern, mask_match, nc_line)
         # --- END SIEMENS/STRING MASKING ---
 
