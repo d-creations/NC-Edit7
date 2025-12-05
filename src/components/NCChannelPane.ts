@@ -152,6 +152,9 @@ export class NCChannelPane extends HTMLElement {
           height: 150px;
           border-top: 1px solid #3e3e42;
         }
+        .mobile-sidebar-toggle {
+          display: none;
+        }
 
         /* Mobile Styles */
         @media (max-width: 768px) {

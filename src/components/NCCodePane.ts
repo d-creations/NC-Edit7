@@ -193,7 +193,18 @@ export class NCCodePane extends HTMLElement {
           }
         }
       </style>
-      <div class="ace-editor-container" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
+      <div class="pane-wrapper" style="display: flex; flex-direction: column; width: 100%; height: 100%;">
+        <div class="pane-header" style="height: 20px; background-color: #252526; border-bottom: 1px solid #333; display: flex; flex-shrink: 0; display: none;">
+            <div class="editor-header-spacer" style="flex: 1;"></div>
+            <div class="timing-header" style="width: 60px; color: #ccc; font-size: 10px; text-align: center; line-height: 20px; border-left: 1px solid #333;">TIME</div>
+        </div>
+        <div class="pane-body" style="flex: 1; display: flex; position: relative; overflow: hidden;">
+            <div class="ace-editor-container" style="flex: 1; position: relative; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
+            <div class="timing-gutter" style="width: 60px; background-color: #1e1e1e; border-left: 1px solid #333; overflow: hidden; position: relative; display: none;">
+                <div class="timing-content" style="position: absolute; top: 0; left: 0; width: 100%;"></div>
+            </div>
+        </div>
+      </div>
     `;
   }
 
@@ -236,6 +247,14 @@ G1 Z5`;
     // Enable native scrolling and better mobile support
     this.editor.setOption('scrollPastEnd', 0.5);
     this.editor.setOption('useWorker', false);
+
+    // Sync scrolling with timing gutter
+    this.editor.session.on('changeScrollTop', (scrollTop: number) => {
+      const timingContent = this.querySelector('.timing-content') as HTMLElement;
+      if (timingContent) {
+        timingContent.style.transform = `translateY(-${scrollTop}px)`;
+      }
+    });
 
     // Check if mobile and adjust settings for better touch handling
     const isMobile = window.innerWidth <= MOBILE_BREAKPOINT || 'ontouchstart' in window;
@@ -374,6 +393,11 @@ G1 Z5`;
         this.executedLineMarkers.push(markerId);
       }
     });
+
+    // Update timing gutter if timing data is available
+    if (result.timingData) {
+      this.updateTimingGutter(result.timingData);
+    }
   }
 
   /**
@@ -386,6 +410,68 @@ G1 Z5`;
       this.editor?.session.removeMarker(markerId);
     });
     this.executedLineMarkers = [];
+    this.clearTimingGutter();
+  }
+
+  private updateTimingGutter(timingData: Map<number, number>): void {
+    if (timingData.size === 0) {
+      this.clearTimingGutter();
+      return;
+    }
+
+    const timingGutter = this.querySelector('.timing-gutter') as HTMLElement;
+    const timingContent = this.querySelector('.timing-content') as HTMLElement;
+    const paneHeader = this.querySelector('.pane-header') as HTMLElement;
+    
+    if (!timingGutter || !timingContent || !this.editor) return;
+
+    // Show the gutter and header
+    timingGutter.style.display = 'block';
+    if (paneHeader) paneHeader.style.display = 'flex';
+    
+    // Clear existing content
+    timingContent.innerHTML = '';
+    
+    const lineHeight = this.editor.renderer.lineHeight;
+    
+    timingData.forEach((time, lineNumber) => {
+      // Convert to 0-based index
+      const lineIndex = lineNumber - 1;
+      
+      const div = document.createElement('div');
+      div.style.position = 'absolute';
+      div.style.top = `${lineIndex * lineHeight}px`;
+      div.style.right = '5px';
+      div.style.height = `${lineHeight}px`;
+      div.style.lineHeight = `${lineHeight}px`;
+      div.style.fontSize = '10px';
+      div.style.color = '#888';
+      div.textContent = `${time.toFixed(3)}s`;
+      
+      timingContent.appendChild(div);
+    });
+    
+    // Trigger resize to adjust editor width/height
+    this.editor.resize();
+  }
+
+  private clearTimingGutter(): void {
+    const timingGutter = this.querySelector('.timing-gutter') as HTMLElement;
+    const timingContent = this.querySelector('.timing-content') as HTMLElement;
+    const paneHeader = this.querySelector('.pane-header') as HTMLElement;
+    
+    if (timingGutter) {
+      timingGutter.style.display = 'none';
+    }
+    if (paneHeader) {
+      paneHeader.style.display = 'none';
+    }
+    if (timingContent) {
+      timingContent.innerHTML = '';
+    }
+    
+    // Trigger resize to adjust editor width/height
+    this.editor?.resize();
   }
 
   showErrors(errors: FaultDetail[]): void {

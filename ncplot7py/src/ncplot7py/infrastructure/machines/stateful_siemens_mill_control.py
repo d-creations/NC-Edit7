@@ -22,7 +22,7 @@ from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group16_plane import GCodeGr
 from ncplot7py.domain.handlers.siemens_mill_cnc.mode_handler import SiemensModeHandler
 from ncplot7py.domain.handlers.siemens_mill_cnc.coordinate_handler import SiemensISOCoordinateHandler
 from ncplot7py.domain.handlers.siemens_mill_cnc.feed_handler import SiemensISOFeedHandler
-from ncplot7py.domain.handlers.siemens_mill_cnc.cycles_handler import SiemensISOCyclesHandler
+from ncplot7py.domain.handlers.siemens_mill_cnc.cycles_handler import SiemensISOCyclesHandler, SiemensNamedCyclesHandler
 from ncplot7py.domain.handlers.siemens_mill_cnc.tool_length_handler import SiemensISOToolLengthHandler
 from ncplot7py.domain.handlers.siemens_mill_cnc.cutter_comp_handler import SiemensISOCutterCompHandler
 from ncplot7py.domain.handlers.siemens_mill_cnc.polar_handler import SiemensISOPolarHandler
@@ -70,9 +70,10 @@ class StatefulSiemensMillCanal(BaseNCCanalInterface):
         # 5. Feed
         feed = SiemensISOFeedHandler(next_handler=plane)
         # 4. Cycles
-        cycles = SiemensISOCyclesHandler(next_handler=feed)
+        iso_cycles = SiemensISOCyclesHandler(next_handler=feed)
+        named_cycles = SiemensNamedCyclesHandler(next_handler=iso_cycles)
         # 3. Mode
-        mode = SiemensModeHandler(next_handler=cycles)
+        mode = SiemensModeHandler(next_handler=named_cycles)
         # 2. Control Flow
         control = ControlFlowHandler(next_handler=mode)
         # 1. Variables
