@@ -71,7 +71,7 @@ export interface ToolUsage {
 }
 
 export interface ToolRegisterEntry {
-  toolNumber: number;
+  toolNumber: number | string;
   qParameter?: number;
   rParameter?: number;
 }
@@ -157,7 +157,7 @@ export interface PlotSegment {
 }
 
 export interface ToolValue {
-  toolNumber: number;
+  toolNumber: number | string;
   qValue?: number;
   rValue?: number;
 }

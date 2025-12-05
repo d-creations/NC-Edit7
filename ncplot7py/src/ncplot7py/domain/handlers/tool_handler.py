@@ -91,10 +91,28 @@ class ToolHandler(Handler):
 
             except ValueError:
                 # T might be a string name (Siemens allows T="EndMill")
-                # If config expects integer range, this might be an issue, 
-                # but Siemens 840D supports names.
-                # Our config has a range, implying integer tools.
-                state.extra["current_tool_name"] = t_str
+                # Remove quotes if present
+                t_name = t_str.replace('"', '').replace("'", "")
+                state.extra["current_tool_name"] = t_name
+                
+                # Load tool compensation data if available for named tool
+                tool_comp_data = state.extra.get("tool_compensation_data", {})
+                if t_name in tool_comp_data:
+                    tool_data = tool_comp_data[t_name]
+                    # Preload tool radius if available (will be used when G41/G42 activates)
+                    r_value = tool_data.get("rValue")
+                    if r_value is not None:
+                        try:
+                            state.extra["pending_tool_radius"] = float(r_value)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool radius value '{r_value}' for tool T='{t_name}': {e}")
+                    # Preload tool quadrant if available
+                    q_value = tool_data.get("qValue")
+                    if q_value is not None:
+                        try:
+                            state.extra["pending_tool_quadrant"] = int(q_value)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid tool quadrant value '{q_value}' for tool T='{t_name}': {e}")
 
         if self.next_handler is not None:
             return self.next_handler.handle(node, state)

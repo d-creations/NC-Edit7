@@ -197,7 +197,8 @@ def sanitize_program(program: str) -> str:
         return program
 
     # Remove parenthetical comments (single-line)
-    program = re.sub(r"\(.*?\)", "", program)
+    # DISABLED: Siemens uses () for parameters (e.g. CYCLE800(...))
+    # program = re.sub(r"\(.*?\)", "", program)
 
     def sanitize_subcmd(sub: str) -> str:
         parts = [p for p in sub.strip().split() if p != ""]
@@ -413,7 +414,12 @@ async def cgiserver_import(request: Request):
             for tv in tool_vals:
                 t_num = tv.get("toolNumber")
                 if t_num is not None:
-                    tool_data[int(t_num)] = {
+                    try:
+                        key = int(t_num)
+                    except ValueError:
+                        key = str(t_num)
+
+                    tool_data[key] = {
                         "qValue": tv.get("qValue"),  # Quadrant Q1-Q9
                         "rValue": tv.get("rValue"),  # Tool radius R
                     }

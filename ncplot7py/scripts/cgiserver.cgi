@@ -287,7 +287,12 @@ def handle_execute_programs(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]
             for tv in tool_vals:
                 t_num = tv.get("toolNumber")
                 if t_num is not None:
-                    tool_data[int(t_num)] = {
+                    try:
+                        key = int(t_num)
+                    except ValueError:
+                        key = str(t_num)
+
+                    tool_data[key] = {
                         "qValue": tv.get("qValue"),  # Quadrant Q1-Q9
                         "rValue": tv.get("rValue"),  # Tool radius R
                     }

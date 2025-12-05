@@ -78,21 +78,36 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
     elif "SIEMENS" in control_type.upper() or "MILL" in control_type.upper():
         config = SIEMENS_840D_CONFIG
 
+    tool_pattern = fr"T([{config.tool_range[0]}-{config.tool_range[1]}])(?!\\d)" if config.tool_range[1] < 100 else r"T([1-9][0-9]*)(?!\\d)"
+    
+    if config.control_type == "SIEMENS":
+        # Support T="ToolName"
+        tool_pattern = r"(?:T([1-9][0-9]*)(?!\\d)|T=\"[^\"]+\")"
+
+    # Define keyword patterns
+    keyword_pattern = r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G(?:255|266)|M30)"
+    keyword_desc = "Keywords: T100-T9999, M200-M888, M82, M83, M20, G255, G266, M30"
+
+    if config.control_type == "SIEMENS":
+        # Siemens specific keywords: Named tools, Cycles, MCALL, M30, M17
+        keyword_pattern = r"(?:T=\"[^\"]+\"|CYCLE\\d+|POCKET\\d+|MCALL|M30|M17)"
+        keyword_desc = "Keywords: T=\"Name\", CYCLE..., POCKET..., MCALL, M30, M17"
+
     # Base patterns common to most machines
     base_patterns = {
         "tools": {
-            "pattern": fr"T([{config.tool_range[0]}-{config.tool_range[1]}])(?!\d)" if config.tool_range[1] < 100 else r"T([1-9][0-9]*)(?!\d)",
-            "description": f"Tools T{config.tool_range[0]}-T{config.tool_range[1]}",
+            "pattern": tool_pattern,
+            "description": f"Tools T{config.tool_range[0]}-T{config.tool_range[1]}" + (", T=\"Name\"" if config.control_type == "SIEMENS" else ""),
             "range": {"min": config.tool_range[0], "max": config.tool_range[1]}
         },
         "variables": {
-            "pattern": config.variable_pattern,
+            "pattern": config.variable_pattern.replace('\\', '\\\\'),
             "description": f"Variables {config.variable_prefix}1 - {config.variable_prefix}999",
             "range": {"min": 1, "max": 999}
         },
         "keywords": {
-            "pattern": r"(T(100|[1-9][0-9]{2,3})|M(2[0-9]{2}|[3-8][0-8]{2})|M82|M83|M20|G(?:255|266)|M30)",
-            "description": "Keywords: T100-T9999, M200-M888, M82, M83, M20, G255, G266, M30",
+            "pattern": keyword_pattern,
+            "description": keyword_desc,
             "codes": {
                 "extended_tools": {"pattern": r"T(100|[1-9][0-9]{2,3})", "range": {"min": 100, "max": 9999}},
                 "m_codes_range": {"pattern": r"M(2[0-9]{2}|[3-8][0-8]{2})", "range": {"min": 200, "max": 888}},

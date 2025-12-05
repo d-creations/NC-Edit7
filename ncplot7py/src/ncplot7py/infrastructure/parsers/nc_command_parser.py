@@ -42,10 +42,33 @@ class NCCommandStringParser(BaseNCCommandParser):
         if nc_command_string is None:
             nc_command_string = ""
 
+        # --- START SIEMENS/STRING MASKING ---
+        masked_map = {}
+        mask_counter = 0
+        
+        def mask_match(match):
+            nonlocal mask_counter
+            # Use lowercase to avoid splitting by [A-Z] regex later
+            token = f"__masked_{mask_counter}__"
+            masked_map[token] = match.group(0)
+            mask_counter += 1
+            return token
+
+        # 1. Mask Strings (e.g. T="TOOL")
+        nc_line = re.sub(r'"[^"]*"', mask_match, nc_command_string)
+        
+        # 2. Mask Siemens Calls/Keywords
+        # Keywords: CYCLE..., POCKET..., WORKPIECE, MCALL, REPEAT, MSG
+        # We match the keyword and optional following (...) block
+        # Allow matching if preceded by word boundary OR a digit (e.g. N100CYCLE800)
+        siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|WORKPIECE|MCALL|REPEAT|MSG)\b(?:\s*\([^)]*\))?"
+        nc_line = re.sub(siemens_pattern, mask_match, nc_line)
+        # --- END SIEMENS/STRING MASKING ---
+
         # remove comments (parentheses)
         # We must remove the content inside parentheses too, otherwise it gets parsed as commands.
         # e.g. T2100(BACK MILLING) -> T2100
-        nc_line = re.sub(r"\(.*?\)", "", nc_command_string)
+        nc_line = re.sub(r"\(.*?\)", "", nc_line)
 
         # remove spaces for initial trimming but keep some tokenization later
         nc_line = re.sub(" ", "", nc_line)
@@ -58,7 +81,7 @@ class NCCommandStringParser(BaseNCCommandParser):
             nc_line = ""
 
         # Insert spaces before tokens so we can split
-        nc_line = re.sub(r"(SQRT|ASIN|SIN|(?<![=\+\-\*\/\[])[A-Z,])", r" \1", nc_line)
+        nc_line = re.sub(r"(SQRT|ASIN|SIN|(?<![=\+\-\*\/\[])(?:__masked_|[A-Z,]))", r" \1", nc_line)
         # quickfix for the behaviour in the original snippet
         nc_line = nc_line.replace(" SQRT", "SQRT")
         nc_line = nc_line.replace(" ASIN", "ASIN")
@@ -69,6 +92,30 @@ class NCCommandStringParser(BaseNCCommandParser):
         for code in codes:
             if not code:
                 continue
+
+            # --- UNMASK CHECK ---
+            # If it is a standalone mask (Siemens call), we treat it as variable_command or special
+            if code.startswith("__masked_"):
+                original = masked_map.get(code, code)
+                # Unmask any nested masks in original
+                for k, v in masked_map.items():
+                    if k in original:
+                        original = original.replace(k, v)
+                
+                # Append to variable_command (used for macros/special calls)
+                if var_calculation_str:
+                    var_calculation_str += " " + original
+                else:
+                    var_calculation_str = original
+                continue
+            
+            # If it is T=__masked_... or similar, unmask the value part
+            if "__masked_" in code:
+                for k, v in masked_map.items():
+                    if k in code:
+                        code = code.replace(k, v)
+            # --- END UNMASK CHECK ---
+
             if is_dddp:
                 dddp_ccr_set.add(code)
                 is_dddp = False
@@ -76,6 +123,10 @@ class NCCommandStringParser(BaseNCCommandParser):
                 g_code_set.add(code)
             elif code.startswith('#'):
                 var_calculation_str = nc_line
+                # Unmask whole line if needed
+                for k, v in masked_map.items():
+                    var_calculation_str = var_calculation_str.replace(k, v)
+
                 if len(g_code_set) > 0 or len(axis_coordinate_dict) > 0:
                     domain_exceptions.raise_nc_error(
                         domain_exceptions.ExceptionTyps.NCCodeErrors,

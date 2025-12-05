@@ -66,8 +66,9 @@ class SiemensISOCutterCompHandler(Handler):
                 state.extra["cutter_comp"] = mode
                 state.extra["cutter_comp_active"] = True
                 
-                # Get current tool number from state
+                # Get current tool number or name from state
                 current_tool = state.extra.get("current_tool_number")
+                current_tool_name = state.extra.get("current_tool_name")
                 
                 # D parameter usually specifies the offset register
                 if "D" in node.command_parameter:
@@ -80,8 +81,13 @@ class SiemensISOCutterCompHandler(Handler):
                 # Get tool compensation data (Q quadrant, R radius) from state
                 tool_comp_data = state.extra.get("tool_compensation_data", {})
                 
+                tool_data = None
                 if current_tool is not None and current_tool in tool_comp_data:
                     tool_data = tool_comp_data[current_tool]
+                elif current_tool_name is not None and current_tool_name in tool_comp_data:
+                    tool_data = tool_comp_data[current_tool_name]
+
+                if tool_data:
                     
                     # Set tool quadrant (Q1-Q9)
                     q_value = tool_data.get("qValue")

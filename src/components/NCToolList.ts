@@ -41,7 +41,7 @@ export class NCToolList extends HTMLElement {
       (data: { channelId: string; result: NcParseResult; artifacts: ParseArtifacts }) => {
         if (data.channelId === this.channelId) {
           // Preserve existing Q and R values for tools that still exist
-          const existingToolValues = new Map<number, { qValue?: number; rValue?: number }>();
+          const existingToolValues = new Map<number | string, { qValue?: number; rValue?: number }>();
           this.tools.forEach((tool) => {
             if (tool.qValue !== undefined || tool.rValue !== undefined) {
               existingToolValues.set(tool.toolNumber, {

@@ -87,10 +87,34 @@ export class ParserService {
         // Find tool changes - reset lastIndex
         toolPattern.lastIndex = 0;
         const toolMatch = toolPattern.exec(line);
-        if (toolMatch && toolMatch[1]) {
-          const toolNumber = parseInt(toolMatch[1]);
-          if (!isNaN(toolNumber) && !toolRegisters.find((t) => t.toolNumber === toolNumber)) {
-            toolRegisters.push({ toolNumber });
+        if (toolMatch) {
+          // Check for named tool (group 2) or numeric tool (group 1)
+          // Regex: (?:T([1-9][0-9]*)(?!\d)|T="([^"]+)")
+          // If group 1 is present, it's a number. If group 2 is present (or just the match), handle it.
+          
+          let toolVal: number | string | null = null;
+          
+          // Try to parse as integer first if it looks like one
+          if (toolMatch[1]) {
+             const tNum = parseInt(toolMatch[1]);
+             if (!isNaN(tNum)) {
+                 toolVal = tNum;
+             }
+          } else if (toolMatch[0]) {
+             // Fallback or named tool
+             // If the match is T="...", extract the name
+             const strMatch = toolMatch[0];
+             if (strMatch.includes('="')) {
+                 toolVal = strMatch.slice(3, -1);
+             } else if (strMatch.startsWith('T')) {
+                 // Simple T123 case that might have been caught here
+                 const tNum = parseInt(strMatch.substring(1));
+                 if (!isNaN(tNum)) toolVal = tNum;
+             }
+          }
+
+          if (toolVal !== null && !toolRegisters.find((t) => t.toolNumber === toolVal)) {
+            toolRegisters.push({ toolNumber: toolVal });
           }
         }
 
