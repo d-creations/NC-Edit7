@@ -2,7 +2,7 @@
 
 import type { ChannelId } from '@core/types';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
+import { STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
@@ -11,6 +11,7 @@ import './NCSyncControls';
 import './NCStatusIndicator';
 import './NCMachineSelector';
 import './NCToolpathPlot';
+import './NCFileManager'; // Keep for global file loading if needed, but removed from template
 
 // Constants for plot panel sizing
 const PLOT_PANEL_MIN_WIDTH = 200;
@@ -36,6 +37,25 @@ export class NCEditorApp extends HTMLElement {
   async connectedCallback(): Promise<void> {
     await this.render();
     await this.init();
+    this.setupIframeListener();
+  }
+
+  private setupIframeListener() {
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (data && typeof data === 'object') {
+        if (data.command === 'openFile' || data.type === 'OPEN_NC_FILE') {
+            const content = data.content || data.code;
+            const name = data.name || 'imported.mpf';
+            const options = data.options || { parseMultiChannel: true };
+            
+            if (content) {
+                const fileManager = this.registry.get(FILE_MANAGER_SERVICE_TOKEN);
+                fileManager.openFile(content, name, options);
+            }
+        }
+      }
+    });
   }
 
   private async init(): Promise<void> {
@@ -407,6 +427,8 @@ export class NCEditorApp extends HTMLElement {
         </div>
         <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
       </div>
+
+      <nc-file-manager style="display: block; border-bottom: 1px solid #3e3e42;"></nc-file-manager>
 
       <div class="app-main-content">
         <div class="app-channel-container">

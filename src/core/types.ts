@@ -206,3 +206,21 @@ export interface ServerMachineListResponse {
   machines: ServerMachineData[];
   success?: boolean;
 }
+
+export interface NCFile {
+  id: string;
+  name: string;
+  content: string;
+  channels: string[];
+  isMultiChannel: boolean;
+  lastModified: number;
+}
+
+export interface NCProgram {
+  id: string;
+  name: string;
+  content: string;
+  channelId: string;
+  sourceFileId: string;
+  lastModified: number;
+}

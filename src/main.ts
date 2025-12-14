@@ -10,6 +10,7 @@ import {
   DIAGNOSTICS_SERVICE_TOKEN,
   EXECUTED_PROGRAM_SERVICE_TOKEN,
   PLOT_SERVICE_TOKEN,
+  FILE_MANAGER_SERVICE_TOKEN,
 } from '@core/ServiceTokens';
 import { EventBus } from '@services/EventBus';
 import { StateService } from '@services/StateService';
@@ -19,6 +20,7 @@ import { ParserService } from '@services/ParserService';
 import { DiagnosticsService } from '@services/DiagnosticsService';
 import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { PlotService } from '@services/PlotService';
+import { FileManagerService } from '@services/FileManagerService';
 import '@components/NCEditorApp';
 
 // Bootstrap application
@@ -36,6 +38,15 @@ async function bootstrap() {
       () => {
         const eventBus = registry.get(EVENT_BUS_TOKEN);
         return new StateService(eventBus);
+      },
+      ServiceScope.Singleton,
+    );
+
+    registry.register(
+      FILE_MANAGER_SERVICE_TOKEN,
+      () => {
+        const eventBus = registry.get(EVENT_BUS_TOKEN);
+        return new FileManagerService(eventBus);
       },
       ServiceScope.Singleton,
     );

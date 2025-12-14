@@ -4,6 +4,7 @@ import './NCVariableList';
 import './NCToolList';
 import './NCExecutedList';
 import './NCBottomPanel';
+import './NCProgramManager';
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
@@ -37,19 +38,60 @@ export class NCChannelPane extends HTMLElement {
   }
 
   private setupEventListeners() {
-    // Mobile Sidebar Toggle
-    const sidebarToggle = this.querySelector('#sidebar-toggle');
     const sidebar = this.querySelector('#channel-sidebar');
     const overlay = this.querySelector('#sidebar-overlay');
+    const sidebarToggle = this.querySelector('#sidebar-toggle');
+    const programsToggle = this.querySelector('#programs-toggle');
+    
+    const keywordPanel = this.querySelector('nc-keyword-panel') as HTMLElement;
+    const toolsPanel = this.querySelector('.channel-tools-panel') as HTMLElement;
+    const programManager = this.querySelector('nc-program-manager') as HTMLElement;
 
-    const toggleSidebar = () => {
-      sidebar?.classList.toggle('visible');
-      overlay?.classList.toggle('visible');
-      sidebarToggle?.classList.toggle('active');
+    const showSidebar = (mode: 'tools' | 'programs') => {
+        sidebar?.classList.add('visible');
+        overlay?.classList.add('visible');
+        
+        if (mode === 'tools') {
+            keywordPanel.style.display = 'block';
+            toolsPanel.style.display = 'block';
+            programManager.style.display = 'none';
+            sidebarToggle?.classList.add('active');
+            programsToggle?.classList.remove('active');
+        } else {
+            keywordPanel.style.display = 'none';
+            toolsPanel.style.display = 'none';
+            programManager.style.display = 'flex';
+            sidebarToggle?.classList.remove('active');
+            programsToggle?.classList.add('active');
+        }
     };
 
-    sidebarToggle?.addEventListener('click', toggleSidebar);
-    overlay?.addEventListener('click', toggleSidebar);
+    const hideSidebar = () => {
+        sidebar?.classList.remove('visible');
+        overlay?.classList.remove('visible');
+        sidebarToggle?.classList.remove('active');
+        programsToggle?.classList.remove('active');
+    };
+
+    const toggleTools = () => {
+        if (sidebar?.classList.contains('visible') && sidebarToggle?.classList.contains('active')) {
+            hideSidebar();
+        } else {
+            showSidebar('tools');
+        }
+    };
+
+    const togglePrograms = () => {
+        if (sidebar?.classList.contains('visible') && programsToggle?.classList.contains('active')) {
+            hideSidebar();
+        } else {
+            showSidebar('programs');
+        }
+    };
+
+    sidebarToggle?.addEventListener('click', toggleTools);
+    programsToggle?.addEventListener('click', togglePrograms);
+    overlay?.addEventListener('click', hideSidebar);
 
     // Plot button
     const plotButton = this.querySelector('#plot-channel-btn');
@@ -212,6 +254,7 @@ export class NCChannelPane extends HTMLElement {
       <div class="channel-header">
         <span>Channel ${this.channelId}</span>
         <div class="channel-controls">
+          <button class="channel-button" id="programs-toggle">Programs</button>
           <button class="channel-button" id="plot-channel-btn">▶️ Plot</button>
           <button class="channel-button mobile-sidebar-toggle" id="sidebar-toggle">Tools & Keywords</button>
         </div>
@@ -219,6 +262,7 @@ export class NCChannelPane extends HTMLElement {
       <div class="channel-content">
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
         <div class="channel-sidebar" id="channel-sidebar">
+          <nc-program-manager channel-id="${this.channelId}" style="display: none; flex: 1;"></nc-program-manager>
           <nc-keyword-panel channel-id="${this.channelId}" style="flex: 1;"></nc-keyword-panel>
           <div class="channel-tools-panel">
             <nc-tool-list channel-id="${this.channelId}"></nc-tool-list>
