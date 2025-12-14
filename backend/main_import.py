@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -56,13 +57,39 @@ except Exception as e:
 
 app = FastAPI(title="ncplot7py-adapter-import")
 
+# Security: Trusted Host Middleware
+# Prevents Host Header attacks. In Azure, this should be set to your domain (e.g., "nc-edit7.azurewebsites.net").
+# For development, "*" is acceptable.
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=os.environ.get("ALLOWED_HOSTS", "*").split(",")
+)
+
+# Security: CORS
+# Restrict origins in production using ALLOWED_ORIGINS env var.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.environ.get("ALLOWED_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security: HTTP Headers
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Prevent MIME sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+    # Enable XSS protection in older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Enforce HTTPS (HSTS) - 1 year
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Referrer Policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 logging.basicConfig(level=logging.INFO)
 
