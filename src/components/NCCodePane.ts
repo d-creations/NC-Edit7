@@ -221,7 +221,7 @@ export class NCCodePane extends HTMLElement {
     }
 
     const demoProgram = `G0 X0 Y0
-T200
+T="Mill 1";Tool 1
 G98
 G1 X50 Y0 F200
 G1 X50 Y50
