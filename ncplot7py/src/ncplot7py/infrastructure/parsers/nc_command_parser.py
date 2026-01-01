@@ -61,14 +61,37 @@ class NCCommandStringParser(BaseNCCommandParser):
         # Keywords: CYCLE..., POCKET..., WORKPIECE, MCALL, REPEAT, MSG, HOLES..., SLOT..., LONGHOLE
         # We match the keyword and optional following (...) block
         # Allow matching if preceded by word boundary OR a digit (e.g. N100CYCLE800)
+        # IMPORTANT: We must match nested parentheses for cycles like CYCLE800(..., "TC1", ...)
+        # The previous regex `\([^)]*\)` only matched non-nested parentheses.
+        # Since Python regex doesn't support recursion easily, we use a greedy match for now,
+        # or rely on the fact that Siemens cycles are usually one per line.
+        # A better approach is to match balanced parentheses if possible, but for now let's try to be more robust.
+        
+        # We will iterate and mask them one by one to handle multiple on one line if needed.
+        # But typically they are one per line.
+        
+        # Improved pattern: Match keyword, then optionally match (...) block.
+        # We use a simple non-greedy match for content inside first level parens if no nesting,
+        # but since we might have strings inside parens like ("TC1"), we need to be careful.
+        # However, we already masked strings in step 1! So "TC1" is now __masked_X__.
+        # So there are no parentheses inside strings anymore.
+        # So we can safely match balanced parentheses if we assume no nested function calls (which Siemens usually doesn't have in this context).
+        
         siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|HOLES\d+|SLOT\d+|LONGHOLE|WORKPIECE|MCALL|REPEAT|MSG)\b(?:\s*\([^)]*\))?"
-        nc_line = re.sub(siemens_pattern, mask_match, nc_line)
+        
+        # If we have masked strings inside the parens, the regex `[^)]*` is fine because `)` inside a string is now hidden in `__masked_X__`.
+        # BUT, if the mask token itself contains `)` (it shouldn't, it's `__masked_N__`), we are good.
+        
+        nc_line = re.sub(siemens_pattern, mask_match, nc_line, flags=re.IGNORECASE)
         # --- END SIEMENS/STRING MASKING ---
 
         # remove comments (parentheses)
         # We must remove the content inside parentheses too, otherwise it gets parsed as commands.
         # e.g. T2100(BACK MILLING) -> T2100
-        nc_line = re.sub(r"\(.*?\)", "", nc_line)
+        # DISABLED: Siemens uses () for parameters (e.g. CYCLE800(...))
+        # nc_line = re.sub(r"\(.*?\)", "", nc_line)
+        # We should only remove comments if we are sure they are comments.
+        # For now, let the parser handle comments.
 
         # remove spaces for initial trimming but keep some tokenization later
         nc_line = re.sub(" ", "", nc_line)

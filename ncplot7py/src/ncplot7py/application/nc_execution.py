@@ -162,7 +162,10 @@ class NCExecutionEngine:
             # If the input string comes from a file with newlines, we might need to handle that.
             # But based on existing code `program.split(";")`, we stick to that but don't filter empty ones immediately for counting.
             
-            raw_lines = program.split(";")
+            # Split by semicolon or newline to handle both formats
+            # We normalize newlines to semicolons first
+            normalized_program = program.replace('\n', ';')
+            raw_lines = normalized_program.split(";")
             for i, raw_line in enumerate(raw_lines):
                 # Skip empty lines for parsing, but 'i' (line number) increments naturally
                 if not raw_line.strip():

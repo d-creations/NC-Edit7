@@ -243,10 +243,6 @@ export class ExecutedProgramService {
         if (canal.segments && Array.isArray(canal.segments)) {
           canal.segments.forEach((segment) => {
             if (segment.points && segment.points.length >= 2) {
-              // Use first and last points for segment (handles both linear and arc segments)
-              const startPoint = segment.points[0];
-              const endPoint = segment.points[segment.points.length - 1];
-
               // Map server segment type to client type
               let segmentType: 'rapid' | 'feed' | 'arc' = 'feed';
               if (segment.type) {
@@ -258,45 +254,53 @@ export class ExecutedProgramService {
                 }
               }
 
-              // Add segment
-              result.plotMetadata!.segments.push({
-                startPoint: {
-                  x: startPoint.x,
-                  y: startPoint.y,
-                  z: startPoint.z,
-                  lineNumber: segment.lineNumber,
-                },
-                endPoint: {
-                  x: endPoint.x,
-                  y: endPoint.y,
-                  z: endPoint.z,
-                  lineNumber: segment.lineNumber,
-                },
-                type: segmentType,
-                toolNumber: segment.toolNumber,
-              });
+              // Create segments for each pair of points to ensure all intermediate points are rendered
+              for (let i = 0; i < segment.points.length - 1; i++) {
+                const p1 = segment.points[i];
+                const p2 = segment.points[i + 1];
 
-              // Add unique points to the points array
-              const startKey = getPointKey(startPoint.x, startPoint.y, startPoint.z);
-              if (!addedPoints.has(startKey)) {
-                addedPoints.add(startKey);
-                result.plotMetadata!.points.push({
-                  x: startPoint.x,
-                  y: startPoint.y,
-                  z: startPoint.z,
-                  lineNumber: segment.lineNumber,
+                result.plotMetadata!.segments.push({
+                  startPoint: {
+                    x: p1.x,
+                    y: p1.y,
+                    z: p1.z,
+                    lineNumber: segment.lineNumber,
+                  },
+                  endPoint: {
+                    x: p2.x,
+                    y: p2.y,
+                    z: p2.z,
+                    lineNumber: segment.lineNumber,
+                  },
+                  type: segmentType,
+                  toolNumber: segment.toolNumber,
                 });
-              }
 
-              const endKey = getPointKey(endPoint.x, endPoint.y, endPoint.z);
-              if (!addedPoints.has(endKey)) {
-                addedPoints.add(endKey);
-                result.plotMetadata!.points.push({
-                  x: endPoint.x,
-                  y: endPoint.y,
-                  z: endPoint.z,
-                  lineNumber: segment.lineNumber,
-                });
+                // Add unique points to the points array
+                const p1Key = getPointKey(p1.x, p1.y, p1.z);
+                if (!addedPoints.has(p1Key)) {
+                  addedPoints.add(p1Key);
+                  result.plotMetadata!.points.push({
+                    x: p1.x,
+                    y: p1.y,
+                    z: p1.z,
+                    lineNumber: segment.lineNumber,
+                  });
+                }
+
+                // Ensure the very last point is added
+                if (i === segment.points.length - 2) {
+                  const p2Key = getPointKey(p2.x, p2.y, p2.z);
+                  if (!addedPoints.has(p2Key)) {
+                    addedPoints.add(p2Key);
+                    result.plotMetadata!.points.push({
+                      x: p2.x,
+                      y: p2.y,
+                      z: p2.z,
+                      lineNumber: segment.lineNumber,
+                    });
+                  }
+                }
               }
             }
           });

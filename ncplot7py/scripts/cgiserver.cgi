@@ -60,7 +60,11 @@ def sanitize_program(program: str) -> str:
         return program
 
     # Remove parenthetical comments (single-line)
-    program = re.sub(r"\(.*?\)", "", program)
+    # program = re.sub(r"\(.*?\)", "", program)
+    # DISABLED: Siemens uses () for parameters (e.g. CYCLE800(...))
+    # We should only remove comments if we are sure they are comments.
+    # For now, let the parser handle comments.
+
 
     def sanitize_subcmd(sub: str) -> str:
         parts = [p for p in sub.strip().split() if p != ""]
@@ -116,17 +120,22 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         z = entry.get("z", [])
         t = entry.get("t", 0)
 
-        # Build start/end points (first and last)
+        # Build all points
         if len(x) == 0:
             continue
-        start = {"x": x[0], "y": y[0] if len(y) > 0 else None, "z": z[0] if len(z) > 0 else None}
-        end = {"x": x[-1], "y": y[-1] if len(y) > 0 else None, "z": z[-1] if len(z) > 0 else None}
+            
+        points = []
+        for i in range(len(x)):
+            px = x[i]
+            py = y[i] if i < len(y) else (y[-1] if len(y) > 0 else 0)
+            pz = z[i] if i < len(z) else (z[-1] if len(z) > 0 else 0)
+            points.append({"x": px, "y": py, "z": pz})
 
         seg = {
             "type": "RAPID" if (not t or float(t) == 0) else "LINEAR",
             "lineNumber": executed_lines[idx] if idx < len(executed_lines) else None,
             "toolNumber": 1,
-            "points": [start, end],
+            "points": points,
         }
         segments.append(seg)
         try:
