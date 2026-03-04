@@ -82,6 +82,16 @@ class TestNCExecutionEngine(unittest.TestCase):
         result = engine.get_Syncro_plot(programs, synch=False)
         self.assertEqual(result, [[], []])
 
+    def test_newline_separated_program_is_split_into_multiple_nodes(self):
+        ctrl = FakeControlHappy()
+        engine = NCExecutionEngine(ctrl)
+        programs = ["G1 X1 Y1 Z1\nG1 X2 Y2 Z2"]
+        engine.get_Syncro_plot(programs, synch=False)
+        self.assertEqual(len(ctrl._ran), 1)
+        parsed_nodes, canal = ctrl._ran[0]
+        self.assertEqual(canal, 1)
+        self.assertEqual(len(parsed_nodes), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

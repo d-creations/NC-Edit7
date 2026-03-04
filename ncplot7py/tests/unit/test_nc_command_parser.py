@@ -36,6 +36,12 @@ class TestNCCommandParser(unittest.TestCase):
         self.assertEqual(node.loop_command, "GOTO100")
         self.assertEqual(node.g_code, set())
 
+    def test_uppercase_trig_in_variable_command_not_split(self):
+        node = self.parser.parse("#8=#7+[#5-#6]*#20*TAN[[#4/2]]+COS[#1]", line_nr=10)
+        self.assertIn("TAN", node.variable_command)
+        self.assertIn("COS", node.variable_command)
+        self.assertEqual(node.command_parameter, {})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,14 +29,14 @@ class TestRefactoringVerification(unittest.TestCase):
         control.run_nc_code_list(nodes, 1)
         # Should pass without error
 
-        # 2. Invalid Tool (T1 is out of range 100-9999)
+        # 2. Invalid Tool (T10000 is out of range 0-9999)
         code_invalid_tool = """
-        T1
+        T10000
         """
         nodes = self._parse(code_invalid_tool)
         with self.assertRaises(NCError) as cm:
             control.run_nc_code_list(nodes, 1)
-        self.assertIn("Tool number T1 out of range", str(cm.exception))
+        self.assertIn("Tool number T10000 out of range", str(cm.exception))
 
     def test_fanuc_variables_and_tools(self):
         """Test Fanuc Star: #-parameters and Tool Range (1-99)."""
@@ -51,23 +51,19 @@ class TestRefactoringVerification(unittest.TestCase):
         nodes = self._parse(code_valid)
         control.run_nc_code_list(nodes, 1)
 
-        # 2. Invalid Tool (T100 is out of range 1-99)
+        # 2. Valid Tool (T100 is supported for TXXYY emulation)
         code_invalid_tool = """
         T100
         """
         nodes = self._parse(code_invalid_tool)
-        with self.assertRaises(NCError) as cm:
-            control.run_nc_code_list(nodes, 1)
-        self.assertIn("Tool number T100 out of range", str(cm.exception))
+        control.run_nc_code_list(nodes, 1)
 
-        # 3. Test T0101 (101) - Expect Failure based on current strict implementation
+        # 3. Test T0101 (101) - Valid based on relaxation
         code_t0101 = """
         T0101
         """
         nodes = self._parse(code_t0101)
-        with self.assertRaises(NCError) as cm:
-            control.run_nc_code_list(nodes, 1)
-        self.assertIn("Tool number T101 out of range", str(cm.exception))
+        control.run_nc_code_list(nodes, 1)
 
 
 if __name__ == '__main__':

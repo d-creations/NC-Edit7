@@ -8,6 +8,7 @@ with the previous implementation.
 from __future__ import annotations
 
 import time
+import re
 from typing import List, Dict, Optional, Any
 
 from ncplot7py.shared import (
@@ -123,6 +124,16 @@ class NCExecutionEngine:
             raise RuntimeError("No NC command parser registered")
         return parser_cls()
 
+    def _split_program_lines(self, program: str) -> List[str]:
+        """Split an NC program string into command lines.
+
+        Supports both legacy semicolon-separated input and newline-separated
+        input, which is common when programs are pasted as multi-line text.
+        """
+        if program is None:
+            return []
+        return [line for line in re.split(r"(?:;|\r\n|\n|\r)", program) if line and line.strip()]
+
     def get_Syncro_plot(self, programs: List[str], synch: bool) -> List[Dict]:
         """Create the plot for the given NC `programs`.
 
@@ -157,12 +168,7 @@ class NCExecutionEngine:
         for program in programs:
             # Parse program into a list of command nodes
             node_list = []
-            # Split by semicolon but preserve empty lines to maintain line numbering
-            # We assume the input program uses ';' as line separator or we handle it.
-            # If the input string comes from a file with newlines, we might need to handle that.
-            # But based on existing code `program.split(";")`, we stick to that but don't filter empty ones immediately for counting.
-            
-            raw_lines = program.split(";")
+            raw_lines = self._split_program_lines(program)
             for i, raw_line in enumerate(raw_lines):
                 # Skip empty lines for parsing, but 'i' (line number) increments naturally
                 if not raw_line.strip():

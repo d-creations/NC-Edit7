@@ -32,6 +32,19 @@ class TestVariableNestedExpressions(unittest.TestCase):
         self.assertIn("100", state.parameters)
         self.assertAlmostEqual(float(state.parameters["100"]), -3.46, places=6)
 
+    def test_uppercase_trig_functions_are_evaluated(self):
+        from ncplot7py.domain.handlers.variable import VariableHandler
+
+        state = CNCState()
+        state.parameters["4"] = 60.0
+        vh = VariableHandler()
+
+        node_var = NCCommandNode(g_code_command=set(), command_parameter={}, variable_command="#7=COS[#4/2]", nc_code_line_nr=3)
+        vh.handle(node_var, state)
+
+        self.assertIn("7", state.parameters)
+        self.assertAlmostEqual(float(state.parameters["7"]), 0.8660254, places=6)
+
 
 if __name__ == "__main__":
     unittest.main()
