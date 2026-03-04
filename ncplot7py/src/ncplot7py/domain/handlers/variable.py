@@ -52,6 +52,14 @@ _ALLOWED_FUNCS = {
     "atan": _atan_deg,
     "sqrt": math.sqrt,
     "pi": math.pi,
+    "SIN": _sin_deg,
+    "COS": _cos_deg,
+    "TAN": _tan_deg,
+    "ASIN": _asin_deg,
+    "ACOS": _acos_deg,
+    "ATAN": _atan_deg,
+    "SQRT": math.sqrt,
+    "PI": math.pi,
 }
 
 
@@ -122,19 +130,24 @@ class VariableHandler(Handler):
         var_re = self._get_var_regex(state)
         return var_re.sub(lambda m: f"v{m.group(1)}", expr)
 
+    def _normalize_function_brackets(self, expr: str) -> str:
+        """Convert Fanuc-style function calls FUNC[...] to FUNC(...)."""
+        out = expr
+        func_re = re.compile(r"\b(sin|cos|tan|asin|acos|atan|sqrt|SIN|COS|TAN|ASIN|ACOS|ATAN|SQRT)\[([^\[\]]+)\]")
+        max_iters = 50
+        for _ in range(max_iters):
+            new_out = func_re.sub(lambda m: f"{m.group(1)}({m.group(2)})", out)
+            if new_out == out:
+                break
+            out = new_out
+        return out
+
     def _eval_expression(self, expr: str, state: CNCState) -> float:
         expr = expr.strip()
-        # allow expressions like 10 or #500+5 or SIN(30)
-        # If the expression contains nested brackets evaluate them first so
-        # expressions like '2*[-1.73]' are reduced to '2*-1.73' before
-        # replacing variables and passing to the safe evaluator.
-        if "[" in expr and "]" in expr:
-            try:
-                expr = self._eval_and_replace_in_string(expr, state)
-            except Exception:
-                # fallback to original expr if replacement fails
-                pass
-        expr_py = self._replace_vars_in_expr(expr, state)
+        # Fanuc uses [ ] for math grouping because ( ) are for comments.
+        # Just convert them directly so Python eval handles nested operations seamlessly.
+        expr_py = expr.replace('[', '(').replace(']', ')')
+        expr_py = self._replace_vars_in_expr(expr_py, state)
         var_map = self._build_variable_map(state)
         return _safe_eval(expr_py, var_map)
 
@@ -179,10 +192,21 @@ class VariableHandler(Handler):
         # 1) variable assignment via node.variable_command (e.g. "#500=[10+5]" or "R500=...")
         vc = node.variable_command
         if vc:
-            # Split by space to handle multiple assignments like "R1=10 R2=20"
-            # The parser ensures assignments are space-separated and expressions have no spaces.
-            assignments = vc.strip().split()
-            
+            # We want to support space-separated multiple assignments (e.g., "R1=10 R2=20")
+            # as well as spaces within expressions (e.g., "#8 = #10 + 20").
+            # Therefore, we find all variables followed by an '=' to split assignments.
+            var_re = self._get_var_regex(state)
+            pattern = var_re.pattern
+            # Find all occurrences of the variable pattern immediately followed by '=' (with optional spaces).
+            # We use re.finditer to find boundaries of assignments.
+            assign_regex = re.compile(rf"({pattern})\s*=")
+            assignments = []
+            matches = list(assign_regex.finditer(vc))
+            for i, match in enumerate(matches):
+                start = match.start()
+                end = matches[i+1].start() if i + 1 < len(matches) else len(vc)
+                assignments.append(vc[start:end].strip())
+
             for assign in assignments:
                 if "=" in assign:
                     left, right = assign.split("=", 1)
@@ -207,6 +231,10 @@ class VariableHandler(Handler):
                             # we could raise a domain-specific exception with a log_route.
                             state.parameters[var_index] = 0.0
 
+        # Keep track of original values to restore them after downstream handlers
+        orig_command_parameter = None
+        orig_g_code = None
+
         # 2) replace bracketed expressions in command parameters
         if node.command_parameter:
             new_params: Dict[str, str] = {}
@@ -222,12 +250,22 @@ class VariableHandler(Handler):
                         new_v = val_str
                 else:
                     try:
-                        new_v = self._eval_and_replace_in_string(val_str, state)
+                        # Before checking brackets, see if the val_str is a variable or negative variable
+                        var_re = self._get_var_regex(state)
+                        if var_re.fullmatch(val_str) or (val_str.startswith("-") and var_re.fullmatch(val_str[1:])):
+                            expr_val = self._eval_expression(val_str, state)
+                            if float(expr_val).is_integer():
+                                new_v = str(int(expr_val))
+                            else:
+                                new_v = str(expr_val)
+                        else:
+                            new_v = self._eval_and_replace_in_string(val_str, state)
                     except Exception:
                         new_v = val_str
                 new_params[k] = new_v
             # mutate node parameters so downstream handlers see decoded values
             try:
+                orig_command_parameter = node._command_parameter
                 node._command_parameter = new_params
             except Exception:
                 # best-effort: if private attr is not present, ignore
@@ -243,14 +281,30 @@ class VariableHandler(Handler):
                     new_g = g
                 new_g_codes.add(new_g)
             try:
+                orig_g_code = node._g_code
                 node._g_code = new_g_codes
             except Exception:
                 pass
 
         # Delegate
+        result = None
         if self.next_handler is not None:
-            return self.next_handler.handle(node, state)
-        return None, None
+            result = self.next_handler.handle(node, state)
+            
+        # Restore original node attributes so repeated execution (loops) will re-evaluate them properly
+        if orig_command_parameter is not None:
+            try:
+                node._command_parameter = orig_command_parameter
+            except Exception:
+                pass
+                
+        if orig_g_code is not None:
+            try:
+                node._g_code = orig_g_code
+            except Exception:
+                pass
+
+        return result if result is not None else (None, None)
 
 
 __all__ = ["VariableHandler"]
