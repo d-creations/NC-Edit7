@@ -134,6 +134,7 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
     segments = []
     timing = []
     executed_lines = canal_output.get("programExec", [])
+    variables = canal_output.get("variables", {})
 
     plot_list = canal_output.get("plot", [])
 
@@ -167,7 +168,12 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         except Exception:
             timing.append(0.0)
 
-    return {"segments": segments, "executedLines": executed_lines, "variables": {}, "timing": timing}
+    return {
+        "segments": segments,
+        "executedLines": executed_lines,
+        "variables": variables if isinstance(variables, dict) else {},
+        "timing": timing,
+    }
 
 
 @app.get("/")

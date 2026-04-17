@@ -103,6 +103,34 @@ class NCExecutionEngine:
     def get_cacluated_runtime(self) -> float:
         return self.caclulatet_runtime
 
+    def _get_canal_state(self, canal_index: int) -> Optional[Any]:
+        try:
+            canals = getattr(self.cnc_control, "_canals", None)
+            if isinstance(canals, dict):
+                canal = canals.get(canal_index + 1)
+                if canal is not None:
+                    return getattr(canal, "_state", None)
+        except Exception:
+            pass
+        return None
+
+    def _get_canal_variables(self, canal_index: int) -> Dict[str, float]:
+        state = self._get_canal_state(canal_index)
+        if state is None:
+            return {}
+
+        parameters = getattr(state, "parameters", None)
+        if not isinstance(parameters, dict):
+            return {}
+
+        variables: Dict[str, float] = {}
+        for key, value in parameters.items():
+            try:
+                variables[str(key)] = float(value)
+            except Exception:
+                continue
+        return variables
+
     def _ensure_parser(self):
         # Ensure a parser is registered (same strategy as cli.bootstrap)
         if registry.get("parser", "nc_command") is None:
@@ -297,6 +325,7 @@ class NCExecutionEngine:
                 "plot": lines,
                 "canalNr": self.cnc_control.get_canal_name(canal_index),
                 "programExec": linesExec,
+                "variables": self._get_canal_variables(canal_index),
             }
             canal_index += 1
             lines_list.append(canal)

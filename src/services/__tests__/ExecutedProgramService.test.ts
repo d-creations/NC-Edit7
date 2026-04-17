@@ -252,5 +252,34 @@ describe('ExecutedProgramService', () => {
         lineNumber: 4,
       });
     });
+
+    it('should parse variable snapshots from the backend response', async () => {
+      const mockResponse: PlotResponse = {
+        canal: {
+          '1': {
+            segments: [],
+            executedLines: [1],
+            variables: {
+              '1': 4.7,
+              '26': 3.1415,
+              '100': 1.005,
+            },
+            timing: [],
+          },
+        },
+      };
+
+      vi.mocked(mockBackend.requestPlot).mockResolvedValue(mockResponse);
+
+      const result = await service.executeProgram({
+        channelId: '1',
+        program: '#1=4.7\n#26=3.1415',
+        machineName: 'FANUC_T',
+      });
+
+      expect(result.variableSnapshot.get(1)).toBe(4.7);
+      expect(result.variableSnapshot.get(26)).toBe(3.1415);
+      expect(result.variableSnapshot.get(100)).toBe(1.005);
+    });
   });
 });

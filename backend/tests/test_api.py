@@ -45,6 +45,18 @@ def test_build_segments_preserves_all_plot_points():
     ]
 
 
+def test_build_segments_preserves_variable_snapshot():
+    canal_output = {
+        "programExec": [1, 2],
+        "plot": [],
+        "variables": {"1": 4.7, "100": 1.005},
+    }
+
+    converted = build_segments_from_engine_output(canal_output)
+
+    assert converted["variables"] == {"1": 4.7, "100": 1.005}
+
+
 def test_mock_parser_treats_h_as_incremental_c_rotation():
     result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
 

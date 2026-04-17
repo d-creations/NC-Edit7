@@ -72,6 +72,10 @@ export class NCVariableList extends HTMLElement {
         result: { variableSnapshot: Map<number, number> };
       };
       if (execData.channelId === this.channelId && execData.result?.variableSnapshot) {
+        if (execData.result.variableSnapshot.size === 0 && this.variables.size > 0) {
+          return;
+        }
+
         // Mark modified variables
         const oldVariables = new Map(this.variables);
         this.variables = execData.result.variableSnapshot;
