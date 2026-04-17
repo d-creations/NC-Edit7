@@ -254,6 +254,7 @@ export class ExecutedProgramService {
                 }
               }
 
+<<<<<<< HEAD
               // Create segments for each pair of points to ensure all intermediate points are rendered
               for (let i = 0; i < segment.points.length - 1; i++) {
                 const p1 = segment.points[i];
@@ -301,6 +302,30 @@ export class ExecutedProgramService {
                     });
                   }
                 }
+=======
+              const mappedPoints = segment.points.map((point) => ({
+                x: point.x,
+                y: point.y,
+                z: point.z,
+                lineNumber: segment.lineNumber,
+              }));
+
+              mappedPoints.forEach((point) => {
+                const pointKey = getPointKey(point.x, point.y, point.z);
+                if (!addedPoints.has(pointKey)) {
+                  addedPoints.add(pointKey);
+                  result.plotMetadata!.points.push(point);
+                }
+              });
+
+              for (let index = 0; index < mappedPoints.length - 1; index += 1) {
+                result.plotMetadata!.segments.push({
+                  startPoint: mappedPoints[index],
+                  endPoint: mappedPoints[index + 1],
+                  type: segmentType,
+                  toolNumber: segment.toolNumber,
+                });
+>>>>>>> ca27fcc (update plot C axis)
               }
             }
           });
