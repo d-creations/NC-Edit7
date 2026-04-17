@@ -5,7 +5,6 @@ This is the domain-located copy of the motion handler implementation.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from ncplot7py.domain.cnc_state import CNCState
@@ -50,8 +49,9 @@ class MotionHandler(Handler):
 
         # Resolve start and end positions using state.resolve_target
         start = state.axes.copy()
-        # build target spec from parameters: X,Y,Z or U,V,W for relative
-        target_spec: Dict[str, float] = {}
+        # Build absolute-axis targets separately from always-incremental axes.
+        absolute_target_spec: Dict[str, float] = {}
+        incremental_target_spec: Dict[str, float] = {}
         absolute_mode = True
         # check distance mode modal (G90/G91)
         dm = state.get_modal("distance")
@@ -61,22 +61,24 @@ class MotionHandler(Handler):
         for k, v in node.command_parameter.items():
             key = k.upper()
             if key in ("X", "Y", "Z", "A", "B", "C"):
-                target_spec[key] = _to_float(v)
-            elif key in ("U", "V", "W"):
-                # relative axis spec; treat as delta
-                # map UVW to XYZ
-                mapped = {"U": "X", "V": "Y", "W": "Z"}[key]
-                target_spec[mapped] = _to_float(v)
+                absolute_target_spec[key] = _to_float(v)
+            elif key in ("U", "V", "W", "H"):
+                # UVW are incremental XYZ moves and H is an incremental C move.
+                mapped = {"U": "X", "V": "Y", "W": "Z", "H": "C"}[key]
+                incremental_target_spec[mapped] = incremental_target_spec.get(mapped, 0.0) + _to_float(v)
             # I,J,K,R,F handled later
             # I,J,K,R,F handled later
 
         # Normalize incoming axis values according to cnc_state axis_units
         # (e.g. when X is interpreted as diameter the provided value should be
         # divided by 2 to obtain internal radius coordinates).
-        normalized_target_spec = state.normalize_target_spec(target_spec)
+        normalized_absolute_target_spec = state.normalize_target_spec(absolute_target_spec)
+        normalized_incremental_target_spec = state.normalize_target_spec(incremental_target_spec)
 
-        # get resolved absolute targets
-        resolved = state.resolve_target(normalized_target_spec, absolute=absolute_mode)
+        # get resolved absolute targets, then apply always-incremental axes
+        resolved = state.resolve_target(normalized_absolute_target_spec, absolute=absolute_mode)
+        for axis, delta in normalized_incremental_target_spec.items():
+            resolved[axis] = resolved.get(axis, state.get_axis(axis)) + delta
 
         # interpolation parameters
         params = {k.upper(): _to_float(v) for k, v in node.command_parameter.items()}
@@ -98,12 +100,15 @@ class MotionHandler(Handler):
         # (`ModalHandler`) earlier in the chain. MotionHandler should not
         # mutate modal state; it only consumes values from `state` to
         # compute durations.
-        return points, duration
+        return self._transform_points_for_plot(points, state), duration
 
     def _linear_interpolate(self, start: Dict[str, float], end: Dict[str, float], state: CNCState) -> Tuple[List[Point], float]:
-        # compute distance in XYZ space
+        # compute distance in XYZ space and include C-axis sweep as physical
+        # travel when the tool is offset from the rotary center.
         axes = ("X", "Y", "Z")
-        dist = state.compute_distance(start, end, axes=list(axes))
+        linear_dist = state.compute_distance(start, end, axes=list(axes))
+        rotary_dist = self._estimate_c_axis_travel(start, end, state)
+        dist = math.hypot(linear_dist, rotary_dist)
         if dist <= 0.0:
             # no motion
             p = Point(x=end.get("X", 0.0), y=end.get("Y", 0.0), z=end.get("Z", 0.0),
@@ -121,38 +126,7 @@ class MotionHandler(Handler):
         if eff_max_segment <= 0.0:
             eff_max_segment = float(self.max_segment)
         n = max(1, int(math.ceil(dist / eff_max_segment)))
-        # compute duration using feed rate. The state's `feed_rate` stores
-        # the raw F value which may be either "per minute" or "per
-        # revolution" depending on the feed mode. Convert to mm/s here.
-        feed = state.feed_rate or 1.0
-        # detect feed-per-revolution mode; FeedMode enum may be stored
-        # under state.extra['feed_mode'] either as Enum or its string value.
-        feed_mode = None
-        try:
-            feed_mode = getattr(state, "extra", {}).get("feed_mode", None)
-        except Exception:
-            feed_mode = None
-        # default: feed interpreted as mm/min
-        effective_feed_mm_per_min = float(feed)
-        try:
-            # try to import enum for a robust comparison; fall back to
-            # string compare if import fails.
-            from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group5_feed_mode import FeedMode
-
-            if feed_mode == FeedMode.FEED_PER_REV or feed_mode == FeedMode.FEED_PER_REV.value:
-                # convert mm/rev -> mm/min using spindle speed (rpm)
-                rpm = float(state.spindle_speed or 1.0)
-                effective_feed_mm_per_min = float(feed) * rpm
-        except Exception:
-            try:
-                if feed_mode == "FEED_PER_REV":
-                    rpm = float(state.spindle_speed or 1.0)
-                    effective_feed_mm_per_min = float(feed) * rpm
-            except Exception:
-                effective_feed_mm_per_min = float(feed)
-
-        # convert mm/min -> mm/s
-        feed_mm_s = effective_feed_mm_per_min / 60.0
+        feed_mm_s = self._get_feed_mm_s(state)
         duration = dist / feed_mm_s if feed_mm_s > 0 else 0.0
 
         points: List[Point] = []
@@ -165,9 +139,9 @@ class MotionHandler(Handler):
             x = start.get("X", 0.0) + (end.get("X", start.get("X", 0.0)) - start.get("X", 0.0)) * t
             y = start.get("Y", 0.0) + (end.get("Y", start.get("Y", 0.0)) - start.get("Y", 0.0)) * t
             z = start.get("Z", 0.0) + (end.get("Z", start.get("Z", 0.0)) - start.get("Z", 0.0)) * t
-            a = end.get("A", start.get("A", 0.0))
-            b = end.get("B", start.get("B", 0.0))
-            c = end.get("C", start.get("C", 0.0))
+            a = start.get("A", 0.0) + (end.get("A", start.get("A", 0.0)) - start.get("A", 0.0)) * t
+            b = start.get("B", 0.0) + (end.get("B", start.get("B", 0.0)) - start.get("B", 0.0)) * t
+            c = start.get("C", 0.0) + (end.get("C", start.get("C", 0.0)) - start.get("C", 0.0)) * t
             points.append(Point(x=x, y=y, z=z, a=a, b=b, c=c))
         return points, duration
 
@@ -274,6 +248,8 @@ class MotionHandler(Handler):
         da = _normalize_sweep(a0, a1, cw)
 
         arc_length = abs(da) * math.hypot(sx - cx, sy - cy)
+        rotary_dist = self._estimate_c_axis_travel(start, end, state)
+        motion_length = math.hypot(arc_length, rotary_dist)
         # n segments — allow per-state override like in linear interpolation
         try:
             eff_max_segment = float(getattr(state, "extra", {}).get("max_segment", self.max_segment) or self.max_segment)
@@ -281,7 +257,7 @@ class MotionHandler(Handler):
             eff_max_segment = float(self.max_segment)
         if eff_max_segment <= 0.0:
             eff_max_segment = float(self.max_segment)
-        n = max(2, int(math.ceil(arc_length / eff_max_segment)))
+        n = max(2, int(math.ceil(max(motion_length, arc_length) / eff_max_segment)))
         # Ensure a minimum angular resolution so small-radius arcs don't
         # look like corners. Allow callers to override desired degrees per
         # segment via state.extra['angle_per_segment_deg'] (smaller -> more
@@ -297,29 +273,8 @@ class MotionHandler(Handler):
             n = min_n_by_angle
 
         # duration using feed rate (see linear routine for comments)
-        feed = state.feed_rate or 1.0
-        feed_mode = None
-        try:
-            feed_mode = getattr(state, "extra", {}).get("feed_mode", None)
-        except Exception:
-            feed_mode = None
-
-        effective_feed_mm_per_min = float(feed)
-        try:
-            from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group5_feed_mode import FeedMode
-            if feed_mode == FeedMode.FEED_PER_REV or feed_mode == FeedMode.FEED_PER_REV.value:
-                rpm = float(state.spindle_speed or 1.0)
-                effective_feed_mm_per_min = float(feed) * rpm
-        except Exception:
-            try:
-                if feed_mode == "FEED_PER_REV":
-                    rpm = float(state.spindle_speed or 1.0)
-                    effective_feed_mm_per_min = float(feed) * rpm
-            except Exception:
-                effective_feed_mm_per_min = float(feed)
-
-        feed_mm_s = effective_feed_mm_per_min / 60.0
-        duration = arc_length / feed_mm_s if feed_mm_s > 0 else 0.0
+        feed_mm_s = self._get_feed_mm_s(state)
+        duration = motion_length / feed_mm_s if feed_mm_s > 0 else 0.0
 
         points: List[Point] = []
         # include explicit start point (theta = a0)
@@ -333,12 +288,69 @@ class MotionHandler(Handler):
             x = cx + math.cos(theta) * math.hypot(sx - cx, sy - cy)
             y = cy + math.sin(theta) * math.hypot(sx - cx, sy - cy)
             z = start.get("Z", 0.0) + (end.get("Z", start.get("Z", 0.0)) - start.get("Z", 0.0)) * t
-            a = end.get("A", start.get("A", 0.0))
-            b = end.get("B", start.get("B", 0.0))
-            c = end.get("C", start.get("C", 0.0))
+            a = start.get("A", 0.0) + (end.get("A", start.get("A", 0.0)) - start.get("A", 0.0)) * t
+            b = start.get("B", 0.0) + (end.get("B", start.get("B", 0.0)) - start.get("B", 0.0)) * t
+            c = start.get("C", 0.0) + (end.get("C", start.get("C", 0.0)) - start.get("C", 0.0)) * t
             points.append(Point(x=x, y=y, z=z, a=a, b=b, c=c))
 
         return points, duration
+
+    def _estimate_c_axis_travel(self, start: Dict[str, float], end: Dict[str, float], state: CNCState) -> float:
+        start_c = start.get("C", 0.0)
+        end_c = end.get("C", start_c)
+        if math.isclose(start_c, end_c, abs_tol=1e-9):
+            return 0.0
+
+        center_x, center_y = self._get_c_axis_center(state)
+        start_radius = math.hypot(start.get("X", 0.0) - center_x, start.get("Y", 0.0) - center_y)
+        end_radius = math.hypot(end.get("X", 0.0) - center_x, end.get("Y", 0.0) - center_y)
+        effective_radius = max(start_radius, end_radius)
+        if effective_radius <= 1e-9:
+            return 0.0
+        return abs(math.radians(end_c - start_c)) * effective_radius
+
+    def _transform_points_for_plot(self, points: List[Point], state: CNCState) -> List[Point]:
+        center_x, center_y = self._get_c_axis_center(state)
+        transformed: List[Point] = []
+        for point in points:
+            angle_rad = math.radians(point.c)
+            rel_x = point.x - center_x
+            rel_y = point.y - center_y
+            plot_x = center_x + rel_x * math.cos(angle_rad) - rel_y * math.sin(angle_rad)
+            plot_y = center_y + rel_x * math.sin(angle_rad) + rel_y * math.cos(angle_rad)
+            transformed.append(Point(x=plot_x, y=plot_y, z=point.z, a=point.a, b=point.b, c=point.c))
+        return transformed
+
+    def _get_c_axis_center(self, state: CNCState) -> Tuple[float, float]:
+        center = getattr(state, "extra", {}).get("c_axis_center", (0.0, 0.0))
+        if isinstance(center, (list, tuple)) and len(center) >= 2:
+            return float(center[0]), float(center[1])
+        return 0.0, 0.0
+
+    def _get_feed_mm_s(self, state: CNCState) -> float:
+        feed = state.feed_rate or 1.0
+        feed_mode = None
+        try:
+            feed_mode = getattr(state, "extra", {}).get("feed_mode", None)
+        except Exception:
+            feed_mode = None
+
+        effective_feed_mm_per_min = float(feed)
+        try:
+            from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group5_feed_mode import FeedMode
+
+            if feed_mode == FeedMode.FEED_PER_REV or feed_mode == FeedMode.FEED_PER_REV.value:
+                rpm = float(state.spindle_speed or 1.0)
+                effective_feed_mm_per_min = float(feed) * rpm
+        except Exception:
+            try:
+                if feed_mode == "FEED_PER_REV":
+                    rpm = float(state.spindle_speed or 1.0)
+                    effective_feed_mm_per_min = float(feed) * rpm
+            except Exception:
+                effective_feed_mm_per_min = float(feed)
+
+        return effective_feed_mm_per_min / 60.0
 
 
 __all__ = ["MotionHandler", "Point"]

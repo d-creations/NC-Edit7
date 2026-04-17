@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
+import math
 from typing import List, Dict, Any, Optional
 import re
 import traceback
@@ -142,17 +143,23 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         z = entry.get("z", [])
         t = entry.get("t", 0)
 
-        # Build start/end points (first and last)
         if len(x) == 0:
             continue
-        start = {"x": x[0], "y": y[0] if len(y) > 0 else None, "z": z[0] if len(z) > 0 else None}
-        end = {"x": x[-1], "y": y[-1] if len(y) > 0 else None, "z": z[-1] if len(z) > 0 else None}
+
+        points = []
+        point_count = max(len(x), len(y), len(z))
+        for point_idx in range(point_count):
+            points.append({
+                "x": x[point_idx] if point_idx < len(x) else None,
+                "y": y[point_idx] if point_idx < len(y) else None,
+                "z": z[point_idx] if point_idx < len(z) else None,
+            })
 
         seg = {
             "type": "RAPID" if (not t or float(t) == 0) else "LINEAR",
             "lineNumber": executed_lines[idx] if idx < len(executed_lines) else None,
             "toolNumber": 1,
-            "points": [start, end],
+            "points": points,
         }
         segments.append(seg)
         try:
@@ -247,47 +254,80 @@ def mock_parse_nc_program(program: str, machine_name: str) -> Dict[str, Any]:
     Copied from ncplot7py/scripts/cgiserver.cgi to ensure compatibility.
     """
     lines = [line.strip() for line in program.split('\n') if line.strip()]
-    
+
     # Generate mock plot segments
     segments = []
-    current_pos = {"x": 0, "y": 0, "z": 0}
+
+    # Track programmed coordinates separately from plotted world coordinates.
+    # C rotates the coordinate system around Z, so local X/Y stay unchanged
+    # while the plotted point is transformed by the current C angle.
+    current_local = {"x": 0.0, "y": 0.0, "z": 0.0, "c": 0.0}
+
+    def to_plot_point(local_pos: Dict[str, float]) -> Dict[str, float]:
+        angle_rad = math.radians(local_pos["c"])
+        x = local_pos["x"] * math.cos(angle_rad) - local_pos["y"] * math.sin(angle_rad)
+        y = local_pos["x"] * math.sin(angle_rad) + local_pos["y"] * math.cos(angle_rad)
+        return {"x": x, "y": y, "z": local_pos["z"]}
     
     for i, line in enumerate(lines):
         # Simple G-code parsing for demo
         if line.startswith('G0') or line.startswith('G1'):
-            # Extract coordinates
-            new_pos = current_pos.copy()
-            
+            # Extract coordinates in programmed space
+            new_local = current_local.copy()
+
             parts = line.split()
             for part in parts:
                 if part.startswith('X'):
                     try:
-                        new_pos['x'] = float(part[1:])
+                        new_local['x'] = float(part[1:])
                     except ValueError:
                         pass
                 elif part.startswith('Y'):
                     try:
-                        new_pos['y'] = float(part[1:])
+                        new_local['y'] = float(part[1:])
                     except ValueError:
                         pass
                 elif part.startswith('Z'):
                     try:
-                        new_pos['z'] = float(part[1:])
+                        new_local['z'] = float(part[1:])
                     except ValueError:
                         pass
-            
+                elif part.startswith('C'):
+                    try:
+                        new_local['c'] = float(part[1:])
+                    except ValueError:
+                        pass
+                elif part.startswith('H'):
+                    try:
+                        new_local['c'] += float(part[1:])
+                    except ValueError:
+                        pass
+
+            delta_c = new_local['c'] - current_local['c']
+            segment_count = 1
+            if abs(delta_c) > 1e-9:
+                segment_count = max(2, int(math.ceil(abs(delta_c) / 10.0)))
+
+            points = []
+            for step in range(segment_count + 1):
+                t = step / segment_count
+                interpolated_local = {
+                    'x': current_local['x'] + (new_local['x'] - current_local['x']) * t,
+                    'y': current_local['y'] + (new_local['y'] - current_local['y']) * t,
+                    'z': current_local['z'] + (new_local['z'] - current_local['z']) * t,
+                    'c': current_local['c'] + delta_c * t,
+                }
+                points.append(to_plot_point(interpolated_local))
+
             # Create segment
             segment = {
                 "type": "RAPID" if line.startswith('G0') else "LINEAR",
                 "lineNumber": i + 1,
                 "toolNumber": 1,
-                "points": [
-                    current_pos.copy(),
-                    new_pos.copy()
-                ]
+                "points": points,
             }
             segments.append(segment)
-            current_pos = new_pos
+            current_local = new_local
     
     return {
         "segments": segments,

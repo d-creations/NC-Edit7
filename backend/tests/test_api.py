@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from backend.main_import import app
+from backend.main_import import app, build_segments_from_engine_output, mock_parse_nc_program
 
 
 client = TestClient(app)
@@ -20,3 +20,37 @@ def test_post_machinedata_minimal():
     assert resp.status_code == 200
     j = resp.json()
     assert "success" in j
+
+
+def test_build_segments_preserves_all_plot_points():
+    canal_output = {
+        "programExec": [4],
+        "plot": [
+            {
+                "x": [0.0, 35.355, 50.0],
+                "y": [50.0, 35.355, 0.0],
+                "z": [0.0, 0.0, 0.0],
+                "t": 0.5,
+            }
+        ],
+    }
+
+    converted = build_segments_from_engine_output(canal_output)
+
+    assert len(converted["segments"]) == 1
+    assert converted["segments"][0]["points"] == [
+        {"x": 0.0, "y": 50.0, "z": 0.0},
+        {"x": 35.355, "y": 35.355, "z": 0.0},
+        {"x": 50.0, "y": 0.0, "z": 0.0},
+    ]
+
+
+def test_mock_parser_treats_h_as_incremental_c_rotation():
+    result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
+
+    last_segment = result["segments"][-1]
+    assert len(last_segment["points"]) > 2
+    assert last_segment["points"][0]["x"] == -50.0
+    assert last_segment["points"][0]["y"] == 0.0
+    assert round(last_segment["points"][-1]["x"], 6) == 0.0
+    assert round(last_segment["points"][-1]["y"], 6) == -50.0

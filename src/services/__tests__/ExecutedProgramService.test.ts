@@ -193,5 +193,64 @@ describe('ExecutedProgramService', () => {
       expect(result.plotMetadata?.segments[0].type).toBe('rapid');
       expect(result.plotMetadata?.segments[1].type).toBe('arc');
     });
+
+    it('should preserve interpolated points within a backend segment', async () => {
+      const mockResponse: PlotResponse = {
+        canal: {
+          '1': {
+            segments: [
+              {
+                type: 'LINEAR',
+                lineNumber: 4,
+                toolNumber: 1,
+                points: [
+                  { x: 0, y: 50, z: 0 },
+                  { x: 35.355, y: 35.355, z: 0 },
+                  { x: 50, y: 0, z: 0 },
+                ],
+              },
+            ],
+            executedLines: [4],
+            variables: {},
+            timing: [0.1],
+          },
+        },
+      };
+
+      vi.mocked(mockBackend.requestPlot).mockResolvedValue(mockResponse);
+
+      const result = await service.executeProgram({
+        channelId: '1',
+        program: 'G1 C180',
+        machineName: 'ISO_MILL',
+      });
+
+      expect(result.plotMetadata?.points).toHaveLength(3);
+      expect(result.plotMetadata?.segments).toHaveLength(2);
+      expect(result.plotMetadata?.segments[0].startPoint).toEqual({
+        x: 0,
+        y: 50,
+        z: 0,
+        lineNumber: 4,
+      });
+      expect(result.plotMetadata?.segments[0].endPoint).toEqual({
+        x: 35.355,
+        y: 35.355,
+        z: 0,
+        lineNumber: 4,
+      });
+      expect(result.plotMetadata?.segments[1].startPoint).toEqual({
+        x: 35.355,
+        y: 35.355,
+        z: 0,
+        lineNumber: 4,
+      });
+      expect(result.plotMetadata?.segments[1].endPoint).toEqual({
+        x: 50,
+        y: 0,
+        z: 0,
+        lineNumber: 4,
+      });
+    });
   });
 });
