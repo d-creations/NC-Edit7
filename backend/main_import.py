@@ -67,6 +67,17 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 
+
+def apply_turn_axis_defaults(states: List[Optional[Any]]) -> None:
+    for state in states:
+        if state is None:
+            continue
+        try:
+            if state.get_axis_unit("X").lower() == "radius":
+                state.set_axis_unit("X", "diameter")
+        except Exception:
+            continue
+
 # Serve frontend static files (production build) if available.
 from pathlib import Path
 import os
@@ -485,6 +496,9 @@ async def cgiserver_import(request: Request):
     # If no machine specified, default to Siemens mill for ISO compatibility
     if not first_machine:
         is_siemens_mill = True
+
+    if not is_siemens_mill:
+        apply_turn_axis_defaults(init_states)
 
     # Create a control that can handle multiple canals and run the engine.
     engine_output = None

@@ -145,27 +145,53 @@ class MotionHandler(Handler):
             points.append(Point(x=x, y=y, z=z, a=a, b=b, c=c))
         return points, duration
 
+    def _get_active_plane(self, state: CNCState) -> str:
+        plane = getattr(state, "extra", {}).get("g_group_16_plane", "X_Y")
+        if hasattr(plane, "value"):
+            plane = plane.value
+        plane_name = str(plane)
+        if plane_name.endswith("X_Z"):
+            return "X_Z"
+        if plane_name.endswith("Y_Z"):
+            return "Y_Z"
+        return "X_Y"
+
+    def _get_plane_spec(self, state: CNCState) -> Tuple[Tuple[str, str], Tuple[str, str], Dict[str, str]]:
+        plane = self._get_active_plane(state)
+        if plane == "X_Z":
+            # Use ordered axes (Z, X) so CW/CCW follows the positive-Y view
+            # convention used by G18/ZX plane arcs.
+            return ("X", "Z"), ("Z", "X"), {"X": "I", "Z": "K"}
+        if plane == "Y_Z":
+            return ("Y", "Z"), ("Y", "Z"), {"Y": "J", "Z": "K"}
+        return ("X", "Y"), ("X", "Y"), {"X": "I", "Y": "J"}
+
     def _circular_interpolate(self, start: Dict[str, float], end: Dict[str, float], params: Dict[str, float], state: CNCState, cw: bool) -> Tuple[List[Point], float]:
-        # Only implement XY-plane arcs for now (common case). Use I,J center offsets or R radius.
-        sx = start.get("X", 0.0)
-        sy = start.get("Y", 0.0)
-        ex = end.get("X", sx)
-        ey = end.get("Y", sy)
+        plane_axes, ordered_axes, center_letters = self._get_plane_spec(state)
+
+        start_plane = {axis: start.get(axis, 0.0) for axis in plane_axes}
+        end_plane = {axis: end.get(axis, start_plane[axis]) for axis in plane_axes}
+
+        start_u = start_plane[ordered_axes[0]]
+        start_v = start_plane[ordered_axes[1]]
+        end_u = end_plane[ordered_axes[0]]
+        end_v = end_plane[ordered_axes[1]]
 
         # center
-        if "I" in params or "J" in params:
-            ix = params.get("I", 0.0)
-            jy = params.get("J", 0.0)
-            cx = sx + ix
-            cy = sy + jy
+        if any(letter in params for letter in center_letters.values()):
+            center_by_axis = {}
+            for axis in plane_axes:
+                center_by_axis[axis] = start_plane[axis] + params.get(center_letters[axis], 0.0)
+            center_u = center_by_axis[ordered_axes[0]]
+            center_v = center_by_axis[ordered_axes[1]]
         elif "R" in params and params.get("R", 0.0) != 0.0:
             # derive center from radius — choose the smaller arc by default
             r = params.get("R", 0.0)
             # compute midpoint
-            mx = (sx + ex) / 2.0
-            my = (sy + ey) / 2.0
-            dx = ex - sx
-            dy = ey - sy
+            mx = (start_u + end_u) / 2.0
+            my = (start_v + end_v) / 2.0
+            dx = end_u - start_u
+            dy = end_v - start_v
             d2 = dx * dx + dy * dy
             if d2 == 0.0:
                 raise ValueError("Invalid arc with zero chord length")
@@ -180,8 +206,8 @@ class MotionHandler(Handler):
             # satisfy the direction. Compute sweep angles for both centers
             # and pick the best candidate.
             def sweep_for_center(cx_c, cy_c):
-                a0_c = math.atan2(sy - cy_c, sx - cx_c)
-                a1_c = math.atan2(ey - cy_c, ex - cx_c)
+                a0_c = math.atan2(start_v - cy_c, start_u - cx_c)
+                a1_c = math.atan2(end_v - cy_c, end_u - cx_c)
                 da_c = a1_c - a0_c
                 # normalize to [-pi, pi]
                 if da_c > math.pi:
@@ -201,22 +227,22 @@ class MotionHandler(Handler):
                 return (da_val < 0) if cw_flag else (da_val > 0)
 
             if matches_cw(da1, cw) and not matches_cw(da2, cw):
-                cx, cy = cx1, cy1
+                center_u, center_v = cx1, cy1
             elif matches_cw(da2, cw) and not matches_cw(da1, cw):
-                cx, cy = cx2, cy2
+                center_u, center_v = cx2, cy2
             else:
                 # both match or both don't — choose the smaller absolute sweep
                 if abs(da1) <= abs(da2):
-                    cx, cy = cx1, cy1
+                    center_u, center_v = cx1, cy1
                 else:
-                    cx, cy = cx2, cy2
+                    center_u, center_v = cx2, cy2
         else:
             # cannot compute arc center
             raise ValueError("Arc requires I/J or R parameter")
 
         # compute start and end angles
-        a0 = math.atan2(sy - cy, sx - cx)
-        a1 = math.atan2(ey - cy, ex - cx)
+        a0 = math.atan2(start_v - center_v, start_u - center_u)
+        a1 = math.atan2(end_v - center_v, end_u - center_u)
 
         # Robust sweep normalization:
         # - normalize difference into (-pi, pi]
@@ -247,7 +273,8 @@ class MotionHandler(Handler):
 
         da = _normalize_sweep(a0, a1, cw)
 
-        arc_length = abs(da) * math.hypot(sx - cx, sy - cy)
+        radius = math.hypot(start_u - center_u, start_v - center_v)
+        arc_length = abs(da) * radius
         rotary_dist = self._estimate_c_axis_travel(start, end, state)
         motion_length = math.hypot(arc_length, rotary_dist)
         # n segments — allow per-state override like in linear interpolation
@@ -277,17 +304,18 @@ class MotionHandler(Handler):
         duration = motion_length / feed_mm_s if feed_mm_s > 0 else 0.0
 
         points: List[Point] = []
-        # include explicit start point (theta = a0)
-        start_x = cx + math.cos(a0) * math.hypot(sx - cx, sy - cy)
-        start_y = cy + math.sin(a0) * math.hypot(sx - cx, sy - cy)
-        points.append(Point(x=start_x, y=start_y, z=start.get("Z", 0.0),
+        points.append(Point(x=start.get("X", 0.0), y=start.get("Y", 0.0), z=start.get("Z", 0.0),
                              a=start.get("A", 0.0), b=start.get("B", 0.0), c=start.get("C", 0.0)))
         for i in range(1, n + 1):
             t = i / n
             theta = a0 + da * t
-            x = cx + math.cos(theta) * math.hypot(sx - cx, sy - cy)
-            y = cy + math.sin(theta) * math.hypot(sx - cx, sy - cy)
-            z = start.get("Z", 0.0) + (end.get("Z", start.get("Z", 0.0)) - start.get("Z", 0.0)) * t
+            point_by_axis = {
+                ordered_axes[0]: center_u + math.cos(theta) * radius,
+                ordered_axes[1]: center_v + math.sin(theta) * radius,
+            }
+            x = point_by_axis.get("X", start.get("X", 0.0) + (end.get("X", start.get("X", 0.0)) - start.get("X", 0.0)) * t)
+            y = point_by_axis.get("Y", start.get("Y", 0.0) + (end.get("Y", start.get("Y", 0.0)) - start.get("Y", 0.0)) * t)
+            z = point_by_axis.get("Z", start.get("Z", 0.0) + (end.get("Z", start.get("Z", 0.0)) - start.get("Z", 0.0)) * t)
             a = start.get("A", 0.0) + (end.get("A", start.get("A", 0.0)) - start.get("A", 0.0)) * t
             b = start.get("B", 0.0) + (end.get("B", start.get("B", 0.0)) - start.get("B", 0.0)) * t
             c = start.get("C", 0.0) + (end.get("C", start.get("C", 0.0)) - start.get("C", 0.0)) * t
