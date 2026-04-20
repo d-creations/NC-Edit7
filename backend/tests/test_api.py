@@ -1,10 +1,15 @@
 from fastapi.testclient import TestClient
 <<<<<<< HEAD
+<<<<<<< HEAD
 from backend.main_import import app
 import os
 =======
 from backend.main_import import app, build_segments_from_engine_output, mock_parse_nc_program
 >>>>>>> ca27fcc (update plot C axis)
+=======
+from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
+from ncplot7py.domain.cnc_state import CNCState
+>>>>>>> 0c9b909 (update radius diameter Plot)
 
 
 client = TestClient(app)
@@ -88,3 +93,11 @@ def test_mock_parser_treats_h_as_incremental_c_rotation():
     assert last_segment["points"][0]["y"] == 0.0
     assert round(last_segment["points"][-1]["x"], 6) == 0.0
     assert round(last_segment["points"][-1]["y"], 6) == -50.0
+
+
+def test_apply_turn_axis_defaults_sets_x_to_diameter():
+    state = CNCState()
+
+    apply_turn_axis_defaults([state])
+
+    assert state.get_axis_unit("X") == "diameter"
