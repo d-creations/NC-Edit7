@@ -43,27 +43,68 @@ export class NCFileManager extends HTMLElement {
     this.files.forEach(file => {
         const item = document.createElement('div');
         item.className = `file-item ${file.id === this.activeFileId ? 'active' : ''}`;
-        item.textContent = file.name;
+        
+        const labelText = document.createElement('span');
+        labelText.textContent = file.name;
+        item.appendChild(labelText);
+        
         item.onclick = () => this.fileManager.selectFile(file.id);
         
+        // Double click to rename
+        item.ondblclick = (e) => {
+            e.stopPropagation();
+            const newName = prompt('Enter new file name:', file.name);
+            if (newName && newName !== file.name) {
+                this.fileManager.renameFile(file.id, newName);
+                this.refreshFiles();
+            }
+        };
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'action-btn';
+        renameBtn.textContent = '✎';
+        renameBtn.title = 'Rename File';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            const newName = prompt('Enter new file name:', file.name);
+            if (newName && newName !== file.name) {
+                this.fileManager.renameFile(file.id, newName);
+                this.refreshFiles();
+            }
+        };
+        
         const closeBtn = document.createElement('span');
-        closeBtn.className = 'close-btn';
+        closeBtn.className = 'action-btn';
         closeBtn.textContent = '×';
+        closeBtn.title = 'Close File';
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             this.fileManager.closeFile(file.id);
         };
         
-        item.appendChild(closeBtn);
+        const actionsPane = document.createElement('div');
+        actionsPane.style.display = 'flex';
+        actionsPane.style.gap = '4px';
+        actionsPane.style.marginLeft = '4px';
+        
+        actionsPane.appendChild(renameBtn);
+        actionsPane.appendChild(closeBtn);
+        
+        item.appendChild(actionsPane);
         list.appendChild(item);
     });
   }
 
   private setupEventListeners() {
+    const newBtn = this.shadowRoot?.getElementById('new-btn');
     const openBtn = this.shadowRoot?.getElementById('open-btn');
     const fileInput = this.shadowRoot?.getElementById('file-input') as HTMLInputElement;
     const multiCheck = this.shadowRoot?.getElementById('multi-channel-check') as HTMLInputElement;
     const channelSelect = this.shadowRoot?.getElementById('channel-select') as HTMLSelectElement;
+
+    newBtn?.addEventListener('click', () => {
+        this.fileManager.newFile("Untitled.mpf");
+    });
 
     openBtn?.addEventListener('click', () => {
         fileInput?.click();
@@ -131,12 +172,14 @@ export class NCFileManager extends HTMLElement {
         .file-item.active:hover {
             background: #0062a3;
         }
-        .close-btn {
+        .action-btn {
             font-weight: bold;
             font-size: 14px;
-            opacity: 0.7;
+            opacity: 0.5;
+            cursor: pointer;
+            padding: 0 2px;
         }
-        .close-btn:hover {
+        .action-btn:hover {
             opacity: 1;
         }
         button {
@@ -154,7 +197,8 @@ export class NCFileManager extends HTMLElement {
       </style>
       <div class="file-manager">
         <div class="toolbar">
-          <button id="open-btn">Open File</button>
+          <button id="new-btn" title="Create New File">New</button>
+          <button id="open-btn" title="Open File from Disk">Open File</button>
           <input type="file" id="file-input" style="display: none;" />
           <div class="options">
               <label><input type="checkbox" id="multi-channel-check"> Multi-Channel</label>

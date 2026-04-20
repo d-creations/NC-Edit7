@@ -71,10 +71,14 @@ export class NCChannelPane extends HTMLElement {
         overlay?.classList.remove('visible');
         sidebarToggle?.classList.remove('active');
         programsToggle?.classList.remove('active');
+        // Revert to default view (tools) when hiding on mobile or toggling off on desktop
+        keywordPanel.style.display = 'block';
+        toolsPanel.style.display = 'block';
+        programManager.style.display = 'none';
     };
 
     const toggleTools = () => {
-        if (sidebar?.classList.contains('visible') && sidebarToggle?.classList.contains('active')) {
+        if (sidebarToggle?.classList.contains('active')) {
             hideSidebar();
         } else {
             showSidebar('tools');
@@ -82,7 +86,7 @@ export class NCChannelPane extends HTMLElement {
     };
 
     const togglePrograms = () => {
-        if (sidebar?.classList.contains('visible') && programsToggle?.classList.contains('active')) {
+        if (programsToggle?.classList.contains('active')) {
             hideSidebar();
         } else {
             showSidebar('programs');

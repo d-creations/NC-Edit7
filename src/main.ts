@@ -46,7 +46,8 @@ async function bootstrap() {
       FILE_MANAGER_SERVICE_TOKEN,
       () => {
         const eventBus = registry.get(EVENT_BUS_TOKEN);
-        return new FileManagerService(eventBus);
+        const stateService = registry.get(STATE_SERVICE_TOKEN);
+        return new FileManagerService(eventBus, stateService);
       },
       ServiceScope.Singleton,
     );

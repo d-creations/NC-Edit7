@@ -166,6 +166,12 @@ export class NCToolpathPlot extends HTMLElement {
           gap: 4px;
           z-index: 10;
         }
+        #toggle-mobile-menu {
+          display: none;
+        }
+        #plot-menu-content {
+          display: contents;
+        }
         .zoom-controls {
           position: absolute;
           top: 40px;
@@ -215,73 +221,63 @@ export class NCToolpathPlot extends HTMLElement {
 
         /* Mobile Styles */
         @media (max-width: 768px) {
-          .plot-controls {
+          #toggle-mobile-menu {
+            display: block;
+            position: absolute;
             top: 8px;
             right: 8px;
+            z-index: 20;
+          }
+
+          #plot-menu-content {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 8px;
             left: 8px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            z-index: 20;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+          }
+
+          #plot-menu-content.show {
+            display: flex;
+          }
+
+          .plot-controls, .view-controls, .axis-controls, .zoom-controls {
+            position: static;
+            display: flex;
             flex-wrap: wrap;
             gap: 4px;
             justify-content: center;
+            width: 100%;
+          }
+
+          .zoom-controls {
+            flex-direction: row;
           }
 
           .plot-button {
             padding: 4px 6px;
             font-size: 11px;
-            min-width: auto;
             flex: 1;
-            max-width: calc(25% - 3px);
             min-height: 32px;
-          }
-
-          .view-controls {
-            top: 52px;
-            left: 8px;
-            right: 8px;
-            flex-wrap: wrap;
-            gap: 4px;
-            justify-content: center;
-          }
-
-          .view-controls .plot-button {
-            flex: 1;
-            max-width: calc(33.333% - 3px);
-            min-height: 32px;
-          }
-
-          .axis-controls {
-            top: 96px;
-            left: 8px;
-            right: 8px;
-            flex-wrap: wrap;
-            gap: 4px;
-            justify-content: center;
-          }
-
-          .axis-controls .plot-button {
-            flex: 1;
-            max-width: calc(33.333% - 3px);
-            min-height: 32px;
-          }
-
-          .zoom-controls {
-            top: 140px;
-            right: 8px;
-            left: 8px;
-            flex-direction: row;
-            gap: 4px;
-            justify-content: center;
           }
 
           .zoom-button {
-            width: 32px;
-            height: 32px;
             font-size: 16px;
             flex: 1;
-            max-width: calc(33.333% - 3px);
+            height: 32px;
+            max-width: auto;
           }
 
           .plot-info {
-            bottom: 78px;
+            bottom: 30px;
             left: 8px;
             right: 8px;
             text-align: center;
@@ -289,35 +285,34 @@ export class NCToolpathPlot extends HTMLElement {
           }
 
           .orbit-hint {
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            text-align: center;
-            font-size: 9px;
+            display: none; /* Hide orbit hint on mobile to save space */
           }
         }
       </style>
       <div id="plot-container">
-        <div class="plot-controls">
-          <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
-          <button class="plot-button" id="reset-camera">Reset View</button>
-          <button class="plot-button" id="toggle-axes">Axes</button>
-          <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
-        </div>
-        <div class="view-controls">
-          <button class="plot-button" id="view-xy">X-Y</button>
-          <button class="plot-button" id="view-xz">X-Z</button>
-          <button class="plot-button" id="view-yz">Y-Z</button>
-        </div>
-        <div class="axis-controls">
-          <button class="plot-button" id="rotate-x" title="Rotate around X axis">Rot X</button>
-          <button class="plot-button" id="rotate-y" title="Rotate around Y axis">Rot Y</button>
-          <button class="plot-button" id="rotate-z" title="Rotate around Z axis">Rot Z</button>
-        </div>
-        <div class="zoom-controls">
-          <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
-          <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
-          <button class="zoom-button" id="zoom-fit" title="Fit View">⊡</button>
+        <button class="plot-button" id="toggle-mobile-menu">☰ Plot Options ▼</button>
+        <div id="plot-menu-content">
+          <div class="plot-controls">
+            <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
+            <button class="plot-button" id="reset-camera">Reset View</button>
+            <button class="plot-button" id="toggle-axes">Axes</button>
+            <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
+          </div>
+          <div class="view-controls">
+            <button class="plot-button" id="view-xy">X-Y</button>
+            <button class="plot-button" id="view-xz">X-Z</button>
+            <button class="plot-button" id="view-yz">Y-Z</button>
+          </div>
+          <div class="axis-controls">
+            <button class="plot-button" id="rotate-x" title="Rotate around X axis">Rot X</button>
+            <button class="plot-button" id="rotate-y" title="Rotate around Y axis">Rot Y</button>
+            <button class="plot-button" id="rotate-z" title="Rotate around Z axis">Rot Z</button>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
+            <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
+            <button class="zoom-button" id="zoom-fit" title="Fit View">⊡</button>
+          </div>
         </div>
         <div class="plot-info">
           <div id="plot-status">No plot data</div>
@@ -361,6 +356,17 @@ export class NCToolpathPlot extends HTMLElement {
 
     const viewYZButton = this.shadowRoot?.getElementById('view-yz');
     viewYZButton?.addEventListener('click', () => this.setViewYZ());
+
+    const toggleMobileMenu = this.shadowRoot?.getElementById('toggle-mobile-menu');
+    const plotMenuContent = this.shadowRoot?.getElementById('plot-menu-content');
+    toggleMobileMenu?.addEventListener('click', () => {
+      plotMenuContent?.classList.toggle('show');
+      if (plotMenuContent?.classList.contains('show')) {
+        toggleMobileMenu.textContent = '☰ Plot Options ▲';
+      } else {
+        toggleMobileMenu.textContent = '☰ Plot Options ▼';
+      }
+    });
 
     const rotateXButton = this.shadowRoot?.getElementById('rotate-x');
     rotateXButton?.addEventListener('click', () => this.rotateAroundAxis('x'));

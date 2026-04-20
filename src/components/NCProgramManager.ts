@@ -81,6 +81,23 @@ export class NCProgramManager extends HTMLElement {
         nameSpan.textContent = prog.name;
         nameSpan.onclick = () => this.fileManager.setActiveProgram(this.channelId, prog.id);
         
+        const actionsPane = document.createElement('div');
+        actionsPane.style.display = 'flex';
+        actionsPane.style.gap = '4px';
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'close-btn'; // Reusing close-btn styles for simple icon button
+        renameBtn.textContent = '✎';
+        renameBtn.title = 'Rename Program';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            const newName = prompt('Enter new program name:', prog.name);
+            if (newName && newName !== prog.name) {
+                this.fileManager.renameProgram(prog.id, newName);
+                this.refreshPrograms();
+            }
+        };
+        
         const closeBtn = document.createElement('span');
         closeBtn.className = 'close-btn';
         closeBtn.textContent = '×';
@@ -90,14 +107,20 @@ export class NCProgramManager extends HTMLElement {
             this.fileManager.closeProgram(prog.id);
         };
         
+        actionsPane.appendChild(renameBtn);
+        actionsPane.appendChild(closeBtn);
+        
         item.appendChild(nameSpan);
-        item.appendChild(closeBtn);
+        item.appendChild(actionsPane);
         list.appendChild(item);
     });
   }
 
   private setupEventListeners() {
-    // Event listeners are now attached to elements in updateProgramList
+    const addBtn = this.shadowRoot?.getElementById('add-program-btn');
+    addBtn?.addEventListener('click', () => {
+        this.fileManager.newProgram(this.channelId, `New Program CH${this.channelId}`);
+    });
   }
 
   private render() {
@@ -169,8 +192,31 @@ export class NCProgramManager extends HTMLElement {
             font-style: italic;
             font-size: 12px;
         }
+        .header-actions {
+            display: flex;
+            align-items: center;
+        }
+        .add-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 3px;
+        }
+        .add-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
       </style>
-      <div class="header">Loaded Programs</div>
+      <div class="header" style="display: flex; justify-content: space-between;">
+        <span>Loaded Programs</span>
+        <div class="header-actions">
+          <button class="add-btn" id="add-program-btn" title="New Program">+</button>
+        </div>
+      </div>
       <div class="program-list" id="program-list"></div>
     `;
   }

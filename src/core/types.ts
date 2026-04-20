@@ -215,6 +215,7 @@ export interface NCFile {
   channels: string[];
   isMultiChannel: boolean;
   lastModified: number;
+  machineType?: MachineType | string;
 }
 
 export interface NCProgram {
