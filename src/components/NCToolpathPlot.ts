@@ -158,6 +158,14 @@ export class NCToolpathPlot extends HTMLElement {
           gap: 4px;
           z-index: 10;
         }
+        .axis-controls {
+          position: absolute;
+          top: 44px;
+          left: 8px;
+          display: flex;
+          gap: 4px;
+          z-index: 10;
+        }
         .zoom-controls {
           position: absolute;
           top: 40px;
@@ -240,8 +248,23 @@ export class NCToolpathPlot extends HTMLElement {
             min-height: 32px;
           }
 
-          .zoom-controls {
+          .axis-controls {
             top: 96px;
+            left: 8px;
+            right: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .axis-controls .plot-button {
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+            min-height: 32px;
+          }
+
+          .zoom-controls {
+            top: 140px;
             right: 8px;
             left: 8px;
             flex-direction: row;
@@ -258,7 +281,7 @@ export class NCToolpathPlot extends HTMLElement {
           }
 
           .plot-info {
-            bottom: 50px;
+            bottom: 78px;
             left: 8px;
             right: 8px;
             text-align: center;
@@ -285,6 +308,11 @@ export class NCToolpathPlot extends HTMLElement {
           <button class="plot-button" id="view-xy">X-Y</button>
           <button class="plot-button" id="view-xz">X-Z</button>
           <button class="plot-button" id="view-yz">Y-Z</button>
+        </div>
+        <div class="axis-controls">
+          <button class="plot-button" id="rotate-x" title="Rotate around X axis">Rot X</button>
+          <button class="plot-button" id="rotate-y" title="Rotate around Y axis">Rot Y</button>
+          <button class="plot-button" id="rotate-z" title="Rotate around Z axis">Rot Z</button>
         </div>
         <div class="zoom-controls">
           <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
@@ -333,6 +361,15 @@ export class NCToolpathPlot extends HTMLElement {
 
     const viewYZButton = this.shadowRoot?.getElementById('view-yz');
     viewYZButton?.addEventListener('click', () => this.setViewYZ());
+
+    const rotateXButton = this.shadowRoot?.getElementById('rotate-x');
+    rotateXButton?.addEventListener('click', () => this.rotateAroundAxis('x'));
+
+    const rotateYButton = this.shadowRoot?.getElementById('rotate-y');
+    rotateYButton?.addEventListener('click', () => this.rotateAroundAxis('y'));
+
+    const rotateZButton = this.shadowRoot?.getElementById('rotate-z');
+    rotateZButton?.addEventListener('click', () => this.rotateAroundAxis('z'));
   }
 
   private async plotNCCode(targetChannelId?: string) {
@@ -659,6 +696,29 @@ export class NCToolpathPlot extends HTMLElement {
       this.controls.target.z,
     );
     this.camera.up.set(0, 0, 1);
+    this.controls.update();
+  }
+
+  private rotateAroundAxis(axis: 'x' | 'y' | 'z') {
+    if (!this.camera || !this.controls) return;
+
+    const rotationAxis =
+      axis === 'x'
+        ? new THREE.Vector3(1, 0, 0)
+        : axis === 'y'
+          ? new THREE.Vector3(0, 1, 0)
+          : new THREE.Vector3(0, 0, 1);
+
+    const offset = this.camera.position.clone().sub(this.controls.target);
+    const up = this.camera.up.clone();
+    const rotationAngle = Math.PI / 12;
+
+    offset.applyAxisAngle(rotationAxis, rotationAngle);
+    up.applyAxisAngle(rotationAxis, rotationAngle);
+
+    this.camera.position.copy(this.controls.target).add(offset);
+    this.camera.up.copy(up.normalize());
+    this.camera.lookAt(this.controls.target);
     this.controls.update();
   }
 
