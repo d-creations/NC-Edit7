@@ -210,18 +210,6 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         z = entry.get("z", [])
         t = entry.get("t", 0)
 
-<<<<<<< HEAD
-        # Build all points
-        if len(x) == 0:
-            continue
-            
-        points = []
-        for i in range(len(x)):
-            px = x[i]
-            py = y[i] if i < len(y) else (y[-1] if len(y) > 0 else 0)
-            pz = z[i] if i < len(z) else (z[-1] if len(z) > 0 else 0)
-            points.append({"x": px, "y": py, "z": pz})
-=======
         if len(x) == 0:
             continue
 
@@ -229,15 +217,14 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         point_count = max(len(x), len(y), len(z))
         for point_idx in range(point_count):
             points.append({
-                "x": x[point_idx] if point_idx < len(x) else None,
-                "y": y[point_idx] if point_idx < len(y) else None,
-                "z": z[point_idx] if point_idx < len(z) else None,
+                "x": x[point_idx] if point_idx < len(x) else (x[-1] if len(x) > 0 else 0),
+                "y": y[point_idx] if point_idx < len(y) else (y[-1] if len(y) > 0 else 0),
+                "z": z[point_idx] if point_idx < len(z) else (z[-1] if len(z) > 0 else 0),
             })
->>>>>>> ca27fcc (update plot C axis)
 
         seg = {
             "type": "RAPID" if (not t or float(t) == 0) else "LINEAR",
-            "lineNumber": executed_lines[idx] if idx < len(executed_lines) else None,
+            "lineNumber": entry.get("lineNumber", executed_lines[idx] if idx < len(executed_lines) else None),
             "toolNumber": 1,
             "points": points,
         }

@@ -24,6 +24,15 @@ export class FileManagerService {
     return id ? this.programs.find(p => p.id === id) || null : null;
   }
 
+  public updateActiveProgramContent(channelId: string, content: string) {
+    const activeProgram = this.getActiveProgram(channelId);
+    if (!activeProgram) return;
+
+    activeProgram.content = content;
+    activeProgram.lastModified = Date.now();
+    this.saveToStorage();
+  }
+
   public setActiveProgram(channelId: string, programId: string) {
     const program = this.programs.find(p => p.id === programId && p.channelId === channelId);
     if (program) {

@@ -42,6 +42,14 @@ class TestNCCommandParser(unittest.TestCase):
         self.assertIn("COS", node.variable_command)
         self.assertEqual(node.command_parameter, {})
 
+    def test_fanuc_parenthesis_comment_is_ignored(self):
+        node = self.parser.parse("T0101(SR20 JII MODEL HEAD 1)")
+        self.assertEqual(node.command_parameter.get("T"), "0101")
+
+    def test_inline_macro_comment_is_ignored(self):
+        node = self.parser.parse("#501=0.2(SUREPAISSEUR DRESSAGE)")
+        self.assertEqual(node.variable_command, "#501=0.2")
+
 
 if __name__ == "__main__":
     unittest.main()

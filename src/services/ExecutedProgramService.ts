@@ -125,8 +125,9 @@ export class ExecutedProgramService {
     // We no longer strip () or {} here because the backend parser handles comments correctly.
     // Previously this was stripping brackets but leaving content, causing parsing errors.
 
-    // Server expects semicolons as line separators
-    return program.replace(/\n/g, ';');
+    // Do not replace with ';' if the backend already supports \n and \r\n,
+    // or at least handle \r to avoid double-splitting \r;
+    return program.replace(/\r?\n/g, '\n');
   }
 
   private parseExecutionResponse(
@@ -254,55 +255,6 @@ export class ExecutedProgramService {
                 }
               }
 
-<<<<<<< HEAD
-              // Create segments for each pair of points to ensure all intermediate points are rendered
-              for (let i = 0; i < segment.points.length - 1; i++) {
-                const p1 = segment.points[i];
-                const p2 = segment.points[i + 1];
-
-                result.plotMetadata!.segments.push({
-                  startPoint: {
-                    x: p1.x,
-                    y: p1.y,
-                    z: p1.z,
-                    lineNumber: segment.lineNumber,
-                  },
-                  endPoint: {
-                    x: p2.x,
-                    y: p2.y,
-                    z: p2.z,
-                    lineNumber: segment.lineNumber,
-                  },
-                  type: segmentType,
-                  toolNumber: segment.toolNumber,
-                });
-
-                // Add unique points to the points array
-                const p1Key = getPointKey(p1.x, p1.y, p1.z);
-                if (!addedPoints.has(p1Key)) {
-                  addedPoints.add(p1Key);
-                  result.plotMetadata!.points.push({
-                    x: p1.x,
-                    y: p1.y,
-                    z: p1.z,
-                    lineNumber: segment.lineNumber,
-                  });
-                }
-
-                // Ensure the very last point is added
-                if (i === segment.points.length - 2) {
-                  const p2Key = getPointKey(p2.x, p2.y, p2.z);
-                  if (!addedPoints.has(p2Key)) {
-                    addedPoints.add(p2Key);
-                    result.plotMetadata!.points.push({
-                      x: p2.x,
-                      y: p2.y,
-                      z: p2.z,
-                      lineNumber: segment.lineNumber,
-                    });
-                  }
-                }
-=======
               const mappedPoints = segment.points.map((point) => ({
                 x: point.x,
                 y: point.y,
@@ -324,8 +276,8 @@ export class ExecutedProgramService {
                   endPoint: mappedPoints[index + 1],
                   type: segmentType,
                   toolNumber: segment.toolNumber,
+                  channelId: canalNr as ChannelId,
                 });
->>>>>>> ca27fcc (update plot C axis)
               }
             }
           });

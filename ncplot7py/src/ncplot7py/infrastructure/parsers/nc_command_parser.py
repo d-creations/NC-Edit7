@@ -85,13 +85,10 @@ class NCCommandStringParser(BaseNCCommandParser):
         nc_line = re.sub(siemens_pattern, mask_match, nc_line, flags=re.IGNORECASE)
         # --- END SIEMENS/STRING MASKING ---
 
-        # remove comments (parentheses)
-        # We must remove the content inside parentheses too, otherwise it gets parsed as commands.
-        # e.g. T2100(BACK MILLING) -> T2100
-        # DISABLED: Siemens uses () for parameters (e.g. CYCLE800(...))
-        # nc_line = re.sub(r"\(.*?\)", "", nc_line)
-        # We should only remove comments if we are sure they are comments.
-        # For now, let the parser handle comments.
+        # Remove any remaining parenthesis blocks after Siemens keywords were masked.
+        # At this point, unmasked (...) content is treated as a comment for Fanuc/Star
+        # style programs such as T2100(BACK MILLING) or #501=0.2(FACE STOCK).
+        nc_line = re.sub(r"\([^)]*\)", "", nc_line)
 
         # remove spaces for initial trimming but keep some tokenization later
         nc_line = re.sub(" ", "", nc_line)

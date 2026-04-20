@@ -90,7 +90,7 @@ export class NCToolpathPlot extends HTMLElement {
     // Listen for cursor movement to highlight segments
     this.eventBus.subscribe(EVENT_NAMES.EDITOR_CURSOR_MOVED, (data: unknown) => {
       const cursorData = data as { channelId: string; lineNumber: number };
-      this.highlightSegment(cursorData.lineNumber);
+      this.highlightSegment(cursorData.channelId, cursorData.lineNumber);
     });
   }
 
@@ -379,6 +379,7 @@ export class NCToolpathPlot extends HTMLElement {
 
     try {
       this.isPlotting = true;
+      this.clearPlot();
       if (statusElement) {
         statusElement.textContent = 'Generating plot...';
       }
@@ -600,7 +601,7 @@ export class NCToolpathPlot extends HTMLElement {
     }
   }
 
-  private highlightSegment(lineNumber: number) {
+  private highlightSegment(channelId: string, lineNumber: number) {
     if (!this.scene || !this.currentPlotMetadata) return;
 
     // Remove previous highlight
@@ -612,7 +613,9 @@ export class NCToolpathPlot extends HTMLElement {
     // Find segments corresponding to this line number
     // We check endPoint.lineNumber as it represents the move to that point
     const segments = this.currentPlotMetadata.segments.filter(
-      (s) => s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber,
+      (s) =>
+        (!s.channelId || s.channelId === channelId) &&
+        (s.endPoint.lineNumber === lineNumber || s.startPoint.lineNumber === lineNumber),
     );
 
     if (segments.length === 0) return;

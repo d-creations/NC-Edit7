@@ -160,7 +160,7 @@ class NCExecutionEngine:
         """
         if program is None:
             return []
-        return [line for line in re.split(r"(?:;|\r\n|\n|\r)", program) if line and line.strip()]
+        return re.split(r"(?:;|\r\n|\n|\r)", program)
 
     def get_Syncro_plot(self, programs: List[str], synch: bool) -> List[Dict]:
         """Create the plot for the given NC `programs`.
@@ -196,19 +196,7 @@ class NCExecutionEngine:
         for program in programs:
             # Parse program into a list of command nodes
             node_list = []
-<<<<<<< HEAD
-            # Split by semicolon but preserve empty lines to maintain line numbering
-            # We assume the input program uses ';' as line separator or we handle it.
-            # If the input string comes from a file with newlines, we might need to handle that.
-            # But based on existing code `program.split(";")`, we stick to that but don't filter empty ones immediately for counting.
-            
-            # Split by semicolon or newline to handle both formats
-            # We normalize newlines to semicolons first
-            normalized_program = program.replace('\n', ';')
-            raw_lines = normalized_program.split(";")
-=======
             raw_lines = self._split_program_lines(program)
->>>>>>> eb9cfcb (fix error in while loop increase variable)
             for i, raw_line in enumerate(raw_lines):
                 # Skip empty lines for parsing, but 'i' (line number) increments naturally
                 if not raw_line.strip():
@@ -321,7 +309,11 @@ class NCExecutionEngine:
                         x.append(getattr(point, "x", None))
                         y.append(getattr(point, "y", None))
                         z.append(getattr(point, "z", None))
-                lines.append({"x": x, "y": y, "z": z, "t": t})
+                line_number = None
+                if canal_index < len(nodes) and len(nodes[canal_index]) > len(lines):
+                    line_number = getattr(nodes[canal_index][len(lines)], "nc_code_line_nr", None)
+
+                lines.append({"x": x, "y": y, "z": z, "t": t, "lineNumber": line_number})
                 try:
                     runtime += float(t)
                 except Exception:

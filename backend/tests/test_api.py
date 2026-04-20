@@ -1,15 +1,8 @@
 from fastapi.testclient import TestClient
-<<<<<<< HEAD
-<<<<<<< HEAD
-from backend.main_import import app
 import os
-=======
-from backend.main_import import app, build_segments_from_engine_output, mock_parse_nc_program
->>>>>>> ca27fcc (update plot C axis)
-=======
+
 from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
 from ncplot7py.domain.cnc_state import CNCState
->>>>>>> 0c9b909 (update radius diameter Plot)
 
 
 client = TestClient(app)
@@ -82,6 +75,25 @@ def test_build_segments_preserves_variable_snapshot():
     converted = build_segments_from_engine_output(canal_output)
 
     assert converted["variables"] == {"1": 4.7, "100": 1.005}
+
+
+def test_build_segments_prefers_explicit_plot_line_numbers():
+    canal_output = {
+        "programExec": [2],
+        "plot": [
+            {
+                "x": [0.0, 10.0],
+                "y": [0.0, 0.0],
+                "z": [0.0, 0.0],
+                "t": 0.1,
+                "lineNumber": 5,
+            }
+        ],
+    }
+
+    converted = build_segments_from_engine_output(canal_output)
+
+    assert converted["segments"][0]["lineNumber"] == 5
 
 
 def test_mock_parser_treats_h_as_incremental_c_rotation():

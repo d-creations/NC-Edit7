@@ -154,6 +154,7 @@ export interface PlotSegment {
   endPoint: PlotPoint;
   type: 'rapid' | 'feed' | 'arc';
   toolNumber?: number;
+  channelId?: ChannelId;
 }
 
 export interface ToolValue {

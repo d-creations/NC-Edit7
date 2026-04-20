@@ -4,7 +4,7 @@ import { ParserService } from '@services/ParserService';
 import { StateService } from '@services/StateService';
 import { FileManagerService } from '@services/FileManagerService';
 import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
-import type { ExecutedProgramResult, FaultDetail, NCProgram } from '@core/types';
+import type { ChannelId, ExecutedProgramResult, FaultDetail, NCProgram } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
@@ -19,7 +19,7 @@ export class NCCodePane extends HTMLElement {
   private stateService: StateService;
   private fileManager: FileManagerService;
   private eventBus: EventBus;
-  private channelId: string = '';
+  private channelId: ChannelId = '1';
   private resizeObserver?: ResizeObserver;
   private executedLineMarkers: number[] = [];
   private errorMarkers: number[] = [];
@@ -43,7 +43,7 @@ export class NCCodePane extends HTMLElement {
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
     if (name === 'channel-id') {
-      this.channelId = newValue;
+      this.channelId = newValue as ChannelId;
     }
   }
 
@@ -55,6 +55,7 @@ export class NCCodePane extends HTMLElement {
     const activeProgram = this.fileManager.getActiveProgram(this.channelId);
     if (activeProgram) {
         this.setValue(activeProgram.content);
+      this.stateService.updateChannel(this.channelId, { program: activeProgram.content });
     }
   }
 
@@ -102,8 +103,10 @@ export class NCCodePane extends HTMLElement {
       if (data.channelId === this.channelId) {
         if (data.program) {
           this.setValue(data.program.content);
+          this.stateService.updateChannel(this.channelId, { program: data.program.content });
         } else {
           this.setValue('');
+          this.stateService.updateChannel(this.channelId, { program: '' });
         }
       }
     });
@@ -293,6 +296,8 @@ G1 Z5`;
 
     this.editor.on('change', () => {
       const value = this.editor?.getValue() || '';
+      this.fileManager.updateActiveProgramContent(this.channelId, value);
+      this.stateService.updateChannel(this.channelId, { program: value });
       this.dispatchEvent(
         new CustomEvent('code-change', {
           detail: { channelId: this.channelId, code: value },
