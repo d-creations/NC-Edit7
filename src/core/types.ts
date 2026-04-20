@@ -154,6 +154,7 @@ export interface PlotSegment {
   endPoint: PlotPoint;
   type: 'rapid' | 'feed' | 'arc';
   toolNumber?: number;
+  channelId?: ChannelId;
 }
 
 export interface ToolValue {
@@ -205,4 +206,23 @@ export interface ServerMachineData {
 export interface ServerMachineListResponse {
   machines: ServerMachineData[];
   success?: boolean;
+}
+
+export interface NCFile {
+  id: string;
+  name: string;
+  content: string;
+  channels: string[];
+  isMultiChannel: boolean;
+  lastModified: number;
+  machineType?: MachineType | string;
+}
+
+export interface NCProgram {
+  id: string;
+  name: string;
+  content: string;
+  channelId: string;
+  sourceFileId: string;
+  lastModified: number;
 }

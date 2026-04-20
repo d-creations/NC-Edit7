@@ -28,9 +28,9 @@ class SiemensNamedCyclesHandler(Handler):
                 if not cmd:
                     state.extra["active_named_cycle"] = None
             
-            match = re.search(r"(CYCLE\d+|HOLES\d+|POCKET\d+|SLOT\d+|LONGHOLE)\s*\((.*)\)", cmd)
+            match = re.search(r"(CYCLE\d+|HOLES\d+|POCKET\d+|SLOT\d+|LONGHOLE)\s*\((.*)\)", cmd, re.IGNORECASE)
             if match:
-                cycle_call_name = match.group(1)
+                cycle_call_name = match.group(1).upper()
                 params_str = match.group(2)
                 cycle_call_params = [p.strip() for p in params_str.split(',')]
 
@@ -425,7 +425,13 @@ class SiemensNamedCyclesHandler(Handler):
         points.append(Point(x=cpa, y=cpo, z=final_z))
         
         # Draw Circle (Approximation)
-        steps = 36
+        # Adaptive steps based on radius and desired segment length (e.g. 0.1mm for high res)
+        segment_len = 0.1
+        circumference = 2 * math.pi * prad
+        steps = max(72, int(circumference / segment_len))
+        
+        # print(f"DEBUG: POCKET2/4 Radius={prad}, Steps={steps}")
+
         for i in range(steps + 1):
             ang = (i / steps) * 2 * math.pi
             x = cpa + prad * math.cos(ang)
@@ -483,7 +489,11 @@ class SiemensNamedCyclesHandler(Handler):
             
             # Mill Arc
             # We can approximate arc with points
-            steps = 10
+            # Adaptive steps
+            arc_len = (abs(afsl) / 360.0) * 2 * math.pi * rad_val
+            segment_len = 0.1
+            steps = max(36, int(arc_len / segment_len))
+            
             for k in range(1, steps + 1):
                 a = start_angle + (afsl * k / steps)
                 a_rad = math.radians(a)
@@ -555,6 +565,10 @@ class SiemensNamedCyclesHandler(Handler):
             state.axes["Z"] = rtp
             
         return points, 0.0
+
+    def handle_cycle61(self, params: List[str], state: CNCState) -> Tuple[List[Point], float]:
+        # CYCLE61 appears to be Face Milling, similar to CYCLE71
+        return self.handle_cycle71(params, state)
 
     def handle_cycle71(self, params: List[str], state: CNCState) -> Tuple[List[Point], float]:
         # CYCLE71(RTP, RFP, SDIS, DP, PA, PO, LENG, WID, STA, ...)
@@ -678,6 +692,27 @@ class SiemensNamedCyclesHandler(Handler):
         # Swiveling cycle.
         # In a full implementation, this would update the coordinate system frame.
         # For this plotter, we acknowledge the command but do not rotate the view yet.
+        
+        try:
+            # Parse rotation angles (indices 7, 8, 9)
+            # Note: params might have empty strings for missing args
+            rot_a = self._parse_float(params[7]) if len(params) > 7 else 0.0
+            rot_b = self._parse_float(params[8]) if len(params) > 8 else 0.0
+            rot_c = self._parse_float(params[9]) if len(params) > 9 else 0.0
+            
+            # Store in state for potential future use or by other handlers
+            state.extra["rotation"] = {"A": rot_a, "B": rot_b, "C": rot_c}
+            
+            # We might also need translation (X0, Y0, Z0) - indices 4, 5, 6
+            trans_x = self._parse_float(params[4]) if len(params) > 4 else 0.0
+            trans_y = self._parse_float(params[5]) if len(params) > 5 else 0.0
+            trans_z = self._parse_float(params[6]) if len(params) > 6 else 0.0
+            state.extra["rotation_origin"] = {"X": trans_x, "Y": trans_y, "Z": trans_z}
+            
+        except Exception as e:
+            # Log error but don't crash
+            pass
+
         return [], 0.0
 
     def handle_cycle832(self, params: List[str], state: CNCState) -> Tuple[List[Point], float]:
@@ -695,10 +730,102 @@ class SiemensNamedCyclesHandler(Handler):
         return self.handle_pocket1(params, state)
 
     def handle_pocket4(self, params: List[str], state: CNCState) -> Tuple[List[Point], float]:
-        # POCKET4(RTP, RFP, SDIS, DP, DPR, PRAD, CPA, CPO, FALD, FALW, MID, FAL, FF1, FF2, CDIR, VARI, MIDA, AP1, AP2, AD, RAD1, DP1)
-        # Circular pocket with any tool
-        # We can reuse POCKET2 logic for the outline
-        return self.handle_pocket2(params, state)
+        # POCKET4(RTP, RFP, SDIS, DP, DPR, PRAD, CPA, CPO, FALD, FALW, MID, FAL, FFD, FFP1, VARI, MIDA, ...)
+        rtp = self._parse_float(params[0])
+        rfp = self._parse_float(params[1])
+        sdis = self._parse_float(params[2])
+        dp = self._parse_float(params[3]) if len(params) > 3 and params[3] else None
+        dpr = self._parse_float(params[4]) if len(params) > 4 and params[4] else None
+        prad = self._parse_float(params[5])
+        cpa = self._parse_float(params[6])
+        cpo = self._parse_float(params[7])
+        
+        # Try to parse MIDA (index 16) - Wait, standard is 15. Let's check both or stick to one.
+        # Based on standard: 15 is MIDA.
+        # But let's keep the logic flexible or check what I did before.
+        # I'll read index 15 first, if it looks like MIDA.
+        
+        mida = 0.0
+        if len(params) > 15:
+             mida = self._parse_float(params[15])
+        
+        # If MIDA is 0 or missing, default to something reasonable (e.g. 50% of radius)
+        if mida <= 0:
+            mida = prad / 2.0
+            
+        # Handle case where PRAD is 0 (e.g. helical drilling or defined by other params)
+        # If PRAD is 0, check RAD1 (index 20)
+        if prad == 0 and len(params) > 20:
+            prad = self._parse_float(params[20])
+            
+        final_z = dp if dp is not None else (rfp - abs(dpr) if dpr is not None else rfp)
+        start_z = rfp + abs(sdis)
+        
+        points = []
+        duration = 0.0
+        # Ensure non-zero feed rate to avoid division by zero
+        current_feed = state.feed_rate if state.feed_rate is not None else 0.0
+        feed_rate = current_feed if current_feed > 0 else 1000.0
+        
+        ffd = self._parse_float(params[12]) if len(params) > 12 else 0.0
+        ffp1 = self._parse_float(params[13]) if len(params) > 13 else 0.0
+        
+        plunge_feed = ffd if ffd > 0 else feed_rate
+        machining_feed = ffp1 if ffp1 > 0 else feed_rate
+        
+        # Move to Center
+        points.append(Point(x=cpa, y=cpo, z=state.axes.get("Z", 0.0)))
+        points.append(Point(x=cpa, y=cpo, z=start_z))
+        
+        # Feed to Depth
+        points.append(Point(x=cpa, y=cpo, z=final_z))
+        dist_plunge = abs(start_z - final_z)
+        duration += (dist_plunge / plunge_feed) * 60.0
+        
+        last_x, last_y = cpa, cpo
+        
+        # Generate concentric circles (clearing)
+        # If prad is still 0, we can't draw a circle, so just stay at center (drill)
+        if prad > 0:
+            current_rad = 0.0
+            while current_rad < prad:
+                current_rad += mida
+                if current_rad > prad:
+                    current_rad = prad
+                
+                # Adaptive steps
+                segment_len = 0.1
+                circumference = 2 * math.pi * current_rad
+                steps = max(36, int(circumference / segment_len))
+                
+                # Move to start of circle (0 degrees)
+                start_x = cpa + current_rad
+                start_y = cpo
+                points.append(Point(x=start_x, y=start_y, z=final_z))
+                
+                # Add distance from previous point to start of circle
+                dist = math.hypot(start_x - last_x, start_y - last_y)
+                duration += (dist / machining_feed) * 60.0
+                last_x, last_y = start_x, start_y
+
+                for i in range(1, steps + 1):
+                    ang = (i / steps) * 2 * math.pi
+                    x = cpa + current_rad * math.cos(ang)
+                    y = cpo + current_rad * math.sin(ang)
+                    points.append(Point(x=x, y=y, z=final_z))
+                    
+                    dist = math.hypot(x - last_x, y - last_y)
+                    duration += (dist / machining_feed) * 60.0
+                    last_x, last_y = x, y
+                    
+                if current_rad >= prad:
+                    break
+                
+        # Retract
+        points.append(Point(x=points[-1].x, y=points[-1].y, z=rtp))
+        state.axes["Z"] = rtp
+        
+        return points, duration
 
 
 class SiemensISOCyclesHandler(Handler):

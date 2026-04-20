@@ -44,29 +44,23 @@ class ToolHandler(Handler):
                     # Fanuc Lathe: T0101 -> Tool 1, Offset 1. T2100 -> Tool 21, Offset 00.
                     # So first 2 digits are Tool, last 2 are Offset.
                     
-                    if t_val > max_t and "FANUC" in state.machine_config.control_type and t_val >= 100:
+                    # If the value is within range, good.
+                    is_valid = min_t <= t_val <= max_t
+                    
+                    if not is_valid and "FANUC" in state.machine_config.control_type and t_val >= 100:
                          # Try to interpret as TXXYY
                          potential_tool = t_val // 100
                          if min_t <= potential_tool <= max_t:
-                             # It's likely a TXXYY code.
-                             # Use potential_tool as the tool number for validation and state.
-                             # t_val = potential_tool # User requested NOT to change the value, just ignore error
-                             pass
-                    
-                    # If the value is within range, good.
-                    if not (min_t <= t_val <= max_t):
-                        # Check if we should ignore the error for Fanuc Star
-                        if "FANUC" in state.machine_config.control_type and t_val >= 100:
-                             # Assume it's a valid TXXYY code that we just don't validate strictly
-                             pass
-                        else:
-                            raise_nc_error(
-                                ExceptionTyps.NCCodeErrors, 
-                                200, 
-                                message=f"Tool number T{t_val} out of range ({min_t}-{max_t}) for {state.machine_config.name}", 
-                                value=t_str,
-                                line=getattr(node, 'nc_code_line_nr', 0) or 0,
-                            )
+                             is_valid = True
+
+                    if not is_valid:
+                        raise_nc_error(
+                            ExceptionTyps.NCCodeErrors, 
+                            200, 
+                            message=f"Tool number T{t_val} out of range ({min_t}-{max_t}) for {state.machine_config.name}", 
+                            value=t_str,
+                            line=getattr(node, 'nc_code_line_nr', 0) or 0,
+                        )
 
                 state.extra["current_tool_number"] = t_val
                 

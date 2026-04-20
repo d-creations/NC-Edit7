@@ -29,6 +29,23 @@ export class NCMachineSelector extends HTMLElement {
         this.updateOptions();
       }
     });
+
+    this.eventBus.subscribe(EVENT_NAMES.MACHINE_CHANGED, (data: { machine: MachineProfile }) => {
+        this.updateSelection(data.machine.machineName);
+    });
+
+    const currentState = this.stateService.getState();
+    if (currentState.globalMachine) {
+        this.updateSelection(currentState.globalMachine);
+    }
+  }
+
+  private updateSelection(machineName: string) {
+      if (!this.shadowRoot) return;
+      const selector = this.shadowRoot.getElementById('selector') as HTMLSelectElement;
+      if (selector) {
+          selector.value = machineName;
+      }
   }
 
   private render() {
@@ -68,6 +85,9 @@ export class NCMachineSelector extends HTMLElement {
     if (!selector) return;
 
     const machines = this.machineService.getMachines();
+    const currentState = this.stateService.getState();
+    const currentMachine = currentState.globalMachine;
+
     selector.innerHTML = '<option value="">Select Machine...</option>';
 
     machines.forEach((machine) => {
@@ -76,6 +96,10 @@ export class NCMachineSelector extends HTMLElement {
       option.textContent = machine.machineName;
       selector.appendChild(option);
     });
+
+    if (currentMachine) {
+        selector.value = currentMachine;
+    }
   }
 
   private attachEventListeners() {

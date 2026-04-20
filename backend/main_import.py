@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import json
 import logging
 import math
@@ -57,13 +58,67 @@ except Exception as e:
 
 app = FastAPI(title="ncplot7py-adapter-import")
 
+# Security: Trusted Host Middleware
+# Prevents Host Header attacks. In Azure, this should be set to your domain (e.g., "nc-edit7.azurewebsites.net").
+# For development, "*" is acceptable.
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=os.environ.get("ALLOWED_HOSTS", "*").split(",")
+)
+
+# Security: CORS
+# Restrict origins in production using ALLOWED_ORIGINS env var.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.environ.get("ALLOWED_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security: HTTP Headers
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Prevent MIME sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Clickjacking protection / iframe embedding
+    #
+    # Default: deny framing.
+    # If you need to embed this app in an <iframe>, set FRAME_ANCESTORS, e.g.:
+    #   FRAME_ANCESTORS="https://www.star-ncplot.com"
+    #
+    # Prefer CSP `frame-ancestors` (modern). X-Frame-Options does not support
+    # allowing specific external origins reliably across browsers.
+    frame_ancestors = os.environ.get("FRAME_ANCESTORS", "").strip()
+    if frame_ancestors:
+        new_fa = f"frame-ancestors {frame_ancestors};"
+        existing_csp = response.headers.get("Content-Security-Policy")
+        if existing_csp:
+            if "frame-ancestors" in existing_csp:
+                response.headers["Content-Security-Policy"] = re.sub(
+                    r"frame-ancestors[^;]*;?",
+                    new_fa,
+                    existing_csp,
+                    flags=re.IGNORECASE,
+                ).strip()
+            else:
+                response.headers["Content-Security-Policy"] = f"{existing_csp.rstrip()}; {new_fa}".strip()
+        else:
+            response.headers["Content-Security-Policy"] = new_fa
+
+        # Ensure we don't block framing via X-Frame-Options.
+        if "X-Frame-Options" in response.headers:
+            del response.headers["X-Frame-Options"]
+    else:
+        response.headers["X-Frame-Options"] = "DENY"
+    # Enable XSS protection in older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Enforce HTTPS (HSTS) - 1 year
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Referrer Policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 logging.basicConfig(level=logging.INFO)
 
@@ -162,14 +217,20 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         point_count = max(len(x), len(y), len(z))
         for point_idx in range(point_count):
             points.append({
+<<<<<<< HEAD
+                "x": x[point_idx] if point_idx < len(x) else (x[-1] if len(x) > 0 else 0),
+                "y": y[point_idx] if point_idx < len(y) else (y[-1] if len(y) > 0 else 0),
+                "z": z[point_idx] if point_idx < len(z) else (z[-1] if len(z) > 0 else 0),
+=======
                 "x": x[point_idx] if point_idx < len(x) else None,
                 "y": y[point_idx] if point_idx < len(y) else None,
                 "z": z[point_idx] if point_idx < len(z) else None,
+>>>>>>> origin/master
             })
 
         seg = {
             "type": "RAPID" if (not t or float(t) == 0) else "LINEAR",
-            "lineNumber": executed_lines[idx] if idx < len(executed_lines) else None,
+            "lineNumber": entry.get("lineNumber", executed_lines[idx] if idx < len(executed_lines) else None),
             "toolNumber": 1,
             "points": points,
         }
@@ -223,6 +284,8 @@ def sanitize_program(program: str) -> str:
     # Remove parenthetical comments (single-line)
     # DISABLED: Siemens uses () for parameters (e.g. CYCLE800(...))
     # program = re.sub(r"\(.*?\)", "", program)
+    # We should only remove comments if we are sure they are comments.
+    # For now, let the parser handle comments.
 
     def sanitize_subcmd(sub: str) -> str:
         parts = [p for p in sub.strip().split() if p != ""]

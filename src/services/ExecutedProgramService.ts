@@ -125,8 +125,9 @@ export class ExecutedProgramService {
     // We no longer strip () or {} here because the backend parser handles comments correctly.
     // Previously this was stripping brackets but leaving content, causing parsing errors.
 
-    // Server expects semicolons as line separators
-    return program.replace(/\n/g, ';');
+    // Do not replace with ';' if the backend already supports \n and \r\n,
+    // or at least handle \r to avoid double-splitting \r;
+    return program.replace(/\r?\n/g, '\n');
   }
 
   private parseExecutionResponse(
@@ -275,6 +276,10 @@ export class ExecutedProgramService {
                   endPoint: mappedPoints[index + 1],
                   type: segmentType,
                   toolNumber: segment.toolNumber,
+<<<<<<< HEAD
+                  channelId: canalNr as ChannelId,
+=======
+>>>>>>> origin/master
                 });
               }
             }

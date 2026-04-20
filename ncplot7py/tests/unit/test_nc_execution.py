@@ -54,6 +54,20 @@ class FakeControlError:
         raise RuntimeError("control failed")
 
 
+class _ParserNode:
+    def __init__(self, nr):
+        self.nc_code_line_nr = nr
+
+
+class FakeParser:
+    def __init__(self):
+        self.calls = []
+
+    def parse(self, raw_line, line_nr=None):
+        self.calls.append((raw_line, line_nr))
+        return _ParserNode(line_nr)
+
+
 class TestNCExecutionEngine(unittest.TestCase):
     def test_happy_path_returns_plot_structure(self):
         ctrl = FakeControlHappy()
@@ -92,6 +106,27 @@ class TestNCExecutionEngine(unittest.TestCase):
         self.assertEqual(canal, 1)
         self.assertEqual(len(parsed_nodes), 2)
 
+<<<<<<< HEAD
+    def test_blank_lines_are_preserved_for_line_numbering(self):
+        ctrl = FakeControlHappy()
+        engine = NCExecutionEngine(ctrl)
+        fake_parser = FakeParser()
+        engine._get_parser = lambda: fake_parser
+
+        programs = ["G1 X1 Y1 Z1\n\n(COMMENT)\nG1 X2 Y2 Z2"]
+        engine.get_Syncro_plot(programs, synch=False)
+
+        self.assertEqual(
+            fake_parser.calls,
+            [
+                ("G1 X1 Y1 Z1", 1),
+                ("(COMMENT)", 3),
+                ("G1 X2 Y2 Z2", 4),
+            ],
+        )
+
+=======
+>>>>>>> origin/master
 
 if __name__ == "__main__":
     unittest.main()

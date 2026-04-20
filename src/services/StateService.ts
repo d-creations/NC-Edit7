@@ -9,6 +9,8 @@ export interface AppState {
   activeMachine?: MachineProfile;
   globalMachine?: MachineType;
   uiSettings: UISettings;
+  activeFileId?: string | null;
+  activeProgramIds: Map<string, string>; // channelId -> programId
 }
 
 export interface UISettings {
@@ -22,11 +24,95 @@ export interface UISettings {
 
 export class StateService {
   private state: AppState;
+  private pastStates: string[] = [];
+  private futureStates: string[] = [];
+  private readonly MAX_HISTORY = 50;
+
   private eventBus: EventBus;
 
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
     this.state = this.getInitialState();
+    this.loadFromStorage();
+  }
+
+  private saveStateToHistory(): void {
+    // Stringify current state to save a snapshot
+    const snapshot = this.serializeState(this.state);
+    this.pastStates.push(snapshot);
+    if (this.pastStates.length > this.MAX_HISTORY) {
+      this.pastStates.shift();
+    }
+    this.futureStates = []; // clear future on new action
+  }
+
+  public undo(): void {
+    if (this.pastStates.length === 0) return;
+    const currentStateSnapshot = this.serializeState(this.state);
+    this.futureStates.push(currentStateSnapshot);
+    
+    const previousStateSnapshot = this.pastStates.pop()!;
+    this.state = this.deserializeState(previousStateSnapshot);
+    
+    this.persistState();
+    this.notifyStateRestored();
+  }
+
+  public redo(): void {
+    if (this.futureStates.length === 0) return;
+    const currentStateSnapshot = this.serializeState(this.state);
+    this.pastStates.push(currentStateSnapshot);
+    
+    const nextStateSnapshot = this.futureStates.pop()!;
+    this.state = this.deserializeState(nextStateSnapshot);
+    
+    this.persistState();
+    this.notifyStateRestored();
+  }
+
+  private notifyStateRestored(): void {
+    this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { state: this.state });
+    if (this.state.activeMachine) {
+        this.eventBus.publish(EVENT_NAMES.MACHINE_CHANGED, { machine: this.state.activeMachine });
+    }
+    // Fire other necessary updates here if needed
+  }
+
+  private persistState(): void {
+    try {
+      localStorage.setItem('nc-app-state', this.serializeState(this.state));
+    } catch(e) {
+      console.error("Failed to persist app state", e);
+    }
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const stored = localStorage.getItem('nc-app-state');
+      if (stored) {
+        this.state = { ...this.state, ...this.deserializeState(stored) };
+      }
+    } catch(e) {
+      console.error("Failed to load app state", e);
+    }
+  }
+
+  private serializeState(state: AppState): string {
+    // Map doesn't serialize natively, convert mappings
+    return JSON.stringify({
+      ...state,
+      channels: Array.from(state.channels.entries()),
+      activeProgramIds: Array.from(state.activeProgramIds.entries())
+    });
+  }
+
+  private deserializeState(jsonStr: string): AppState {
+    const raw = JSON.parse(jsonStr);
+    return {
+      ...raw,
+      channels: new Map(raw.channels),
+      activeProgramIds: new Map(raw.activeProgramIds || [])
+    };
   }
 
   private getInitialState(): AppState {
@@ -34,9 +120,10 @@ export class StateService {
       machines: [],
       channels: new Map([
         ['1', this.createChannelState('1')],
-        ['2', this.createChannelState('2')],
-        ['3', this.createChannelState('3')],
+        ['2', this.createChannelState('2', false)],
+        ['3', this.createChannelState('3', false)],
       ]),
+      activeProgramIds: new Map(),
       uiSettings: {
         timeGutterPosition: 'left',
         keywordListPosition: 'left',
@@ -48,10 +135,10 @@ export class StateService {
     };
   }
 
-  private createChannelState(id: ChannelId): ChannelState {
+  private createChannelState(id: ChannelId, active = true): ChannelState {
     return {
       id,
-      active: id === '1', // First channel active by default
+      active: active,
       program: '',
     };
   }
@@ -65,11 +152,13 @@ export class StateService {
   }
 
   updateChannel(id: ChannelId, updates: Partial<ChannelState>): void {
+    this.saveStateToHistory();
     const channel = this.state.channels.get(id);
     if (!channel) return;
 
     const updatedChannel = { ...channel, ...updates };
     this.state.channels.set(id, updatedChannel);
+    this.persistState();
     this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { channel: updatedChannel });
   }
 
@@ -91,24 +180,47 @@ export class StateService {
 
   setMachines(machines: MachineProfile[]): void {
     this.state.machines = machines;
+    this.persistState();
     this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { machines });
   }
 
   setGlobalMachine(machineType: MachineType): void {
+    this.saveStateToHistory();
     this.state.globalMachine = machineType;
     const machine = this.state.machines.find((m) => m.machineName === machineType);
     if (machine) {
       this.state.activeMachine = machine;
+      this.persistState();
       this.eventBus.publish(EVENT_NAMES.MACHINE_CHANGED, { machine });
     }
   }
 
   updateUISettings(settings: Partial<UISettings>): void {
+    this.saveStateToHistory();
     this.state.uiSettings = { ...this.state.uiSettings, ...settings };
+    this.persistState();
     this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { uiSettings: this.state.uiSettings });
   }
 
   getActiveChannels(): ChannelState[] {
     return Array.from(this.state.channels.values()).filter((ch) => ch.active);
+  }
+  
+  setActiveProgramId(channelId: string, programId: string): void {
+    this.saveStateToHistory();
+    this.state.activeProgramIds.set(channelId, programId);
+    this.persistState();
+    this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { activeProgramIds: this.state.activeProgramIds });
+  }
+
+  getActiveProgramId(channelId: string): string | undefined {
+    return this.state.activeProgramIds.get(channelId);
+  }
+
+  setActiveFileId(fileId: string | null): void {
+    this.saveStateToHistory();
+    this.state.activeFileId = fileId;
+    this.persistState();
+    this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { activeFileId: this.state.activeFileId });
   }
 }

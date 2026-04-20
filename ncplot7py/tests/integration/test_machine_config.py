@@ -16,7 +16,7 @@ class TestRefactoringVerification(unittest.TestCase):
         return nodes
 
     def test_siemens_variables_and_tools(self):
-        """Test Siemens 840D: R-parameters and Tool Range (100-9999)."""
+        """Test Siemens 840D: R-parameters and Tool Range (0-9999)."""
         control = StatefulSiemensMillControl()
         
         # 1. Valid R-parameter and Valid Tool
@@ -39,7 +39,7 @@ class TestRefactoringVerification(unittest.TestCase):
         self.assertIn("Tool number T10000 out of range", str(cm.exception))
 
     def test_fanuc_variables_and_tools(self):
-        """Test Fanuc Star: #-parameters and Tool Range (1-99)."""
+        """Test Fanuc Star: #-parameters and Tool Range (0-99)."""
         control = StatefulIsoTurnControl()
 
         # 1. Valid #-parameter and Valid Tool
@@ -51,19 +51,49 @@ class TestRefactoringVerification(unittest.TestCase):
         nodes = self._parse(code_valid)
         control.run_nc_code_list(nodes, 1)
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+        # 2. Invalid Tool (T10000 is out of range 0-99)
+        # T100 is valid (Tool 1, Offset 00)
+=======
         # 2. Valid Tool (T100 is supported for TXXYY emulation)
+>>>>>>> eb9cfcb (fix error in while loop increase variable)
+=======
+        # 2. Valid Tool (T100 is supported for TXXYY emulation)
+>>>>>>> origin/master
         code_invalid_tool = """
-        T100
+        T10000
         """
         nodes = self._parse(code_invalid_tool)
+<<<<<<< HEAD
+<<<<<<< HEAD
+        with self.assertRaises(NCError) as cm:
+            control.run_nc_code_list(nodes, 1)
+        self.assertIn("Tool number T10000 out of range", str(cm.exception))
+
+        # 3. Test T0101 (101) - Should be valid (Tool 1, Offset 1)
+=======
         control.run_nc_code_list(nodes, 1)
 
         # 3. Test T0101 (101) - Valid based on relaxation
+>>>>>>> eb9cfcb (fix error in while loop increase variable)
+=======
+        control.run_nc_code_list(nodes, 1)
+
+        # 3. Test T0101 (101) - Valid based on relaxation
+>>>>>>> origin/master
         code_t0101 = """
         T0101
         """
         nodes = self._parse(code_t0101)
         control.run_nc_code_list(nodes, 1)
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+=======
+>>>>>>> eb9cfcb (fix error in while loop increase variable)
+=======
+>>>>>>> origin/master
 
 
 if __name__ == '__main__':

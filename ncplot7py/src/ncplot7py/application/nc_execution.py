@@ -160,7 +160,11 @@ class NCExecutionEngine:
         """
         if program is None:
             return []
+<<<<<<< HEAD
+        return re.split(r"(?:;|\r\n|\n|\r)", program)
+=======
         return [line for line in re.split(r"(?:;|\r\n|\n|\r)", program) if line and line.strip()]
+>>>>>>> origin/master
 
     def get_Syncro_plot(self, programs: List[str], synch: bool) -> List[Dict]:
         """Create the plot for the given NC `programs`.
@@ -309,7 +313,11 @@ class NCExecutionEngine:
                         x.append(getattr(point, "x", None))
                         y.append(getattr(point, "y", None))
                         z.append(getattr(point, "z", None))
-                lines.append({"x": x, "y": y, "z": z, "t": t})
+                line_number = None
+                if canal_index < len(nodes) and len(nodes[canal_index]) > len(lines):
+                    line_number = getattr(nodes[canal_index][len(lines)], "nc_code_line_nr", None)
+
+                lines.append({"x": x, "y": y, "z": z, "t": t, "lineNumber": line_number})
                 try:
                     runtime += float(t)
                 except Exception:

@@ -1,9 +1,31 @@
 from fastapi.testclient import TestClient
+<<<<<<< HEAD
+import os
+
+=======
+>>>>>>> origin/master
 from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
 from ncplot7py.domain.cnc_state import CNCState
 
 
 client = TestClient(app)
+
+
+def test_security_headers_default_deny_framing():
+    os.environ.pop("FRAME_ANCESTORS", None)
+    resp = client.get("/")
+    assert resp.status_code in (200, 307)
+    assert resp.headers.get("X-Frame-Options") == "DENY"
+
+
+def test_security_headers_allow_iframe_with_frame_ancestors():
+    os.environ["FRAME_ANCESTORS"] = "https://www.star-ncplot.com"
+    resp = client.get("/")
+    assert resp.status_code in (200, 307)
+    assert "X-Frame-Options" not in resp.headers
+    csp = resp.headers.get("Content-Security-Policy", "")
+    assert "frame-ancestors" in csp.lower()
+    assert "https://www.star-ncplot.com" in csp
 
 
 def test_list_machines():
@@ -58,6 +80,28 @@ def test_build_segments_preserves_variable_snapshot():
     assert converted["variables"] == {"1": 4.7, "100": 1.005}
 
 
+<<<<<<< HEAD
+def test_build_segments_prefers_explicit_plot_line_numbers():
+    canal_output = {
+        "programExec": [2],
+        "plot": [
+            {
+                "x": [0.0, 10.0],
+                "y": [0.0, 0.0],
+                "z": [0.0, 0.0],
+                "t": 0.1,
+                "lineNumber": 5,
+            }
+        ],
+    }
+
+    converted = build_segments_from_engine_output(canal_output)
+
+    assert converted["segments"][0]["lineNumber"] == 5
+
+
+=======
+>>>>>>> origin/master
 def test_mock_parser_treats_h_as_incremental_c_rotation():
     result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
 
