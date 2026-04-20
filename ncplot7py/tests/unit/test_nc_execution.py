@@ -106,6 +106,7 @@ class TestNCExecutionEngine(unittest.TestCase):
         self.assertEqual(canal, 1)
         self.assertEqual(len(parsed_nodes), 2)
 
+<<<<<<< HEAD
     def test_blank_lines_are_preserved_for_line_numbering(self):
         ctrl = FakeControlHappy()
         engine = NCExecutionEngine(ctrl)
@@ -124,6 +125,8 @@ class TestNCExecutionEngine(unittest.TestCase):
             ],
         )
 
+=======
+>>>>>>> origin/master
 
 if __name__ == "__main__":
     unittest.main()

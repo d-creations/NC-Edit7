@@ -276,7 +276,10 @@ export class ExecutedProgramService {
                   endPoint: mappedPoints[index + 1],
                   type: segmentType,
                   toolNumber: segment.toolNumber,
+<<<<<<< HEAD
                   channelId: canalNr as ChannelId,
+=======
+>>>>>>> origin/master
                 });
               }
             }

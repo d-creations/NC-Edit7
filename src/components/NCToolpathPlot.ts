@@ -166,12 +166,15 @@ export class NCToolpathPlot extends HTMLElement {
           gap: 4px;
           z-index: 10;
         }
+<<<<<<< HEAD
         #toggle-mobile-menu {
           display: none;
         }
         #plot-menu-content {
           display: contents;
         }
+=======
+>>>>>>> origin/master
         .zoom-controls {
           position: absolute;
           top: 40px;
@@ -269,6 +272,48 @@ export class NCToolpathPlot extends HTMLElement {
             min-height: 32px;
           }
 
+<<<<<<< HEAD
+=======
+          .view-controls {
+            top: 52px;
+            left: 8px;
+            right: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .view-controls .plot-button {
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+            min-height: 32px;
+          }
+
+          .axis-controls {
+            top: 96px;
+            left: 8px;
+            right: 8px;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+          }
+
+          .axis-controls .plot-button {
+            flex: 1;
+            max-width: calc(33.333% - 3px);
+            min-height: 32px;
+          }
+
+          .zoom-controls {
+            top: 140px;
+            right: 8px;
+            left: 8px;
+            flex-direction: row;
+            gap: 4px;
+            justify-content: center;
+          }
+
+>>>>>>> origin/master
           .zoom-button {
             font-size: 16px;
             flex: 1;
@@ -277,7 +322,11 @@ export class NCToolpathPlot extends HTMLElement {
           }
 
           .plot-info {
+<<<<<<< HEAD
             bottom: 30px;
+=======
+            bottom: 78px;
+>>>>>>> origin/master
             left: 8px;
             right: 8px;
             text-align: center;
@@ -290,6 +339,7 @@ export class NCToolpathPlot extends HTMLElement {
         }
       </style>
       <div id="plot-container">
+<<<<<<< HEAD
         <button class="plot-button" id="toggle-mobile-menu">☰ Plot Options ▼</button>
         <div id="plot-menu-content">
           <div class="plot-controls">
@@ -313,6 +363,28 @@ export class NCToolpathPlot extends HTMLElement {
             <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
             <button class="zoom-button" id="zoom-fit" title="Fit View">⊡</button>
           </div>
+=======
+        <div class="plot-controls">
+          <button class="plot-button" id="clear-plot">🗑️ Clear Plot</button>
+          <button class="plot-button" id="reset-camera">Reset View</button>
+          <button class="plot-button" id="toggle-axes">Axes</button>
+          <button class="plot-button active" id="toggle-orbit">🔄 Orbit</button>
+        </div>
+        <div class="view-controls">
+          <button class="plot-button" id="view-xy">X-Y</button>
+          <button class="plot-button" id="view-xz">X-Z</button>
+          <button class="plot-button" id="view-yz">Y-Z</button>
+        </div>
+        <div class="axis-controls">
+          <button class="plot-button" id="rotate-x" title="Rotate around X axis">Rot X</button>
+          <button class="plot-button" id="rotate-y" title="Rotate around Y axis">Rot Y</button>
+          <button class="plot-button" id="rotate-z" title="Rotate around Z axis">Rot Z</button>
+        </div>
+        <div class="zoom-controls">
+          <button class="zoom-button" id="zoom-in" title="Zoom In">+</button>
+          <button class="zoom-button" id="zoom-out" title="Zoom Out">−</button>
+          <button class="zoom-button" id="zoom-fit" title="Fit View">⊡</button>
+>>>>>>> origin/master
         </div>
         <div class="plot-info">
           <div id="plot-status">No plot data</div>
@@ -357,6 +429,7 @@ export class NCToolpathPlot extends HTMLElement {
     const viewYZButton = this.shadowRoot?.getElementById('view-yz');
     viewYZButton?.addEventListener('click', () => this.setViewYZ());
 
+<<<<<<< HEAD
     const toggleMobileMenu = this.shadowRoot?.getElementById('toggle-mobile-menu');
     const plotMenuContent = this.shadowRoot?.getElementById('plot-menu-content');
     toggleMobileMenu?.addEventListener('click', () => {
@@ -368,6 +441,8 @@ export class NCToolpathPlot extends HTMLElement {
       }
     });
 
+=======
+>>>>>>> origin/master
     const rotateXButton = this.shadowRoot?.getElementById('rotate-x');
     rotateXButton?.addEventListener('click', () => this.rotateAroundAxis('x'));
 
