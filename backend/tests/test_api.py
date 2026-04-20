@@ -1,9 +1,6 @@
 from fastapi.testclient import TestClient
-<<<<<<< HEAD
 import os
 
-=======
->>>>>>> origin/master
 from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
 from ncplot7py.domain.cnc_state import CNCState
 
@@ -80,7 +77,6 @@ def test_build_segments_preserves_variable_snapshot():
     assert converted["variables"] == {"1": 4.7, "100": 1.005}
 
 
-<<<<<<< HEAD
 def test_build_segments_prefers_explicit_plot_line_numbers():
     canal_output = {
         "programExec": [2],
@@ -99,9 +95,6 @@ def test_build_segments_prefers_explicit_plot_line_numbers():
 
     assert converted["segments"][0]["lineNumber"] == 5
 
-
-=======
->>>>>>> origin/master
 def test_mock_parser_treats_h_as_incremental_c_rotation():
     result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
 

@@ -217,15 +217,9 @@ def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str,
         point_count = max(len(x), len(y), len(z))
         for point_idx in range(point_count):
             points.append({
-<<<<<<< HEAD
                 "x": x[point_idx] if point_idx < len(x) else (x[-1] if len(x) > 0 else 0),
                 "y": y[point_idx] if point_idx < len(y) else (y[-1] if len(y) > 0 else 0),
                 "z": z[point_idx] if point_idx < len(z) else (z[-1] if len(z) > 0 else 0),
-=======
-                "x": x[point_idx] if point_idx < len(x) else None,
-                "y": y[point_idx] if point_idx < len(y) else None,
-                "z": z[point_idx] if point_idx < len(z) else None,
->>>>>>> origin/master
             })
 
         seg = {
