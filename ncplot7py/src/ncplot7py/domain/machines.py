@@ -10,7 +10,13 @@ class MachineConfig:
     variable_prefix: str   # Prefix for variables, e.g. "#" or "R"
     tool_range: Tuple[int, int]
     default_plane: str = "G17"
-    default_feed_mode: str = "G94"
+    default_feed_mode: str = "FEED_PER_MIN"
+    a_axis_rollover: bool = False
+    b_axis_rollover: bool = False
+    c_axis_rollover: bool = False
+    a_axis_shortest_path: bool = False
+    b_axis_shortest_path: bool = False
+    c_axis_shortest_path: bool = False
 
 # --- Machine Definitions ---
 
@@ -21,7 +27,13 @@ FANUC_STAR_CONFIG = MachineConfig(
     variable_prefix="#",
     tool_range=(0, 99),
     default_plane="G18", # Lathe default
-    default_feed_mode="G95" # Feed/rev default
+    default_feed_mode="FEED_PER_REV", # Feed/rev default
+    a_axis_rollover=False,
+    b_axis_rollover=False,
+    c_axis_rollover=True,
+    a_axis_shortest_path=False,
+    b_axis_shortest_path=False,
+    c_axis_shortest_path=True
 )
 
 FANUC_GENERIC_CONFIG = MachineConfig(
@@ -30,8 +42,14 @@ FANUC_GENERIC_CONFIG = MachineConfig(
     variable_pattern=r"#(\d+)",
     variable_prefix="#",
     tool_range=(0, 9999),
-    default_plane="G17",
-    default_feed_mode="G94"
+    default_plane="G18",
+    default_feed_mode="FEED_PER_MIN",
+    a_axis_rollover=False,
+    b_axis_rollover=False,
+    c_axis_rollover=True,
+    a_axis_shortest_path=False,
+    b_axis_shortest_path=False,
+    c_axis_shortest_path=True
 )
 
 SIEMENS_840D_CONFIG = MachineConfig(
@@ -41,7 +59,13 @@ SIEMENS_840D_CONFIG = MachineConfig(
     variable_prefix="R",
     tool_range=(0, 9999),
     default_plane="G17",
-    default_feed_mode="G94"
+    default_feed_mode="FEED_PER_MIN",
+    a_axis_rollover=False,
+    b_axis_rollover=False,
+    c_axis_rollover=False,
+    a_axis_shortest_path=False,
+    b_axis_shortest_path=False,
+    c_axis_shortest_path=False
 )
 
 # Registry of configs

@@ -80,6 +80,10 @@ class CNCState:
     def __post_init__(self):
         if self.machine_config is None and FANUC_GENERIC_CONFIG is not None:
             self.machine_config = FANUC_GENERIC_CONFIG
+        
+        # Initialize default feed mode from machine config if not already set
+        if "feed_mode" not in self.extra and self.machine_config is not None:
+            self.extra["feed_mode"] = self.machine_config.default_feed_mode
 
     def clone(self) -> "CNCState":
         """Return a deep copy of the state for transactional updates."""
@@ -94,7 +98,20 @@ class CNCState:
         return self.axes.get(name, 0.0)
 
     def set_axis(self, name: AxisName, value: Numeric) -> None:
-        self.axes[name] = float(value)
+        val = float(value)
+        if name == "A" and getattr(self.machine_config, "a_axis_rollover", False):
+            val = val % 360.0
+            if val < 0:
+                val += 360.0
+        elif name == "B" and getattr(self.machine_config, "b_axis_rollover", False):
+            val = val % 360.0
+            if val < 0:
+                val += 360.0
+        elif name == "C" and getattr(self.machine_config, "c_axis_rollover", False):
+            val = val % 360.0
+            if val < 0:
+                val += 360.0
+        self.axes[name] = val
 
     def update_axes(self, updates: Dict[AxisName, Numeric]) -> None:
         for k, v in updates.items():
@@ -188,7 +205,32 @@ class CNCState:
             # start with current axes, then update with provided values
             for ax in set(list(self.axes.keys()) + list(target_spec.keys())):
                 if ax in target_spec:
-                    resolved[ax] = float(target_spec[ax])
+                    val = float(target_spec[ax])
+                    if ax == "A" and getattr(self.machine_config, "a_axis_shortest_path", False):
+                        current = self.get_axis(ax)
+                        delta = (val - current) % 360.0
+                        if delta > 180.0:
+                            delta -= 360.0
+                        elif delta < -180.0:
+                            delta += 360.0
+                        val = current + delta
+                    elif ax == "B" and getattr(self.machine_config, "b_axis_shortest_path", False):
+                        current = self.get_axis(ax)
+                        delta = (val - current) % 360.0
+                        if delta > 180.0:
+                            delta -= 360.0
+                        elif delta < -180.0:
+                            delta += 360.0
+                        val = current + delta
+                    elif ax == "C" and getattr(self.machine_config, "c_axis_shortest_path", False):
+                        current = self.get_axis(ax)
+                        delta = (val - current) % 360.0
+                        if delta > 180.0:
+                            delta -= 360.0
+                        elif delta < -180.0:
+                            delta += 360.0
+                        val = current + delta
+                    resolved[ax] = val
                 else:
                     resolved[ax] = self.get_axis(ax)
         else:

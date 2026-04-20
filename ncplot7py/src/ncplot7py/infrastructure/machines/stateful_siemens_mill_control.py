@@ -45,7 +45,7 @@ class StatefulSiemensMillCanal(BaseNCCanalInterface):
 
         # Default to G17 (XY Plane) and G94 (Feed/min)
         self._state.extra["g_group_16_plane"] = "X_Y"
-        self._state.extra["feed_mode"] = "FEED_PER_MIN"
+        self._state.extra["feed_mode"] = self._state.machine_config.default_feed_mode
         self._state.extra["siemens_mode"] = False  # Default to ISO mode
 
         # Build Chain
