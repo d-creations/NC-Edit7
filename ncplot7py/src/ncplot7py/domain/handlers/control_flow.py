@@ -176,6 +176,14 @@ class ControlFlowHandler(Handler):
                                 break
                             node._next_ncCode = target
                             break
+                else:
+                    # Condition false -> restore fallback pointer if previously modified
+                    if self._nodes is not None:
+                        try:
+                            idx = self._nodes.index(node)
+                            node._next_ncCode = self._nodes[idx + 1] if idx + 1 < len(self._nodes) else None
+                        except ValueError:
+                            pass
                 # whether true or false, stop processing IF
                 break
             elif token.startswith("GOTO"):
@@ -210,8 +218,8 @@ class ControlFlowHandler(Handler):
                             if end_node is not None:
                                 node._next_ncCode = getattr(end_node, "_next_ncCode", None)
                             break
-                # otherwise, continue into loop (no change)
-                break
+                # otherwise, continue into loop (no change, check next token)
+                continue
             elif token.startswith("DO"):
                 # DO may be a label or start of a counted loop. If the DO node
                 # provides parameter 'L' we treat it as a loop counter.

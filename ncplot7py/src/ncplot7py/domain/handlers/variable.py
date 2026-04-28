@@ -43,6 +43,39 @@ def _atan_deg(x: float) -> float:
     return math.degrees(math.atan(x))
 
 
+def _abs(x: float) -> float:
+    return abs(x)
+
+
+def _bin(x: float) -> float:
+    # BIN conversion is typically a no-op in simulation
+    return float(x)
+
+
+def _bcd(x: float) -> float:
+    # BCD conversion is typically a no-op in simulation
+    return float(x)
+
+
+def _round(x: float) -> float:
+    # Fanuc ROUND rounds 0.5 up
+    if x >= 0:
+        return math.floor(x + 0.5)
+    return math.ceil(x - 0.5)
+
+
+def _fix(x: float) -> float:
+    # Fanuc FIX discards fractional part (truncate toward 0)
+    return float(math.trunc(x))
+
+
+def _fup(x: float) -> float:
+    # Fanuc FUP rounds away from 0
+    if x >= 0:
+        return math.ceil(x)
+    return math.floor(x)
+
+
 _ALLOWED_FUNCS = {
     "sin": _sin_deg,
     "cos": _cos_deg,
@@ -51,6 +84,12 @@ _ALLOWED_FUNCS = {
     "acos": _acos_deg,
     "atan": _atan_deg,
     "sqrt": math.sqrt,
+    "abs": _abs,
+    "bin": _bin,
+    "bcd": _bcd,
+    "round": _round,
+    "fix": _fix,
+    "fup": _fup,
     "pi": math.pi,
     "SIN": _sin_deg,
     "COS": _cos_deg,
@@ -59,6 +98,12 @@ _ALLOWED_FUNCS = {
     "ACOS": _acos_deg,
     "ATAN": _atan_deg,
     "SQRT": math.sqrt,
+    "ABS": _abs,
+    "BIN": _bin,
+    "BCD": _bcd,
+    "ROUND": _round,
+    "FIX": _fix,
+    "FUP": _fup,
     "PI": math.pi,
 }
 
@@ -133,7 +178,7 @@ class VariableHandler(Handler):
     def _normalize_function_brackets(self, expr: str) -> str:
         """Convert Fanuc-style function calls FUNC[...] to FUNC(...)."""
         out = expr
-        func_re = re.compile(r"\b(sin|cos|tan|asin|acos|atan|sqrt|SIN|COS|TAN|ASIN|ACOS|ATAN|SQRT)\[([^\[\]]+)\]")
+        func_re = re.compile(r"\b(sin|cos|tan|asin|acos|atan|sqrt|abs|bin|bcd|round|fix|fup|SIN|COS|TAN|ASIN|ACOS|ATAN|SQRT|ABS|BIN|BCD|ROUND|FIX|FUP)\[([^\[\]]+)\]")
         max_iters = 50
         for _ in range(max_iters):
             new_out = func_re.sub(lambda m: f"{m.group(1)}({m.group(2)})", out)

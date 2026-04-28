@@ -101,7 +101,7 @@ class NCCommandStringParser(BaseNCCommandParser):
             nc_line = ""
 
         # Insert spaces before tokens so we can split
-        nc_line = re.sub(r"(SQRT|ASIN|ACOS|ATAN|SIN|COS|TAN|(?<![=\+\-\*\/\[])(?:__masked_|[A-Z,]))", r" \1", nc_line)
+        nc_line = re.sub(r"(SQRT|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|BIN|BCD|ROUND|FIX|FUP|(?<![=\+\-\*\/\[])(?:__masked_|[A-Z,]))", r" \1", nc_line)
         # quickfix for the behaviour in the original snippet
         nc_line = nc_line.replace(" SQRT", "SQRT")
         nc_line = nc_line.replace(" ASIN", "ASIN")
@@ -110,6 +110,12 @@ class NCCommandStringParser(BaseNCCommandParser):
         nc_line = nc_line.replace(" SIN", "SIN")
         nc_line = nc_line.replace(" COS", "COS")
         nc_line = nc_line.replace(" TAN", "TAN")
+        nc_line = nc_line.replace(" ABS", "ABS")
+        nc_line = nc_line.replace(" BIN", "BIN")
+        nc_line = nc_line.replace(" BCD", "BCD")
+        nc_line = nc_line.replace(" ROUND", "ROUND")
+        nc_line = nc_line.replace(" FIX", "FIX")
+        nc_line = nc_line.replace(" FUP", "FUP")
 
         codes = re.split(r"\s+", nc_line.strip()) if nc_line.strip() else []
 
