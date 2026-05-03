@@ -130,25 +130,36 @@ class ControlFlowHandler(Handler):
                     except Exception:
                         pass
                     return False
+                try:
+                    vf_lv = float(lv) if lv not in ("", None) else 0.0
+                    vf_rv = float(rv) if rv not in ("", None) else 0.0
+                except ValueError:
+                    vf_lv = 0.0
+                    vf_rv = 0.0
+
                 if op == "GT":
-                    result = float(lv) > float(rv)
+                    result = vf_lv > vf_rv
                     logger.debug("_is_true: %s GT %s -> %s", lv, rv, result)
                     return result
                 if op == "LT":
-                    result = float(lv) < float(rv)
+                    result = vf_lv < vf_rv
                     logger.debug("_is_true: %s LT %s -> %s", lv, rv, result)
                     return result
                 if op == "GE":
-                    result = float(lv) >= float(rv)
+                    result = vf_lv >= vf_rv
                     logger.debug("_is_true: %s GE %s -> %s", lv, rv, result)
                     return result
                 if op == "LE":
-                    result = float(lv) <= float(rv)
+                    result = vf_lv <= vf_rv
                     logger.debug("_is_true: %s LE %s -> %s", lv, rv, result)
                     return result
                 if op == "EQ":
-                    result = float(lv) == float(rv)
+                    result = vf_lv == vf_rv
                     logger.debug("_is_true: %s EQ %s -> %s", lv, rv, result)
+                    return result
+                if op == "NE":
+                    result = vf_lv != vf_rv
+                    logger.debug("_is_true: %s NE %s -> %s", lv, rv, result)
                     return result
         return False
 

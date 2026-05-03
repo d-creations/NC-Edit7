@@ -56,6 +56,10 @@ class NCCommandStringParser(BaseNCCommandParser):
 
         # 1. Mask Strings (e.g. T="TOOL")
         nc_line = re.sub(r'"[^"]*"', mask_match, nc_command_string)
+
+        # 1.5 Strip ';' comments after strings have been masked
+        if ';' in nc_line:
+            nc_line = nc_line.split(';')[0]
         
         # 2. Mask Siemens Calls/Keywords
         # Keywords: CYCLE..., POCKET..., WORKPIECE, MCALL, REPEAT, MSG, HOLES..., SLOT..., LONGHOLE
@@ -77,8 +81,13 @@ class NCCommandStringParser(BaseNCCommandParser):
         # So there are no parentheses inside strings anymore.
         # So we can safely match balanced parentheses if we assume no nested function calls (which Siemens usually doesn't have in this context).
         
-        siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|HOLES\d+|SLOT\d+|LONGHOLE|WORKPIECE|MCALL|REPEAT|MSG)\b(?:\s*\([^)]*\))?"
-        
+        siemens_pattern = r"(?:\b|(?<=\d))(CYCLE\d+|POCKET\d+|HOLES\d+|SLOT\d+|LONGHOLE|WORKPIECE|MCALL|REPEAT|MSG|STOPRE|NEWCONF|COMPCAD|TRAFOOF|TRANS|FRAME|NULLPUNKT)\b(?:\s*\([^)]*\))?"
+        nc_line = re.sub(siemens_pattern, mask_match, nc_line, flags=re.IGNORECASE)
+
+        # Mask Siemens system variables e.g. $MA_COMPRESS_POS_TOL[X]
+        siemens_var_pattern = r"\$[A-Za-z0-9_]+(?:\[[^\]]*\])?"
+        nc_line = re.sub(siemens_var_pattern, mask_match, nc_line, flags=re.IGNORECASE)
+
         # If we have masked strings inside the parens, the regex `[^)]*` is fine because `)` inside a string is now hidden in `__masked_X__`.
         # BUT, if the mask token itself contains `)` (it shouldn't, it's `__masked_N__`), we are good.
         

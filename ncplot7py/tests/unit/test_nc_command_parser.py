@@ -48,6 +48,29 @@ class TestNCCommandParser(unittest.TestCase):
 
     def test_inline_macro_comment_is_ignored(self):
         node = self.parser.parse("#501=0.2(SUREPAISSEUR DRESSAGE)")
+        self.assertIn("#501=0.2", node.variable_command)
+
+    def test_siemens_multi_letter_commands(self):
+        node = self.parser.parse("NEWCONF\nCOMPCAD\nTRAFOOF")
+        self.assertEqual(node.command_parameter, {})
+        self.assertEqual(node.g_code, set())
+
+    def test_siemens_system_variables(self):
+        node = self.parser.parse("$MA_COMPRESS_POS_TOL[X]=0.05")
+        self.assertIn("$MA_COMPRESS_POS_TOL[X]=0.05", node.variable_command)
+
+    def test_siemens_system_variables_to_R_parameter(self):
+        node = self.parser.parse("R10=$MA_COMPRESS_POS_TOL[X]")
+        self.assertIn("R10=$MA_COMPRESS_POS_TOL[X]", node.variable_command)
+
+    def test_inline_semicolon_comments_are_ignored(self):
+        node = self.parser.parse(";FRAME/NULLPUNKT==G54")
+        self.assertEqual(node.command_parameter, {})
+        self.assertEqual(node.g_code, set())
+        
+        node2 = self.parser.parse("T1 ; Fraeser Referenz=SPITZE")
+        self.assertEqual(node2.command_parameter.get("T"), "1")
+        self.assertNotIn("F", node2.command_parameter)
         self.assertEqual(node.variable_command, "#501=0.2")
 
 if __name__ == "__main__":
