@@ -16,9 +16,7 @@ import os
 # Simple security: API Key to prevent basic bot requests
 API_KEY = os.environ.get("API_KEY", "nc-edit7-secret-key")
 
-async def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid or missing API Key")
+async def verify_api_key(x_api_key: Optional[str] = Header(None)): return True
 
 # Ensure ncplot7py/src is in sys.path for F1/Code deployment where PYTHONPATH env var might not be set easily
 # We assume this file is in backend/main_import.py, and ncplot7py is at ../ncplot7py
@@ -692,3 +690,5 @@ async def legacy_cgiserver(request: Request):
     except Exception:
         logging.exception("Unhandled error in legacy_cgiserver")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+

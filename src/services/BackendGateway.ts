@@ -22,7 +22,8 @@ export class BackendGateway {
 
   constructor(config?: Partial<BackendConfig>) {
     this.config = {
-      baseUrl: '/ncplot7py/scripts/cgiserver.cgi',
+      baseUrl: 'http://127.0.0.1:8000/cgiserver_import', // Modified for Extension Backend
+      // baseUrl: '/ncplot7py/scripts/cgiserver.cgi',
       timeout: 30000,
       retries: 3,
       ...config,
@@ -131,3 +132,5 @@ export class BackendGateway {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
+
+

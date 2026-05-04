@@ -21,6 +21,7 @@ import { DiagnosticsService } from '@services/DiagnosticsService';
 import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { PlotService } from '@services/PlotService';
 import { FileManagerService } from '@services/FileManagerService';
+import { VsCodeFileManagerService } from '@services/VsCodeFileManagerService';
 import '@components/NCEditorApp';
 
 // Bootstrap application
@@ -47,7 +48,19 @@ async function bootstrap() {
       () => {
         const eventBus = registry.get(EVENT_BUS_TOKEN);
         const stateService = registry.get(STATE_SERVICE_TOKEN);
-        return new FileManagerService(eventBus, stateService);
+        
+        // CLEAN ARCHITECTURE: Detect if we are running inside VS Code / Theia
+        // If so, inject the VsCodeFileManagerService, otherwise fallback to the web FileManagerService
+        // @ts-ignore
+        const isVSCode = window.acquireVsCodeApi !== undefined || (window.parent && window.parent !== window);
+        
+        if (isVSCode) {
+            console.log("Running in Desktop/IDE Mode: Injecting VsCodeFileManagerService");
+            return new VsCodeFileManagerService(eventBus, stateService);
+        } else {
+            console.log("Running in Web Mode: Injecting standard FileManagerService");
+            return new FileManagerService(eventBus, stateService);
+        }
       },
       ServiceScope.Singleton,
     );

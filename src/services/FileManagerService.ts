@@ -2,7 +2,9 @@ import { EventBus } from './EventBus';
 import { NCFile, NCProgram } from '../core/types';
 import { StateService } from './StateService';
 
-export class FileManagerService {
+import { IFileManagerService } from './IFileManagerService';
+
+export class FileManagerService implements IFileManagerService {
   private files: NCFile[] = [];
   private programs: NCProgram[] = [];
 

@@ -1,1 +1,0 @@
-{"machinedata":[{"program":"G0 X0 Y0\nT=\"Mill 1\";Tool 1\nG98\nM8\nG0C0\nG1 X50 Y0 F200\nG1 X50 Y50\nG1 X0 Y50\nG1 C180","machineName":"ISO_MILL","canalNr":"1"}]}

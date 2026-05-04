@@ -2,7 +2,7 @@ import { ServiceRegistry } from '@core/ServiceRegistry';
 import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { ParserService } from '@services/ParserService';
 import { StateService } from '@services/StateService';
-import { FileManagerService } from '@services/FileManagerService';
+import { IFileManagerService } from '@services/IFileManagerService';
 import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
 import type { ChannelId, ExecutedProgramResult, FaultDetail, NCProgram } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
@@ -17,7 +17,7 @@ export class NCCodePane extends HTMLElement {
   private editor?: ace.Ace.Editor;
   private parserService: ParserService;
   private stateService: StateService;
-  private fileManager: FileManagerService;
+  private fileManager: IFileManagerService;
   private eventBus: EventBus;
   private channelId: ChannelId = '1';
   private resizeObserver?: ResizeObserver;

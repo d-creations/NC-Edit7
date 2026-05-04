@@ -1,0 +1,38 @@
+{
+  "name": "nc-edit7-desktop",
+  "version": "1.0.0",
+  "description": "NC-Edit7 Desktop App based on Eclipse Theia",
+  "main": "src-gen/frontend/electron-main.js",
+  "dependencies": {
+    "@theia/core": "latest",
+    "@theia/editor": "latest",
+    "@theia/filesystem": "latest",
+    "@theia/monaco": "latest",
+    "@theia/navigator": "latest",
+    "@theia/preferences": "latest",
+    "@theia/workspace": "latest",
+    "@theia/electron": "latest"
+  },
+  "devDependencies": {
+    "@theia/cli": "latest",
+    "electron": "39.8.7",
+    "electron-builder": "^24.6.4"
+  },
+  "scripts": {
+    "prepare": "theia build",
+    "start": "theia start",
+    "download:python": "node scripts/download-python.js",
+    "build:ext": "cd nc-edit7-extension && npm run compile",
+    "copy:ext": "node -e \"require('fs').mkdirSync('plugins', { recursive: true })\" && xcopy /E /I /Y nc-edit7-extension plugins\\nc-edit7-extension",
+    "build:electron": "npm run build:ext && npm run copy:ext && electron-builder"
+  },
+  "theiaPluginsDir": "plugins",
+  "theia": {
+    "target": "electron",
+    "frontend": {
+      "config": {
+        "applicationName": "NC-Edit7"
+      }
+    }
+  }
+}

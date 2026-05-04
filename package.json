@@ -12,7 +12,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "copy-ncplot7py": "node scripts/copy-ncplot7py.js"
+    "copy-ncplot7py": "node scripts/copy-ncplot7py.js",
+    "build:desktop": "npm run build && cd nc-edit7-desktop && npm run build:electron"
   },
   "dependencies": {
     "ace-builds": "^1.43.4",
@@ -23,6 +24,7 @@
     "@typescript-eslint/eslint-plugin": "^6.20.0",
     "@typescript-eslint/parser": "^6.20.0",
     "@vitest/ui": "^4.0.12",
+    "electron-builder": "^26.8.1",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
