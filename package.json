@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Multi-channel CNC NC code editor with plot interface",
   "type": "module",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run copy-ncplot7py",

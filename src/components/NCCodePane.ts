@@ -9,6 +9,7 @@ import type { ChannelId, ExecutedProgramResult, FaultDetail, NCProgram } from '@
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
 import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/ext-searchbox';
 
 // Mobile breakpoint - matches the media query in NCEditorApp.ts
 const MOBILE_BREAKPOINT = 768;
@@ -255,19 +256,6 @@ export class NCCodePane extends HTMLElement {
       editorElement.style.height = '100%';
     }
 
-    const demoProgram = `G0 X0 Y0
-T="Mill 1";Tool 1
-G98
-G1 X50 Y0 F200
-G1 X50 Y50
-G1 X0 Y50
-G1 X0 Y0
-G0 Z5
-G1 X25 Y25
-G1 Z0
-G1 X75 Y25
-G1 Z5`;
-
     this.editor = ace.edit(editorElement, {
       mode: 'ace/mode/text', // TODO: Custom NC mode
       theme: 'ace/theme/monokai',
@@ -276,7 +264,7 @@ G1 Z5`;
       showGutter: true,
       highlightActiveLine: true,
       readOnly: false,
-      value: demoProgram, // Demo program for Channel 1
+      value: "", // Start empty, let FileManager provide content
     });
 
     // Enable native scrolling and better mobile support
@@ -309,6 +297,7 @@ G1 Z5`;
     this.triggerParse();
 
     this.editor.on('change', () => {
+      if (this.isSettingValue) return;
       const value = this.editor?.getValue() || '';
       this.fileManager.updateActiveProgramContent(this.channelId, value);
       this.stateService.updateChannel(this.channelId, { program: value });
@@ -347,9 +336,13 @@ G1 Z5`;
     this.parserService.parse(value, this.channelId, { regexPatterns });
   }
 
+  private isSettingValue = false;
+
   setValue(code: string) {
     if (this.editor && this.editor.getValue() !== code) {
+      this.isSettingValue = true;
       this.editor.setValue(code, -1);
+      this.isSettingValue = false;
     }
   }
 
