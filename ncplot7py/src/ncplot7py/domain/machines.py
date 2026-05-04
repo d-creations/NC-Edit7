@@ -17,6 +17,8 @@ class MachineConfig:
     a_axis_shortest_path: bool = False
     b_axis_shortest_path: bool = False
     c_axis_shortest_path: bool = False
+    polar_interpolate_axis: str = "Y"
+    diameter_axes: Tuple[str, ...] = ()
 
 # --- Machine Definitions ---
 
@@ -33,7 +35,27 @@ FANUC_STAR_CONFIG = MachineConfig(
     c_axis_rollover=True,
     a_axis_shortest_path=False,
     b_axis_shortest_path=False,
-    c_axis_shortest_path=True
+    c_axis_shortest_path=True,
+    polar_interpolate_axis="Y",
+    diameter_axes=("X",)
+)
+
+FANUC_STAR_SR20_CONFIG = MachineConfig(
+    name="FANUC_STAR_SR20",
+    control_type="FANUC",
+    variable_pattern=r"#(\d+)",
+    variable_prefix="#",
+    tool_range=(0, 99),
+    default_plane="G18", # Lathe default
+    default_feed_mode="FEED_PER_REV", # Feed/rev default
+    a_axis_rollover=False,
+    b_axis_rollover=False,
+    c_axis_rollover=True,
+    a_axis_shortest_path=False,
+    b_axis_shortest_path=False,
+    c_axis_shortest_path=True,
+    polar_interpolate_axis="Y",
+    diameter_axes=("X", "Y")
 )
 
 FANUC_GENERIC_CONFIG = MachineConfig(
@@ -49,7 +71,8 @@ FANUC_GENERIC_CONFIG = MachineConfig(
     c_axis_rollover=True,
     a_axis_shortest_path=False,
     b_axis_shortest_path=False,
-    c_axis_shortest_path=True
+    c_axis_shortest_path=True,
+    polar_interpolate_axis="Y"
 )
 
 SIEMENS_840D_CONFIG = MachineConfig(
@@ -73,9 +96,14 @@ MACHINE_CONFIGS = {
     "FANUC_STAR": FANUC_STAR_CONFIG,
     "FANUC_GENERIC": FANUC_GENERIC_CONFIG,
     "SIEMENS_840D": SIEMENS_840D_CONFIG,
+    "FANUC_STAR_SR20": FANUC_STAR_SR20_CONFIG,
     # Aliases
     "ISO_MILL": SIEMENS_840D_CONFIG, # Assuming ISO Mill in this context is Siemens-like or Generic
     "FANUC_T": FANUC_STAR_CONFIG,
+    "SR20JII_F": FANUC_STAR_SR20_CONFIG,
+    "SR20JII_B": FANUC_STAR_SR20_CONFIG,
+    "SB12RG_F": FANUC_STAR_CONFIG,
+    "SB12RG_B": FANUC_STAR_CONFIG,
 }
 
 def get_machine_config(machine_name: str) -> MachineConfig:

@@ -12,17 +12,72 @@ import { NCFile, NCProgram } from '../core/types';
 export class VsCodeFileManagerService implements IFileManagerService {
     private baseManager: FileManagerService;
 
+    private vsCodeFileId: string | null = null;
+    private isInternalUpdate: boolean = false;
+
+    private lastMergedText: string = "";
+
     constructor(
         eventBus: EventBus,
         stateService: StateService
     ) {
         // We reuse the existing logic to manage memory maps and parsing
-        this.baseManager = new FileManagerService(eventBus, stateService);
+        // Turn OFF local storage sync for FileManagerService since VS Code manages document lifecycle
+        this.baseManager = new FileManagerService(eventBus, stateService, false);
         
         // Listen to VS Code
         window.addEventListener('vscode:file-opened', (event: any) => {
+            if (this.isInternalUpdate) return;
             const text = event.detail;
-            this.openFile(text, "VSCode_File", { parseMultiChannel: true });
+            const normalizedText = text.replace(/\r\n/g, '\n').trimEnd();
+            
+            // Skip bouncing backwards if VS Code is just validating the very changes we just pushed to it
+            if (this.lastMergedText && normalizedText === this.lastMergedText.replace(/\r\n/g, '\n').trimEnd()) {
+                return;
+            }
+            
+            // If we already have the IDE file opened, just update it in place instead of violently replacing the file.
+            if (this.vsCodeFileId) {
+                // Manually parse and update the active programs to prevent UI/Undo wiping
+                // Use a non-destructive broadcast if needed
+                // For safety vs complete file reset, if it's a completely external change (like an undo)
+                // we unfortunately have to push the new text in. By mapping it directly to active channels
+                // we avoid regenerating File/Program IDs.
+                
+                const activeFile = this.baseManager.getActiveFile();
+                if (activeFile && activeFile.id === this.vsCodeFileId) {
+                    let parsed: string[] = [];
+                    // Detect if the incoming text has our custom split tokens
+                    // Normalize CRLF to LF so we can reliably split the channels
+                    const normalizedText = text.replace(/\r\n/g, '\n');
+                    if (normalizedText.includes(';--- CHANNEL SPLIT ---')) {
+                        parsed = normalizedText.split('\n;--- CHANNEL SPLIT ---\n');
+                    } else {
+                        parsed = (this.baseManager as any).parseNCCode(normalizedText, { parseMultiChannel: true });
+                    }
+                    
+                    activeFile.content = normalizedText;
+                    activeFile.channels = parsed;
+                    
+                    parsed.forEach((channelContent: string, index: number) => {
+                        if (channelContent !== undefined && channelContent !== null) {
+                            const channelId = (index + 1).toString();
+                            const activeProgram = this.baseManager.getActiveProgram(channelId);
+                            if (activeProgram) {
+                                activeProgram.content = channelContent;
+                                // Emit change without throwing away the program
+                                eventBus.publish('program:content_changed', { channelId, program: activeProgram });
+                            }
+                        }
+                    });
+                    return;
+                }
+            }
+            
+            // First boot/file load
+            this.openFile(text, "VSCode_File", { parseMultiChannel: true }).then(file => {
+                this.vsCodeFileId = file.id;
+            });
         });
 
         // Watch for internal saves/changes to broadcast back to VS Code
@@ -47,6 +102,7 @@ export class VsCodeFileManagerService implements IFileManagerService {
             mergedText += '\n;--- CHANNEL SPLIT ---\n' + validPrograms[2];
         }
 
+        this.lastMergedText = mergedText;
         window.dispatchEvent(new CustomEvent('vscode:file-changed', { detail: mergedText }));
     }
 
@@ -57,7 +113,9 @@ export class VsCodeFileManagerService implements IFileManagerService {
     
     updateActiveProgramContent(channelId: string, content: string): void {
         this.baseManager.updateActiveProgramContent(channelId, content);
+        this.isInternalUpdate = true;
         this.syncToHost();
+        setTimeout(() => this.isInternalUpdate = false, 50);
     }
     
     setActiveProgram(channelId: string, programId: string): void { this.baseManager.setActiveProgram(channelId, programId); }

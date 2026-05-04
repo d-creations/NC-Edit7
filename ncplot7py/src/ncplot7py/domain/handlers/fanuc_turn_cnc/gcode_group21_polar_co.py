@@ -91,8 +91,12 @@ class GCodeGroup21PolarCoExecChainLink(Handler):
                     raw = 0.0
                 if polar_axis == "Y":
                     value = raw * ymul
+                    if state.is_axis_diameter("Y"):
+                        value *= 2.0
                 elif polar_axis == "X":
                     value = raw * xmul
+                    if state.is_axis_diameter("X"):
+                        value *= 2.0
                 else:
                     raise_nc_error(ExceptionTyps.NCCodeErrors, 111, message="Polar interpolation axis not recognised", value=polar_axis)
                 node.command_parameter[polar_axis] = str(value)
@@ -106,9 +110,13 @@ class GCodeGroup21PolarCoExecChainLink(Handler):
                     raw = 0.0
                 if polar_axis == "Y":
                     value = raw * ymul
+                    if state.is_axis_diameter("Y"):
+                        value *= 2.0
                     node.command_parameter["V"] = str(value)
                 elif polar_axis == "X":
                     value = raw * xmul
+                    if state.is_axis_diameter("X"):
+                        value *= 2.0
                     node.command_parameter["U"] = str(value)
                 else:
                     raise_nc_error(ExceptionTyps.NCCodeErrors, 111, message="Polar interpolation axis not recognised", value=polar_axis)

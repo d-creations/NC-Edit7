@@ -38,7 +38,10 @@ async function bootstrap() {
       STATE_SERVICE_TOKEN,
       () => {
         const eventBus = registry.get(EVENT_BUS_TOKEN);
-        return new StateService(eventBus);
+        // @ts-ignore
+        const isVSCode = window.acquireVsCodeApi !== undefined || (window.parent && window.parent !== window);
+        // Turn off local storage persistence for StateService in VS Code
+        return new StateService(eventBus, !isVSCode);
       },
       ServiceScope.Singleton,
     );

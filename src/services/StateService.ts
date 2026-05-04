@@ -30,10 +30,12 @@ export class StateService {
 
   private eventBus: EventBus;
 
-  constructor(eventBus: EventBus) {
+  constructor(eventBus: EventBus, private useLocalStorage: boolean = true) {
     this.eventBus = eventBus;
     this.state = this.getInitialState();
-    this.loadFromStorage();
+    if (this.useLocalStorage) {
+      this.loadFromStorage();
+    }
   }
 
   private saveStateToHistory(): void {
@@ -79,6 +81,7 @@ export class StateService {
   }
 
   private persistState(): void {
+    if (!this.useLocalStorage) return;
     try {
       localStorage.setItem('nc-app-state', this.serializeState(this.state));
     } catch(e) {

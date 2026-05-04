@@ -112,3 +112,11 @@ def test_apply_turn_axis_defaults_sets_x_to_diameter():
     apply_turn_axis_defaults([state])
 
     assert state.get_axis_unit("X") == "diameter"
+
+def test_apply_turn_axis_defaults_sets_y_to_diameter_for_sr20jii():
+    state = CNCState()
+
+    apply_turn_axis_defaults([state], "SR20JII_F")
+
+    assert state.get_axis_unit("X") == "diameter"
+    assert state.get_axis_unit("Y") == "diameter"

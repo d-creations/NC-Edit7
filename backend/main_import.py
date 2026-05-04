@@ -121,13 +121,17 @@ async def add_security_headers(request: Request, call_next):
 logging.basicConfig(level=logging.INFO)
 
 
-def apply_turn_axis_defaults(states: List[Optional[Any]]) -> None:
+def apply_turn_axis_defaults(states: List[Optional[Any]], machine_name: str = "") -> None:
+    from ncplot7py.domain.machines import get_machine_config
+    config = get_machine_config(machine_name)
+    
     for state in states:
         if state is None:
             continue
         try:
-            if state.get_axis_unit("X").lower() == "radius":
-                state.set_axis_unit("X", "diameter")
+            for axis in config.diameter_axes:
+                if state.get_axis_unit(axis).lower() == "radius":
+                    state.set_axis_unit(axis, "diameter")
         except Exception:
             continue
 
@@ -553,7 +557,7 @@ async def cgiserver_import(request: Request):
         is_siemens_mill = True
 
     if not is_siemens_mill:
-        apply_turn_axis_defaults(init_states)
+        apply_turn_axis_defaults(init_states, first_machine)
 
     # Create a control that can handle multiple canals and run the engine.
     engine_output = None

@@ -140,13 +140,16 @@ private isUpdatingDocument = false;
 
 	private async updateTextDocument(document: vscode.TextDocument, mergedText: string) {
                 const currentText = document.getText().replace(/\r\n/g, '\n').trimEnd();
-                const newText = mergedText.replace(/\r\n/g, '\n').trimEnd();                if (currentText === newText) { return; }                this.isUpdatingDocument = true;
+                const newText = mergedText.replace(/\r\n/g, '\n').trimEnd();
+                if (currentText === newText) { return; }
+                this.isUpdatingDocument = true;
                 const edit = new vscode.WorkspaceEdit();
-                edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 999999), mergedText);
+                const lastLine = document.lineAt(document.lineCount - 1);
+                const fullRange = new vscode.Range(0, 0, document.lineCount - 1, lastLine.text.length);
+                edit.replace(document.uri, fullRange, mergedText);
                 await vscode.workspace.applyEdit(edit);
                 this.isUpdatingDocument = false;
         }
-
-
 }
+
 

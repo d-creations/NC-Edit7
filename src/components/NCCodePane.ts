@@ -110,6 +110,20 @@ export class NCCodePane extends HTMLElement {
         }
       }
     });
+
+    this.eventBus.subscribe('program:content_changed', (data: { channelId: string, program: NCProgram }) => {
+      if (data.channelId === this.channelId && this.editor) {
+        // Only update if it actually differs from what we currently have
+        // This catches VS Code 'Undo/Redo' events safely.
+        // Normalize CRLF to LF to prevent continuous loop triggers on Windows
+        const editorText = this.editor.getValue().replace(/\r\n/g, '\n');
+        const incomingText = data.program.content.replace(/\r\n/g, '\n');
+        if (editorText !== incomingText) {
+            this.setValue(incomingText);
+            this.stateService.updateChannel(this.channelId, { program: incomingText });
+        }
+      }
+    });
   }
 
   disconnectedCallback() {
