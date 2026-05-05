@@ -10,7 +10,7 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 			provider,
 			{
 				webviewOptions: {
-					retainContextWhenHidden: true, // Keep the Webview alive when switching tabs
+					retainContextWhenHidden: true
 				}
 			}
 		);
@@ -18,138 +18,238 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 	}
 
 	private static readonly viewType = 'ncEdit7.editor';
-        constructor(
-		private readonly context: vscode.ExtensionContext
-	) { }
+    constructor(private readonly context: vscode.ExtensionContext) { }
 
-private isUpdatingDocument = false;
+    private isUpdatingDocument = false;
 
-        public async resolveCustomTextEditor(
-                document: vscode.TextDocument,
-                webviewPanel: vscode.WebviewPanel,
-                _token: vscode.CancellationToken
-        ): Promise<void> {
-
-                // Setup Webview options
-                webviewPanel.webview.options = {
-                        enableScripts: true,
-                        // Allow access to the extension's root to load Vite's compiled dist
-                        localResourceRoots: [
-                                vscode.Uri.file(path.join(this.context.extensionPath, '..', '..', 'dist')),
-                                vscode.Uri.file(path.join(this.context.extensionPath, '..', 'dist')),
-                                vscode.Uri.file(path.join(this.context.extensionPath, '..', '..', 'public')),
-                                vscode.Uri.file(path.join(this.context.extensionPath, '..', 'public'))
-                        ]
-                };
-
-                // 1. Generate HTML pointing to the built web UI
-                webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
-
-                // 2. Hook up event listener for Document -> Webview
-                const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
-                        if (e.document.uri.toString() === document.uri.toString()) {
-                                if (!this.isUpdatingDocument) {
-                                        this.updateWebview(webviewPanel, document);
-                                }
-			}
-		});
-
-		webviewPanel.onDidDispose(() => {
-			changeDocumentSubscription.dispose();
-		});
-
-		// 3. Hook up event listener for Webview -> Document
-		webviewPanel.webview.onDidReceiveMessage(e => {
-			switch (e.type) {
-				case 'ready':
-					// The webview has booted, send it the initial document text
-					this.updateWebview(webviewPanel, document);
-					return;
-				case 'changed':
-					// The frontend merged the 3 channels back to a string, apply the edit to the VS Code doc
-					this.updateTextDocument(document, e.text);
-					return;
-			}
-		});
-	}
-
-	/**
-	 * Generates HTML to load the frontend from Vite's `dist/` directory.
-	 */
-	private getHtmlForWebview(webview: vscode.Webview): string {
-		// Grab Vite's built app from the root project distribution folder
-                const distPathOptions = [
-                        path.join(this.context.extensionPath, '..', '..', 'dist'), // Dev local
-                        path.join(this.context.extensionPath, '..', 'dist') // Production bundle
-                ];
-                let distPath = distPathOptions.find(p => fs.existsSync(p)) || distPathOptions[0];
-
-                let htmlContent = '<!DOCTYPE html><html lang="en"><body><h1>UI Not Found</h1><p>Ensure the frontend has been built to /dist/.</p></body></html>';
-
-                const indexHtmlPath = path.join(distPath, 'index.html');
-                try {
-                        if (fs.existsSync(indexHtmlPath)) {
-				let rawHtml = fs.readFileSync(indexHtmlPath, 'utf8');
-
-				// Fix paths in Vite's index.html from `/assets/xxx` to the Webview URI scheme
-				const basePathUri = webview.asWebviewUri(vscode.Uri.file(distPath));
-				htmlContent = rawHtml.replace(/(href|src)="\/([^"]*)"/g, (match, attr, filePath) => {
-					return `${attr}="${basePathUri.toString()}/${filePath}"`;
-				});
-
-				// Inject our VS Code messaging bridge script
-				const scriptInjection = `
-				<script>
-					const vscode = acquireVsCodeApi();
-					
-					// Catch messages from extension
-					window.addEventListener('message', event => {
-						const message = event.data;
-						if (message.type === 'FILE_OPENED') {
-							// Push the event onto the internal EventBus logic or global window so NCEditor can react
-							window.dispatchEvent(new CustomEvent('vscode:file-opened', { detail: message.text }));
-						}
-					});
-
-					// Signal ready state
-					window.addEventListener('DOMContentLoaded', () => {
-						vscode.postMessage({ type: 'ready' });
-					});
-					
-					// Listen for internal "file changed" from the frontend and push it to VS Code
-					window.addEventListener('vscode:file-changed', event => {
-						vscode.postMessage({ type: 'changed', text: event.detail });
-					});
-				</script>
-				`;
-				htmlContent = htmlContent.replace('</head>', `${scriptInjection}</head>`);
-			}
-		} catch (error) {
-			console.error('Failed to load Vite index.html', error);
-		}
-
-		return htmlContent;
-	}
-
-	private updateWebview(webviewPanel: vscode.WebviewPanel, document: vscode.TextDocument) {
-		webviewPanel.webview.postMessage({
-			type: 'FILE_OPENED',
-			text: document.getText(),
-		});
-	}
-
-	private async updateTextDocument(document: vscode.TextDocument, mergedText: string) {
-                const currentText = document.getText().replace(/\r\n/g, '\n').trimEnd();
-                const newText = mergedText.replace(/\r\n/g, '\n').trimEnd();
-                if (currentText === newText) { return; }
-                this.isUpdatingDocument = true;
-                const edit = new vscode.WorkspaceEdit();
-                const lastLine = document.lineAt(document.lineCount - 1);
-                const fullRange = new vscode.Range(0, 0, document.lineCount - 1, lastLine.text.length);
-                edit.replace(document.uri, fullRange, mergedText);
-                await vscode.workspace.applyEdit(edit);
-                this.isUpdatingDocument = false;
+    private analyzeUri(uri: vscode.Uri) {
+        const ext = path.extname(uri.fsPath).toLowerCase();
+        let isSingleFile = false;
+        let activeChannel = '1';
+        
+        if (ext === '.pa') {
+            isSingleFile = true;
+        } else if (['.p1', '.m'].includes(ext)) {
+            activeChannel = '1';
+        } else if (['.p2', '.s', '.p-2'].includes(ext)) {
+            activeChannel = '2';
+        } else if (ext === '.p3') {
+            activeChannel = '3';
         }
+        
+        const baseName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+        return { isSingleFile, activeChannel, baseName, ext };
+    }
+
+    private parsePAFile(content: string) {
+        const channels = new Map<string, string>();
+        const regex = /(<O[A-Za-z0-9_]+\.P[1-3]>)/g;
+        const parts = content.split(regex);
+        
+        const header = parts[0] || '';
+        
+        for (let i = 1; i < parts.length; i += 2) {
+            const marker = parts[i];
+            const text = parts[i+1] || '';
+            const chMatch = marker.match(/\.P([1-3])>/);
+            if (chMatch) {
+                channels.set(chMatch[1], marker + text);
+            }
+        }
+        
+        if (channels.size === 0) channels.set('1', content);
+        return { header, channels };
+    }
+
+    private assemblePAFile(header: string, channels: Map<string, string>) {
+        let res = header.trimEnd() + '\n';
+        for (let i = 1; i <= 3; i++) {
+            const ch = i.toString();
+            if (channels.has(ch)) {
+                res += channels.get(ch)?.trimEnd() + '\n\n';
+            }
+        }
+        return res.trim() + '\n';
+    }
+
+    private async discoverSiblings(baseUri: vscode.Uri, baseName: string, activeChannel: string, channelDocs: Map<string, vscode.TextDocument>) {
+        const dir = vscode.Uri.joinPath(baseUri, '..');
+        const extMap: Record<string, string[]> = {
+            '1': ['.p1', '.m', '.P1', '.M'],
+            '2': ['.p2', '.s', '.p-2', '.P2', '.S', '.P-2'],
+            '3': ['.p3', '.P3']
+        };
+        
+        for (const ch of ['1', '2', '3']) {
+            if (ch === activeChannel) continue;
+            
+            for (const ext of extMap[ch]) {
+                try {
+                    const targetUri = vscode.Uri.joinPath(dir, baseName + ext);
+                    const stat = await vscode.workspace.fs.stat(targetUri);
+                    if (stat) {
+                        const doc = await vscode.workspace.openTextDocument(targetUri);
+                        channelDocs.set(ch, doc);
+                        break;
+                    }
+                } catch (e) {
+                    // Ignore missing files
+                }
+            }
+        }
+    }
+
+    public async resolveCustomTextEditor(
+        document: vscode.TextDocument,
+        webviewPanel: vscode.WebviewPanel,
+        _token: vscode.CancellationToken
+    ): Promise<void> {
+
+        webviewPanel.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.file(path.join(this.context.extensionPath, '..', '..', 'dist')),
+                vscode.Uri.file(path.join(this.context.extensionPath, '..', 'dist')),
+                vscode.Uri.file(path.join(this.context.extensionPath, '..', '..', 'public')),
+                vscode.Uri.file(path.join(this.context.extensionPath, '..', 'public'))
+            ]
+        };
+
+        webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+
+        const { isSingleFile, activeChannel, baseName } = this.analyzeUri(document.uri);
+        const channelDocs = new Map<string, vscode.TextDocument>();
+        let paChannelsContent = new Map<string, string>();
+        let paHeaderContent = '';
+
+        const loadChannels = async () => {
+            if (isSingleFile) {
+                const parsed = this.parsePAFile(document.getText());
+                paChannelsContent = parsed.channels;
+                paHeaderContent = parsed.header;
+                return Object.fromEntries(paChannelsContent);
+            } else {
+                channelDocs.set(activeChannel, document);
+                await this.discoverSiblings(document.uri, baseName, activeChannel, channelDocs);
+                const channelsObj: Record<string, string> = {};
+                for (const [ch, doc] of channelDocs.entries()) {
+                    channelsObj[ch] = doc.getText();
+                }
+                return channelsObj;
+            }
+        };
+
+        const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+            if (this.isUpdatingDocument) return;
+
+            if (isSingleFile) {
+                if (e.document.uri.toString() === document.uri.toString()) {
+                    const parsed = this.parsePAFile(document.getText());
+                    paChannelsContent = parsed.channels;
+                    webviewPanel.webview.postMessage({
+                        type: 'FILE_UPDATED_EXTERNALLY',
+                        channels: Object.fromEntries(paChannelsContent)
+                    });
+                }
+            } else {
+                for (const [ch, doc] of channelDocs.entries()) {
+                    if (e.document.uri.toString() === doc.uri.toString()) {
+                        webviewPanel.webview.postMessage({
+                            type: 'FILE_UPDATED_EXTERNALLY',
+                            channel: ch,
+                            text: doc.getText()
+                        });
+                    }
+                }
+            }
+        });
+
+        webviewPanel.onDidDispose(() => {
+            changeDocumentSubscription.dispose();
+        });
+
+        webviewPanel.webview.onDidReceiveMessage(async e => {
+            switch (e.type) {
+                case 'ready':
+                    const channelsData = await loadChannels();
+                    webviewPanel.webview.postMessage({
+                        type: 'FILES_OPENED',
+                        isSingleFile,
+                        activeChannel,
+                        channels: channelsData
+                    });
+                    return;
+                case 'changed':
+                    if (isSingleFile) {
+                        paChannelsContent.set(e.channel, e.text);
+                        const assembled = this.assemblePAFile(paHeaderContent, paChannelsContent);
+                        await this.updateTextDocument(document, assembled);
+                    } else {
+                        const targetDoc = channelDocs.get(e.channel);
+                        if (targetDoc) {
+                            await this.updateTextDocument(targetDoc, e.text);
+                        }
+                    }
+                    return;
+            }
+        });
+    }
+
+    private getHtmlForWebview(webview: vscode.Webview): string {
+        const distPathOptions = [
+            path.join(this.context.extensionPath, '..', '..', 'dist'),
+            path.join(this.context.extensionPath, '..', 'dist')
+        ];
+        let distPath = distPathOptions.find(p => fs.existsSync(p)) || distPathOptions[0];
+
+        let htmlContent = '<!DOCTYPE html><html lang="en"><body><h1>UI Not Found</h1><p>Ensure the frontend has been built to /dist/.</p></body></html>';
+        const indexHtmlPath = path.join(distPath, 'index.html');
+        try {
+            if (fs.existsSync(indexHtmlPath)) {
+                let rawHtml = fs.readFileSync(indexHtmlPath, 'utf8');
+                const basePathUri = webview.asWebviewUri(vscode.Uri.file(distPath));
+                htmlContent = rawHtml.replace(/(href|src)="\/([^"]*)"/g, (match, attr, filePath) => {
+                    return `${attr}="${basePathUri.toString()}/${filePath}"`;
+                });
+
+                const scriptInjection = `
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        if (message.type === 'FILES_OPENED' || message.type === 'FILE_UPDATED_EXTERNALLY') {
+                            window.dispatchEvent(new CustomEvent('vscode:files-opened', { detail: message }));
+                        }
+                    });
+                    window.addEventListener('DOMContentLoaded', () => {
+                        vscode.postMessage({ type: 'ready' });
+                    });
+                    window.addEventListener('vscode:file-changed', event => {
+                        vscode.postMessage({ type: 'changed', channel: event.detail.channel, text: event.detail.text });
+                    });
+                </script>
+                `;
+                htmlContent = htmlContent.replace('</head>', `${scriptInjection}</head>`);
+            }
+        } catch (error) {
+            console.error('Failed to load Vite index.html', error);
+        }
+        return htmlContent;
+    }
+
+    private async updateTextDocument(document: vscode.TextDocument, newText: string) {
+        const currentText = document.getText().replace(/\r\n/g, '\n').trimEnd();
+        const formattedNewText = newText.replace(/\r\n/g, '\n').trimEnd();
+        if (currentText === formattedNewText) return;
+        
+        this.isUpdatingDocument = true;
+        const edit = new vscode.WorkspaceEdit();
+        const lastLine = document.lineAt(document.lineCount - 1);
+        const fullRange = new vscode.Range(0, 0, document.lineCount - 1, lastLine.text.length);
+        edit.replace(document.uri, fullRange, newText);
+        await vscode.workspace.applyEdit(edit);
+        this.isUpdatingDocument = false;
+    }
 }
 
 

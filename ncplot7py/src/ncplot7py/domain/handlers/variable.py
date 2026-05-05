@@ -125,8 +125,12 @@ def _safe_eval(expr: str, variables: Dict[str, float]) -> float:
             continue
         raise ValueError(f"Unsafe expression element: {type(n).__name__}")
 
-    # build evaluation context
-    ctx: Dict[str, Any] = {}
+    class SafeEvalCtx(dict):
+        def __missing__(self, key: str) -> Any:
+            # Undefined variables default to 0.0 in Fanuc/CNC macro evaluation
+            return 0.0
+
+    ctx = SafeEvalCtx()
     ctx.update(_ALLOWED_FUNCS)
     ctx.update(variables)
 
@@ -158,8 +162,12 @@ class VariableHandler(Handler):
         return re.compile(r"#(\d+)")
 
     def _build_variable_map(self, state: CNCState) -> Dict[str, float]:
-        # map '#123' or 'R123' -> v123 identifier usable in Python expressions
-        vm: Dict[str, float] = {}
+        class SafeVarMap(dict):
+            def __missing__(self, key: str) -> float:
+                # Return 0.0 for any undefined variable (e.g. 'v4')
+                return 0.0
+
+        vm = SafeVarMap()
         for k, v in (state.parameters or {}).items():
             # k is the number part usually (e.g. "100")
             vm_key = f"v{k}"

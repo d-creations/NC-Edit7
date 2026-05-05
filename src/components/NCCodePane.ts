@@ -341,7 +341,11 @@ export class NCCodePane extends HTMLElement {
   setValue(code: string) {
     if (this.editor && this.editor.getValue() !== code) {
       this.isSettingValue = true;
-      this.editor.setValue(code, -1);
+      const cursor = this.editor.getCursorPosition();
+      // Use doc.setValue to avoid wiping the Ace UndoManager stack history.
+      this.editor.session.doc.setValue(code);
+      this.editor.clearSelection();
+      this.editor.moveCursorToPosition(cursor);
       this.isSettingValue = false;
     }
   }

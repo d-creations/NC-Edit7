@@ -152,17 +152,18 @@ class CNCState:
         """Normalize common arc parameters (I,J,K,R) into internal units.
 
         - I -> X offset, J -> Y offset, K -> Z offset
-        - R is treated as a radial distance: if either X or Y is set to
-          'diameter' we assume R was provided in diameter units and divide by 2.
-          This is a reasonable heuristic for XY-plane arcs on lathes.
+        - R is treated as a radial distance.
+        Note: I, J, K are typically programmed in radius even when the corresponding
+        axis (e.g. X) is in diameter mode. Therefore, we do not applying diameter
+        division to I, J, K.
         """
         p = dict(params)
         if "I" in p:
-            p["I"] = float(self.normalize_axis_value("X", p.get("I", 0.0)))
+            p["I"] = float(p.get("I", 0.0))
         if "J" in p:
-            p["J"] = float(self.normalize_axis_value("Y", p.get("J", 0.0)))
+            p["J"] = float(p.get("J", 0.0))
         if "K" in p:
-            p["K"] = float(self.normalize_axis_value("Z", p.get("K", 0.0)))
+            p["K"] = float(p.get("K", 0.0))
         if "R" in p:
             # Treat R as a true radial distance. Do not alter R based on
             # per-axis 'diameter' interpretation — R is a geometric radius

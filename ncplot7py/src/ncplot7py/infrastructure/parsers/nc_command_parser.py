@@ -181,8 +181,8 @@ class NCCommandStringParser(BaseNCCommandParser):
             elif code.startswith('M'):
                 # M codes treated as parameter-like (original code used code[:1])
                 axis_coordinate_dict.update({code[:1]: code[1:]})
-            elif code.startswith(('A', 'B', 'C', 'N', 'T', 'S', 'F', 'D', 'X', 'Y', 'Z', 'R', 'H', 'U', 'V', 'W', 'K', 'L', 'I',
-                                 'Q', 'x', 'y', 'z', 'u', 'v', 'w', 'r', 'g')):
+            elif code.startswith(('A', 'B', 'C', 'N', 'T', 'S', 'F', 'D', 'X', 'Y', 'Z', 'R', 'H', 'U', 'V', 'W', 'K', 'L', 'I', 'J', 'P',
+                                 'Q', 'x', 'y', 'z', 'u', 'v', 'w', 'r', 'g', 'j', 'p', 'i', 'k', 'l')):
                 key = code[:1]
                 if key in axis_coordinate_dict:
                     domain_exceptions.raise_nc_error(

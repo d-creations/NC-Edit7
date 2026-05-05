@@ -24,10 +24,43 @@
             "filenamePattern": "*.nc"
           },
           {
-            "filenamePattern": "*.P2"
+            "filenamePattern": "*.PA"
+          },
+          {
+            "filenamePattern": "*.pa"
           },
           {
             "filenamePattern": "*.P1"
+          },
+          {
+            "filenamePattern": "*.p1"
+          },
+          {
+            "filenamePattern": "*.P2"
+          },
+          {
+            "filenamePattern": "*.p2"
+          },
+          {
+            "filenamePattern": "*.P3"
+          },
+          {
+            "filenamePattern": "*.p3"
+          },
+          {
+            "filenamePattern": "*.M"
+          },
+          {
+            "filenamePattern": "*.m"
+          },
+          {
+            "filenamePattern": "*.S"
+          },
+          {
+            "filenamePattern": "*.s"
+          },
+          {
+            "filenamePattern": "*p-2*"
           }
         ],
         "priority": "default"
