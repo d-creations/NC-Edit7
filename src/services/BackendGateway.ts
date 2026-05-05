@@ -21,8 +21,9 @@ export class BackendGateway {
   private abortControllers = new Map<string, AbortController>();
 
   constructor(config?: Partial<BackendConfig>) {
+    const port = (window as any).backendPort || 8000;
     this.config = {
-      baseUrl: 'http://127.0.0.1:8000/cgiserver_import', // Modified for Extension Backend
+      baseUrl: `http://127.0.0.1:${port}/cgiserver_import`, // Modified for Extension Backend
       // baseUrl: '/ncplot7py/scripts/cgiserver.cgi',
       timeout: 30000,
       retries: 3,

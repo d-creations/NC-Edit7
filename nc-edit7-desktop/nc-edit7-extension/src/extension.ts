@@ -2,13 +2,27 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as net from 'net';
 import { NCEditorProvider } from './NCEditorProvider';
 
 let backendProcess: cp.ChildProcess | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+async function getFreePort(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const srv = net.createServer();
+        srv.listen(0, '127.0.0.1', () => {
+            const port = (srv.address() as net.AddressInfo).port;
+            srv.close(() => resolve(port));
+        });
+        srv.on('error', reject);
+    });
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+	const backendPort = await getFreePort();
+
 	// Register our custom editor provider
-	context.subscriptions.push(NCEditorProvider.register(context));
+	context.subscriptions.push(NCEditorProvider.register(context, backendPort));
 
 	// 1. Spawning the Python Backend
 	// Search for the python executable in the bundled extraResources (going up from the extension path)
@@ -27,9 +41,9 @@ export function activate(context: vscode.ExtensionContext) {
                 ];
                 const backendDir = possibleBackendDirs.find(p => fs.existsSync(p)) || possibleBackendDirs[0];
                 const backendScript = path.join(backendDir, 'main_import.py');
-                console.log(`Starting embedded backend from: ${pythonPath}`);
+                console.log(`Starting embedded backend from: ${pythonPath} on port ${backendPort}`);
 
-                backendProcess = cp.spawn(pythonPath, ['-m', 'uvicorn', 'backend.main_import:app', '--port', '8000'], {
+                backendProcess = cp.spawn(pythonPath, ['-m', 'uvicorn', 'backend.main_import:app', '--port', backendPort.toString()], {
                         cwd: path.join(backendDir, '..'),
                         detached: false
                 });

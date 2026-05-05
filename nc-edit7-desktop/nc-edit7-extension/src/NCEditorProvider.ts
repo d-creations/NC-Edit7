@@ -3,8 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 export class NCEditorProvider implements vscode.CustomTextEditorProvider {
-	public static register(context: vscode.ExtensionContext): vscode.Disposable {
-		const provider = new NCEditorProvider(context);
+	public static register(context: vscode.ExtensionContext, backendPort: number): vscode.Disposable {
+		const provider = new NCEditorProvider(context, backendPort);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(
 			NCEditorProvider.viewType,
 			provider,
@@ -18,7 +18,7 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 	}
 
 	private static readonly viewType = 'ncEdit7.editor';
-    constructor(private readonly context: vscode.ExtensionContext) { }
+    constructor(private readonly context: vscode.ExtensionContext, private readonly backendPort: number) { }
 
     private isUpdatingDocument = false;
 
@@ -214,6 +214,7 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 
                 const scriptInjection = `
                 <script>
+                    window.backendPort = ${this.backendPort};
                     const vscode = acquireVsCodeApi();
                     window.addEventListener('message', event => {
                         const message = event.data;
