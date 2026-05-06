@@ -35,7 +35,7 @@ def test_list_machines():
 
 
 def test_post_machinedata_minimal():
-    payload = {"machinedata": [{"program": "G1 X10 X10", "machineName": "ISO_MILL", "canalNr": "1"}]}
+    payload = {"machinedata": [{"program": "G1 X10 X10", "machineName": "SIEMENS_MILL", "canalNr": "1"}]}
     resp = client.post("/ncplot7py/scripts/cgiserver.cgi", json=payload)
     assert resp.status_code == 200
     j = resp.json()
@@ -96,7 +96,7 @@ def test_build_segments_prefers_explicit_plot_line_numbers():
     assert converted["segments"][0]["lineNumber"] == 5
 
 def test_mock_parser_treats_h_as_incremental_c_rotation():
-    result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
+    result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "SIEMENS_MILL")
 
     last_segment = result["segments"][-1]
     assert len(last_segment["points"]) > 2

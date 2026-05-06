@@ -24,7 +24,7 @@ The `cgiserver.cgi` script is a Python CGI script that:
 ```json
 {
   "machines": [
-    {"machineName": "ISO_MILL", "controlType": "MILL"},
+    {"machineName": "SIEMENS_MILL", "controlType": "MILL"},
     {"machineName": "FANUC_T", "controlType": "TURN"},
     ...
   ],
@@ -40,7 +40,7 @@ The `cgiserver.cgi` script is a Python CGI script that:
   "machinedata": [
     {
       "program": "G90 G54\nG0 X0 Y0 Z10\nG1 X50 Y0 F300\nM30",
-      "machineName": "ISO_MILL",
+      "machineName": "SIEMENS_MILL",
       "canalNr": "channel-1"
     }
   ]
@@ -75,7 +75,7 @@ The `cgiserver.cgi` script is a Python CGI script that:
 
 ## Supported Machines
 
-- `ISO_MILL` - ISO standard milling machine
+- `SIEMENS_MILL` - Siemens standard milling machine
 - `FANUC_T` - FANUC turning machine
 - `SB12RG_F` - SB12RG front spindle
 - `SB12RG_B` - SB12RG back spindle

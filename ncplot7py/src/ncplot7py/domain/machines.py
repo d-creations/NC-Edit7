@@ -75,6 +75,23 @@ FANUC_GENERIC_CONFIG = MachineConfig(
     polar_interpolate_axis="Y"
 )
 
+FANUC_MILL_CONFIG = MachineConfig(
+    name="FANUC_MILL",
+    control_type="FANUC",
+    variable_pattern=r"#(\d+)",
+    variable_prefix="#",
+    tool_range=(0, 9999),
+    default_plane="G17", # Mill default
+    default_feed_mode="FEED_PER_MIN",
+    a_axis_rollover=False,
+    b_axis_rollover=False,
+    c_axis_rollover=True,
+    a_axis_shortest_path=False,
+    b_axis_shortest_path=False,
+    c_axis_shortest_path=True,
+    polar_interpolate_axis="Y"
+)
+
 SIEMENS_840D_CONFIG = MachineConfig(
     name="SIEMENS_840D",
     control_type="SIEMENS",
@@ -95,10 +112,11 @@ SIEMENS_840D_CONFIG = MachineConfig(
 MACHINE_CONFIGS = {
     "FANUC_STAR": FANUC_STAR_CONFIG,
     "FANUC_GENERIC": FANUC_GENERIC_CONFIG,
+    "FANUC_MILL": FANUC_MILL_CONFIG,
     "SIEMENS_840D": SIEMENS_840D_CONFIG,
     "FANUC_STAR_SR20": FANUC_STAR_SR20_CONFIG,
     # Aliases
-    "ISO_MILL": SIEMENS_840D_CONFIG, # Assuming ISO Mill in this context is Siemens-like or Generic
+    "SIEMENS_MILL": SIEMENS_840D_CONFIG,
     "FANUC_T": FANUC_STAR_CONFIG,
     "SR20JII_F": FANUC_STAR_SR20_CONFIG,
     "SR20JII_B": FANUC_STAR_SR20_CONFIG,
@@ -175,6 +193,7 @@ def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
 def get_available_machines() -> List[Dict[str, str]]:
     """Return a list of available machines and their control types."""
     return [
+        {"machineName": "FANUC_MILL", "controlType": "FANUC_MILL"},
         {"machineName": "SIEMENS_MILL", "controlType": "SIEMENS_840D"},
         {"machineName": "FANUC_T", "controlType": "FANUC_STAR"},
         {"machineName": "SB12RG_F", "controlType": "FANUC_STAR"},

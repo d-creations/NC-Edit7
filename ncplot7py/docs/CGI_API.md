@@ -34,6 +34,7 @@ Each machine-data entry must include `program`, `machineName`, and `canalNr`.
 - SR20JII_F
 - SB12RG_B
 - SR20JII_B
+- FANUC_MILL
 - ISO_MILL
 
 ## Validation rules

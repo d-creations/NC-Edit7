@@ -68,7 +68,8 @@ export class MachineService {
       'SR20JII_F',
       'SB12RG_B',
       'SR20JII_B',
-      'ISO_MILL',
+      'FANUC_MILL',
+      'SIEMENS_MILL',
     ];
 
     return machineTypes.map((machineType) => ({
@@ -79,7 +80,7 @@ export class MachineService {
       defaultTools: [],
       availableChannels: 3,
       regexPatterns: this.getDefaultRegexPatterns(),
-      variablePrefix: machineType === 'ISO_MILL' ? 'R' : '#',
+      variablePrefix: machineType === 'SIEMENS_MILL' ? 'R' : '#',
     }));
   }
 

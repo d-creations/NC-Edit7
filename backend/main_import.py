@@ -33,6 +33,7 @@ try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
     from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
     from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
+    from ncplot7py.infrastructure.machines.stateful_fanuc_mill_control import StatefulFanucMillControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
     from ncplot7py.domain.machines import (
         get_available_machines,
@@ -48,6 +49,7 @@ except Exception as e:
     NCExecutionEngine = None  # type: ignore
     StatefulIsoTurnControl = None  # type: ignore
     StatefulSiemensMillControl = None  # type: ignore
+    StatefulFanucMillControl = None  # type: ignore
     cli_bootstrap = None  # type: ignore
     get_available_machines = None # type: ignore
     get_machine_regex_patterns = None # type: ignore
@@ -420,7 +422,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     for program_entry in machinedata:
         program = program_entry.get("program", "")
-        machine_name = program_entry.get("machineName", "ISO_MILL")
+        machine_name = program_entry.get("machineName", "SIEMENS_MILL")
         canal_nr = str(program_entry.get("canalNr", "1"))
         
         # Parse program
@@ -496,7 +498,7 @@ async def cgiserver_import(request: Request):
         prog_sanitized = sanitize_program(prog)
         programs.append(prog_sanitized)
         canal_names.append(str(entry.get("canalNr", "1")))
-        machine_names.append(str(entry.get("machineName", "ISO_MILL")))
+        machine_names.append(str(entry.get("machineName", "SIEMENS_MILL")))
         
         # Extract toolValues (Q quadrant 1-9 and R radius for tool compensation)
         tool_values = entry.get("toolValues", [])
@@ -545,18 +547,16 @@ async def cgiserver_import(request: Request):
             init_states.append(None)
 
     # Determine control type based on machine name
-    # Default to ISO_MILL (Siemens-style) when no machine is specified
+    # Default to SIEMENS_MILL (Siemens-style) when no machine is specified
     first_machine = machine_names[0] if machine_names else ""
-    is_siemens_mill = (
-        "SIEMENS" in first_machine.upper() or 
-        first_machine.upper() == "ISO_MILL" or
-        (first_machine.upper().endswith("_MILL") and "FANUC" not in first_machine.upper())
-    )
-    # If no machine specified, default to Siemens mill for ISO compatibility
+    is_siemens_mill = "SIEMENS" in first_machine.upper()
+    is_fanuc_mill = "FANUC_MILL" in first_machine.upper()
+    
+    # If no machine specified, default to Siemens mill
     if not first_machine:
         is_siemens_mill = True
 
-    if not is_siemens_mill:
+    if not is_siemens_mill and not is_fanuc_mill:
         apply_turn_axis_defaults(init_states, first_machine)
 
     # Create a control that can handle multiple canals and run the engine.
@@ -564,7 +564,13 @@ async def cgiserver_import(request: Request):
     errors: List[Dict[str, Any]] = []
     try:
         # Choose control type based on machine
-        if is_siemens_mill and StatefulSiemensMillControl is not None:
+        if is_fanuc_mill and StatefulFanucMillControl is not None:
+            control = StatefulFanucMillControl(
+                count_of_canals=len(programs), 
+                canal_names=canal_names,
+                init_nc_states=init_states if any(s is not None for s in init_states) else None
+            )
+        elif is_siemens_mill and StatefulSiemensMillControl is not None:
             control = StatefulSiemensMillControl(
                 count_of_canals=len(programs), 
                 canal_names=canal_names,

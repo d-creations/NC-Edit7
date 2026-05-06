@@ -393,7 +393,7 @@ export class NCToolpathPlot extends HTMLElement {
       // Get all active channels and their NC code
       const activeChannels = this.stateService.getActiveChannels();
       const state = this.stateService.getState();
-      const machineName = state.globalMachine || 'ISO_MILL';
+      const machineName = state.globalMachine || 'SIEMENS_MILL';
 
       if (activeChannels.length === 0) {
         throw new Error('No active channels');

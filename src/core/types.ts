@@ -8,7 +8,8 @@ export type MachineType =
   | 'SR20JII_F'
   | 'SB12RG_B'
   | 'SR20JII_B'
-  | 'ISO_MILL';
+  | 'FANUC_MILL'
+  | 'SIEMENS_MILL';
 
 export interface PatternRange {
   min: number;
