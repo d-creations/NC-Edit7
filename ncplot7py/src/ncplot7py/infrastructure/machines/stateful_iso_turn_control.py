@@ -46,8 +46,14 @@ class StatefulIsoTurnCanal(BaseNCCanalInterface):
             self._state.machine_config = FANUC_STAR_CONFIG
 
         # Chain: variables -> control flow -> group2 (speed mode) -> group0 -> motion
-        motion = MotionHandler()
-        gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=motion)
+        try:
+            from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_cornering import FanucCorneringHandler
+            motion = MotionHandler()
+            corner = FanucCorneringHandler(next_handler=motion)
+            gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=corner)
+        except Exception:
+            motion = MotionHandler()
+            gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=motion)
         # insert StarTurnHandler between group2 and group0 so machine-specific
         # Star Turn macros (e.g. G266) are handled before group0 coordinate
         # adjustments and motion handling.

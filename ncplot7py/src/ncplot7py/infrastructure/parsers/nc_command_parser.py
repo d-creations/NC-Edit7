@@ -147,8 +147,9 @@ class NCCommandStringParser(BaseNCCommandParser):
             # --- END UNMASK CHECK ---
 
             if is_dddp:
-                dddp_ccr_set.add(code)
+                dddp_ccr_set.add("," + code)
                 is_dddp = False
+                continue
             elif code.startswith('G'):
                 g_code_set.add(code)
             elif code.startswith('#'):
@@ -175,6 +176,9 @@ class NCCommandStringParser(BaseNCCommandParser):
                 else:
                     var_calculation_str = code
             elif code.startswith(','):
+                if len(code) > 1:
+                    dddp_ccr_set.add(code)
+                    continue
                 is_dddp = True
             elif is_dddp is True and (code.startswith(',R') or code.startswith(',C') or code.startswith(',A')):
                 dddp_ccr_set.add(code)

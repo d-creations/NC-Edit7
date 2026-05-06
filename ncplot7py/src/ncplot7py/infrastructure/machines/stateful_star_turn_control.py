@@ -46,11 +46,16 @@ class StatefulIsoTurnCanal(BaseNCCanalInterface):
         # handling. This keeps modal updates centralized.
         try:
             from ncplot7py.domain.handlers.modal import ModalHandler
-            modal = ModalHandler(next_handler=motion)
+            from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_cornering import FanucCorneringHandler
+            
+            motion = MotionHandler()
+            corner = FanucCorneringHandler(next_handler=motion)
+            modal = ModalHandler(next_handler=corner)
             gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=modal)
         except Exception:
             # fallback: if import fails for any reason, wire gcode0 directly
             # to motion to preserve previous behaviour.
+            motion = MotionHandler()
             gcode0 = GCodeGroup0CoordinateSetExecChainLink(next_handler=motion)
         # insert StarTurnHandler between group2 and group0 so machine-specific
         # Star Turn macros (e.g. G266) are handled before group0 coordinate
