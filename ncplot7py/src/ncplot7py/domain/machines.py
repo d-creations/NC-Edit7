@@ -11,6 +11,10 @@ class MachineConfig:
     variable_pattern: str  # Regex for variables, e.g. r"#(\d+)" or r"R(\d+)"
     variable_prefix: str   # Prefix for variables, e.g. "#" or "R"
     tool_range: Tuple[int, int]
+    machine_type: str = "MILL"
+    channels: int = 1
+    synchronization_strategy: str = "NONE"
+    supported_gcode_groups: Tuple[str, ...] = field(default_factory=tuple)
     default_plane: str = "G17"
     default_feed_mode: str = "FEED_PER_MIN"
     a_axis_rollover: bool = False
@@ -43,6 +47,10 @@ def load_machine_configs():
                     variable_pattern=val['variable_pattern'],
                     variable_prefix=val['variable_prefix'],
                     tool_range=tuple(val['tool_range']),
+                    machine_type=val.get('machine_type', 'MILL'),
+                    channels=val.get('channels', 1),
+                    synchronization_strategy=val.get('synchronization_strategy', 'NONE'),
+                    supported_gcode_groups=tuple(val.get('supported_gcode_groups', [])),
                     default_plane=val.get('default_plane', 'G17'),
                     default_feed_mode=val.get('default_feed_mode', 'FEED_PER_MIN'),
                     a_axis_rollover=val.get('a_axis_rollover', False),

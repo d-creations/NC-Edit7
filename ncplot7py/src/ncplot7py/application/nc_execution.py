@@ -160,7 +160,7 @@ class NCExecutionEngine:
         """
         if program is None:
             return []
-        return [line for line in re.split(r"(?:;|\r\n|\n|\r)", program) if line and line.strip()]
+        return [line for line in re.split(r"(?:;|\r\n|\n|\r)", program)]
 
     def get_Syncro_plot(self, programs: List[str], synch: bool) -> List[Dict]:
         """Create the plot for the given NC `programs`.

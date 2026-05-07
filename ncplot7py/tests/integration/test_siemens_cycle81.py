@@ -1,10 +1,12 @@
 import pytest
-from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillCanal
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.infrastructure.parsers.nc_command_parser import NCCommandStringParser
 from ncplot7py.shared.point import Point
 
 def test_cycle81_execution():
-    canal = StatefulSiemensMillCanal("TestCanal")
+    canal = UniversalConfigDrivenCanal("TestCanal", init_state=CNCState(machine_config=get_machine_config("SIEMENS_840D")))
     parser = NCCommandStringParser()
     
     code = """

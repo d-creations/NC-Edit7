@@ -4,7 +4,9 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared import configure_logging, configure_i18n
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
@@ -30,7 +32,7 @@ class TestWhileDoEndIntegration(unittest.TestCase):
         # can attach 'L' in command_parameter as expected by the control flow
         # handler.
 
-        ctrl = StatefulIsoTurnNCControl()
+        ctrl = UniversalConfigDrivenControl()
         # Ensure this test uses radius interpretation for X (not diameter)
         # to preserve the original expectation that G00 X1 results in X==1.0
         try:

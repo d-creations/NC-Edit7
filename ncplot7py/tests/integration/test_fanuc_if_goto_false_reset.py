@@ -4,7 +4,9 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnCanal
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.infrastructure.parsers.nc_command_parser import NCCommandStringParser
 
@@ -32,7 +34,7 @@ G1 W#142"""
                 nodes.append(parser.parse(line))
 
         state = CNCState()
-        canal = StatefulIsoTurnCanal("C1", init_state=state)
+        canal = UniversalConfigDrivenCanal("C1", init_state=state)
         canal.run_nc_code_list(nodes)
 
         # Since 9 < 9 is FALSE, the IF should not jump to N300 and should instead

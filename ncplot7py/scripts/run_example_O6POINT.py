@@ -34,8 +34,7 @@ from ncplot7py.application.nc_execution import NCExecutionEngine
 from ncplot7py.shared import configure_logging, get_message_stack, configure_i18n
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.shared.file_adapter import get_program
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
-
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
 
 class _Point:
     def __init__(self, x: float, y: float, z: float):
@@ -126,7 +125,7 @@ def main(plot: bool = False) -> int:
     # create a control with the matching number of canals to avoid
     # "Canal X not configured" errors when each program is intended for a
     # separate canal.
-    control = StatefulIsoTurnNCControl(count_of_canals=max(1, len(programs)))
+    control = UniversalConfigDrivenControl(count_of_canals=max(1, len(programs)))
     engine = NCExecutionEngine(control)
 
     # get_Syncro_plot expects a list of program strings; our adapter returns

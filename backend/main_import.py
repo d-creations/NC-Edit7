@@ -31,9 +31,7 @@ except Exception:
 # Import ncplot7py internals
 try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
-    from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
-    from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
-    from ncplot7py.infrastructure.machines.stateful_fanuc_mill_control import StatefulFanucMillControl
+    from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
     from ncplot7py.domain.machines import (
         get_available_machines,
@@ -47,9 +45,7 @@ except Exception as e:
     logging.error(traceback.format_exc())
     # If package isn't importable in some environments, we will raise at runtime
     NCExecutionEngine = None  # type: ignore
-    StatefulIsoTurnControl = None  # type: ignore
-    StatefulSiemensMillControl = None  # type: ignore
-    StatefulFanucMillControl = None  # type: ignore
+    UniversalConfigDrivenControl = None  # type: ignore
     cli_bootstrap = None  # type: ignore
     get_available_machines = None # type: ignore
     get_machine_regex_patterns = None # type: ignore
@@ -442,7 +438,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 @app.post("/cgiserver_import", dependencies=[Depends(verify_api_key)])
 async def cgiserver_import(request: Request):
-    if NCExecutionEngine is None or StatefulIsoTurnControl is None:
+    if NCExecutionEngine is None or UniversalConfigDrivenControl is None:
         logging.warning("ncplot7py package not importable in this environment; some actions will be limited")
 
     # Log incoming request path and headers for debugging proxy issues
@@ -564,24 +560,11 @@ async def cgiserver_import(request: Request):
     errors: List[Dict[str, Any]] = []
     try:
         # Choose control type based on machine
-        if is_fanuc_mill and StatefulFanucMillControl is not None:
-            control = StatefulFanucMillControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
-        elif is_siemens_mill and StatefulSiemensMillControl is not None:
-            control = StatefulSiemensMillControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
-        else:
-            control = StatefulIsoTurnControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
+        control = UniversalConfigDrivenControl(
+            count_of_canals=len(programs), 
+            canal_names=canal_names,
+            init_nc_states=init_states if any(s is not None for s in init_states) else None
+        )
         engine = NCExecutionEngine(control)
         engine_output = engine.get_Syncro_plot(programs, False)
         

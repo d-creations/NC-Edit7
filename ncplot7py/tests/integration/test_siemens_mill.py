@@ -1,5 +1,7 @@
 import unittest
-from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.infrastructure.parsers.nc_command_parser import NCCommandStringParser
 from ncplot7py.domain.cnc_state import CNCState
 
@@ -25,7 +27,7 @@ class NCParser:
 
 class TestSiemensMill(unittest.TestCase):
     def setUp(self):
-        self.control = StatefulSiemensMillControl(count_of_canals=1)
+        self.control = UniversalConfigDrivenControl(count_of_canals=1, init_nc_states=[CNCState(machine_config=get_machine_config("SIEMENS_840D"))])
         self.parser = NCParser()
 
     def test_simple_motion(self):

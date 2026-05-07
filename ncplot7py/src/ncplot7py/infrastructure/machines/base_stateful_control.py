@@ -171,3 +171,107 @@ class BaseStatefulControl(BaseNCControlInterface):
 
     def synchro_points(self, tool_paths, nodes):
         return None
+
+
+# --- UNIVERSAL CONFIG-DRIVEN CONTROL ---
+
+HANDLER_REGISTRY = {
+    # Base
+    "motion": ("ncplot7py.domain.handlers.motion", "MotionHandler"),
+    "modal": ("ncplot7py.domain.handlers.modal", "ModalHandler"),
+    "tool_handler": ("ncplot7py.domain.handlers.tool_handler", "ToolHandler"),
+    
+    # Generic & Fanuc
+    "group_0_coordinate_set": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group0_coordinate_set", "GCodeGroup0CoordinateSetExecChainLink"),
+    "group_2_speed_mode": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group2_speed_mode", "GCodeGroup2SpeedModeExecChainLink"),
+    "group_5_feed_mode": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group5_feed_mode", "GCodeGroup5FeedModeExecChainLink"),
+    "group_16_plane": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group16_plane", "GCodeGroup16PlaneExecChainLink"),
+    "group_21_polar": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group21_polar_co", "GCodeGroup21PolarCoExecChainLink"),
+    "precheck": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_precheck", "GcodePreCheckExecChainLink"),
+    "fanuc_precheck": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_precheck", "GcodePreCheckExecChainLink"),
+    "cornering": ("ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_cornering", "FanucCorneringHandler"),
+    
+    # Fanuc Mill Specific
+    "fanuc_mill_groups": ("ncplot7py.domain.handlers.fanuc_mill_cnc.gcode_groups", "FanucMillGCodeGroupValidator"),
+    "fanuc_mill_feed_mode": ("ncplot7py.domain.handlers.fanuc_mill_cnc.gcode_group5_feed_mode", "FanucMillGroup5FeedModeHandler"),
+    "fanuc_mill_speed_mode": ("ncplot7py.domain.handlers.fanuc_mill_cnc.gcode_speed_mode", "FanucMillSpeedModeHandler"),
+    "fanuc_mill_work_offset": ("ncplot7py.domain.handlers.fanuc_mill_cnc.gcode_work_offset", "FanucMillWorkOffsetHandler"),
+    
+    # Turn Mill Star
+    "star_turn": ("ncplot7py.domain.handlers.star_machine.star_turn_handler", "StarTurnHandler"),
+    
+    # Siemens Specific
+    "siemens_mode": ("ncplot7py.domain.handlers.siemens_mill_cnc.mode_handler", "SiemensModeHandler"),
+    "siemens_named_cycles": ("ncplot7py.domain.handlers.siemens_mill_cnc.cycles_handler", "SiemensNamedCyclesHandler"),
+    "siemens_iso_cycles": ("ncplot7py.domain.handlers.siemens_mill_cnc.cycles_handler", "SiemensISOCyclesHandler"),
+    "siemens_iso_feed": ("ncplot7py.domain.handlers.siemens_mill_cnc.feed_handler", "SiemensISOFeedHandler"),
+    "siemens_iso_polar": ("ncplot7py.domain.handlers.siemens_mill_cnc.polar_handler", "SiemensISOPolarHandler"),
+    "siemens_iso_tool_length": ("ncplot7py.domain.handlers.siemens_mill_cnc.tool_length_handler", "SiemensISOToolLengthHandler"),
+    "siemens_iso_cutter_comp": ("ncplot7py.domain.handlers.siemens_mill_cnc.cutter_comp_handler", "SiemensISOCutterCompHandler"),
+    "siemens_iso_coordinate": ("ncplot7py.domain.handlers.siemens_mill_cnc.coordinate_handler", "SiemensISOCoordinateHandler"),
+    "siemens_iso_inch_metric": ("ncplot7py.domain.handlers.siemens_mill_cnc.unit_handler", "SiemensISOInchMetricHandler"),
+    "siemens_iso_misc": ("ncplot7py.domain.handlers.siemens_mill_cnc.misc_handler", "SiemensISOMiscHandler"),
+}
+
+class UniversalConfigDrivenCanal(BaseStatefulCanal):
+    """Canal dynamically built from the machine config's `supported_gcode_groups`."""
+    
+    def __init__(self, name: str, init_state: Optional[CNCState] = None):
+        super().__init__(name, init_state)
+        
+        # Imports here to avoid circular dep
+        from ncplot7py.domain.handlers.variable import VariableHandler
+        from ncplot7py.domain.handlers.control_flow import ControlFlowHandler
+        from ncplot7py.infrastructure.handler_chain_builder import HandlerChainBuilder
+        from ncplot7py.domain.machines import get_machine_config
+
+        if self._state.machine_config is None or self._state.machine_config.name == "FANUC_GENERIC":
+            self._state.machine_config = get_machine_config("FANUC_MILL")
+
+        if self._state.machine_config.control_type == "SIEMENS":
+            self._state.extra["g_group_16_plane"] = "X_Y"
+            self._state.extra["siemens_mode"] = False
+
+        builder = HandlerChainBuilder()
+        builder.add(VariableHandler)
+        builder.add(ControlFlowHandler)
+
+        # Map groups to handler modules via dynamic imports
+        config_groups = self._state.machine_config.supported_gcode_groups
+        
+        # Helper logic to inject Turn-Mill Star handler
+        if self._state.machine_config.machine_type == "TURN_MILL":
+            req = list(config_groups)
+            if "star_turn" not in req:
+                req.insert(len(req) - 1 if "motion" in req else len(req), "star_turn")
+            config_groups = tuple(req)
+
+        for group in config_groups:
+            if group in HANDLER_REGISTRY:
+                mod_path, cls_name = HANDLER_REGISTRY[group]
+                builder.add_if_importable(mod_path, cls_name)
+            else:
+                logging.getLogger(__name__).warning(f"Handler for group '{group}' not found in HANDLER_REGISTRY.")
+
+        self._chain = builder.build()
+
+class UniversalConfigDrivenControl(BaseStatefulControl):
+    """Generic CNC Control driven entirely by `machines.json` via `UniversalConfigDrivenCanal`."""
+    
+    def __init__(self, count_of_canals: int = 1, canal_names: Optional[Sequence[str]] = None, init_nc_states: Optional[Sequence[CNCState]] = None) -> None:
+        if count_of_canals == 1 and init_nc_states and init_nc_states[0] and init_nc_states[0].machine_config:
+            if init_nc_states[0].machine_config.channels > 1:
+                count_of_canals = init_nc_states[0].machine_config.channels
+                
+        self._synchro_strategy = "NONE"
+        if init_nc_states and init_nc_states[0] and init_nc_states[0].machine_config:
+            self._synchro_strategy = init_nc_states[0].machine_config.synchronization_strategy
+
+        super().__init__(UniversalConfigDrivenCanal, count_of_canals, canal_names, init_nc_states)
+
+    def synchro_points(self, tool_paths, nodes):
+        if self._synchro_strategy == "STAR_WAIT":
+            from ncplot7py.infrastructure.machines.star_canal_syncro import CanalSynchro
+            syn = CanalSynchro(tool_paths, nodes)
+            syn.synchro_points()
+        return None

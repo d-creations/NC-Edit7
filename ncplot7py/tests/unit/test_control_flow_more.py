@@ -1,6 +1,8 @@
 import unittest
 
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnCanal
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
 
@@ -8,7 +10,7 @@ from ncplot7py.domain.cnc_state import CNCState
 class TestControlFlowMore(unittest.TestCase):
     def test_if_goto_with_variable(self):
         state = CNCState()
-        canal = StatefulIsoTurnCanal("C1", init_state=state)
+        canal = UniversalConfigDrivenCanal("C1", init_state=state)
 
         # set variable #500 to 5 using VariableHandler via canal
         node_set = NCCommandNode(g_code_command=set(), command_parameter={}, variable_command="#500=[5]", nc_code_line_nr=1)
@@ -27,7 +29,7 @@ class TestControlFlowMore(unittest.TestCase):
     def test_goto_to_do_label(self):
         state = CNCState()
         state.feed_rate = 60.0
-        canal = StatefulIsoTurnCanal("C1", init_state=state)
+        canal = UniversalConfigDrivenCanal("C1", init_state=state)
 
         # GOTO1 should jump to DO1
         node_goto = NCCommandNode(g_code_command=set(), command_parameter={}, loop_command="GOTO1", nc_code_line_nr=1)
@@ -44,7 +46,7 @@ class TestControlFlowMore(unittest.TestCase):
     def test_nested_do_end_loops(self):
         state = CNCState()
         state.feed_rate = 60.0
-        canal = StatefulIsoTurnCanal("C1", init_state=state)
+        canal = UniversalConfigDrivenCanal("C1", init_state=state)
 
         # outer DO1 L2
         node_do1 = NCCommandNode(g_code_command=set(), command_parameter={"N": "10", "L": "2"}, loop_command="DO1", nc_code_line_nr=1)

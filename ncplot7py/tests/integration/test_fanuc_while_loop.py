@@ -1,6 +1,8 @@
 import unittest
 from ncplot7py.shared.point import Point
-from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnCanal
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.infrastructure.parsers.nc_command_parser import NCCommandStringParser
 
 class TestFanucWhileLoopIntegration(unittest.TestCase):
@@ -20,8 +22,11 @@ class TestFanucWhileLoopIntegration(unittest.TestCase):
         END1
         M30
         """
-    
-        canal = StatefulIsoTurnCanal("TestTurn")
+        cstate = CNCState(); cstate.machine_config = get_machine_config("FANUC_TURN")
+        cstate.extra['polar_interpolate_axis'] = 'X'
+        canal = UniversalConfigDrivenCanal('C1', init_state=cstate)
+
+        #canal = UniversalConfigDrivenCanal("TestTurn")
         parser = NCCommandStringParser()
     
         nodes = []

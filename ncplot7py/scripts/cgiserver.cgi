@@ -24,8 +24,7 @@ if package_src.exists() and str(package_src) not in sys.path:
 # Import ncplot7py internals
 try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
-    from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
-    from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
+    from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
     from ncplot7py.domain.machines import (
         get_available_machines,
@@ -40,8 +39,7 @@ except Exception as e:
     sys.stderr.write(f"Failed to import ncplot7py: {e}\n")
     sys.stderr.write(traceback.format_exc())
     NCExecutionEngine = None
-    StatefulIsoTurnControl = None
-    StatefulSiemensMillControl = None
+    UniversalConfigDrivenControl = None
     cli_bootstrap = None
     get_available_machines = None
     get_machine_regex_patterns = None
@@ -348,18 +346,11 @@ def handle_execute_programs(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]
     engine_output = None
     errors: List[Dict[str, Any]] = []
     try:
-        if is_siemens_mill and StatefulSiemensMillControl is not None:
-            control = StatefulSiemensMillControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
-        else:
-            control = StatefulIsoTurnControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
+        control = UniversalConfigDrivenControl(
+            count_of_canals=len(programs), 
+            canal_names=canal_names,
+            init_nc_states=init_states if any(s is not None for s in init_states) else None
+        )
         engine = NCExecutionEngine(control)
         engine_output = engine.get_Syncro_plot(programs, False)
         
