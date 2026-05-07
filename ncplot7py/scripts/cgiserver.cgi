@@ -31,6 +31,7 @@ try:
         get_available_machines,
         get_machine_regex_patterns,
         get_machine_config,
+        MachineConfig,
     )
     from ncplot7py.domain.cnc_state import CNCState
     from ncplot7py.domain.exceptions import ExceptionNode
@@ -258,14 +259,42 @@ def handle_execute_programs(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]
     tool_values_list: List[List[Dict[str, Any]]] = []
     custom_variables_list: List[List[Dict[str, Any]]] = []
     machine_names: List[str] = []
+    custom_configs: List[Optional[MachineConfig]] = []
 
     for entry in machinedata:
         prog = entry.get("program", "")
         prog_sanitized = sanitize_program(prog)
         programs.append(prog_sanitized)
         canal_names.append(str(entry.get("canalNr", "1")))
-        machine_names.append(str(entry.get("machineName", "ISO_MILL")))
+        machine_names.append(str(entry.get("machineName", "FANUC_GENERIC")))
         
+        custom_cfg_data = entry.get("customMachineConfig")
+        if custom_cfg_data and isinstance(custom_cfg_data, dict):
+            try:
+                cfg = MachineConfig(
+                    name=custom_cfg_data.get("name", "CUSTOM"),
+                    control_type=custom_cfg_data.get("control_type", "FANUC"),
+                    variable_pattern=custom_cfg_data.get("variable_pattern", r"#(\d+)"),
+                    variable_prefix=custom_cfg_data.get("variable_prefix", "#"),
+                    tool_range=tuple(custom_cfg_data.get("tool_range", (0, 9999))),
+                    default_plane=custom_cfg_data.get("default_plane", "G17"),
+                    default_feed_mode=custom_cfg_data.get("default_feed_mode", "FEED_PER_MIN"),
+                    a_axis_rollover=custom_cfg_data.get("a_axis_rollover", False),
+                    b_axis_rollover=custom_cfg_data.get("b_axis_rollover", False),
+                    c_axis_rollover=custom_cfg_data.get("c_axis_rollover", False),
+                    a_axis_shortest_path=custom_cfg_data.get("a_axis_shortest_path", False),
+                    b_axis_shortest_path=custom_cfg_data.get("b_axis_shortest_path", False),
+                    c_axis_shortest_path=custom_cfg_data.get("c_axis_shortest_path", False),
+                    polar_interpolate_axis=custom_cfg_data.get("polar_interpolate_axis", "Y"),
+                    diameter_axes=tuple(custom_cfg_data.get("diameter_axes", []))
+                )
+                custom_configs.append(cfg)
+            except Exception as e:
+                logging.warning(f"Failed to parse custom machine config: {e}")
+                custom_configs.append(None)
+        else:
+            custom_configs.append(None)
+
         # Extract toolValues (Q quadrant 1-9 and R radius for tool compensation)
         tool_values = entry.get("toolValues", [])
         tool_values_list.append(tool_values)
@@ -310,15 +339,11 @@ def handle_execute_programs(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]
         else:
             init_states.append(None)
 
-    # Determine control type based on machine name
+    # Determine control type based on machine config
     first_machine = machine_names[0] if machine_names else ""
-    is_siemens_mill = (
-        "SIEMENS" in first_machine.upper() or 
-        first_machine.upper() == "ISO_MILL" or
-        (first_machine.upper().endswith("_MILL") and "FANUC" not in first_machine.upper())
-    )
-    if not first_machine:
-        is_siemens_mill = True
+    config = custom_configs[0] if custom_configs and custom_configs[0] is not None else (get_machine_config(first_machine) if first_machine else None)
+    
+    is_siemens_mill = config is not None and config.control_type == "SIEMENS"
 
     engine_output = None
     errors: List[Dict[str, Any]] = []

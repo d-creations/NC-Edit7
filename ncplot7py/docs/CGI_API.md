@@ -26,21 +26,30 @@ Two accepted shapes:
   ...
 ]
 
-Each machine-data entry must include `program`, `machineName`, and `canalNr`.
+Each machine-data entry must include `program`, `machineName`, and `canalNr`. An optional `customMachineConfig` dictionary can be included to override the machine configuration (Bring Your Own Config - BYOC).
 
 ## Allowed machine names
-- SB12RG_F
-- FANUC_T
-- SR20JII_F
-- SB12RG_B
-- SR20JII_B
+These are defined dynamically in `ncplot7py/config/machines.json`. Common defaults include:
+- FANUC_STAR
+- FANUC_STAR_SR20
+- FANUC_GENERIC
 - FANUC_MILL
-- ISO_MILL
+- SIEMENS_840D
+
+## Bring Your Own Config (BYOC)
+Instead of relying strictly on server-defined defaults, clients can dynamically configure the execution parameters by sending a `customMachineConfig` object within the request. If provided, these values override the settings derived from `machineName`. Example properties (all optional):
+- `name` (str)
+- `control_type` (str: "FANUC" or "SIEMENS")
+- `variable_pattern` (str, e.g. `"#(\\d+)"`)
+- `variable_prefix` (str, e.g. `"#"` or `"R"`)
+- `tool_range` (list: `[min, max]`)
+- `default_plane` (str)
+- `default_feed_mode` (str)
 
 ## Validation rules
 - Top-level must be an object containing `machinedata` or a list.
 - Each entry must have `program`, `machineName`, and `canalNr`.
-- `machineName` must be one of the allowed names above.
+- `machineName` is highly recommended to be one of the known dynamic names to ensure proper default fallback logic, but can be a custom string if `customMachineConfig` is fully provided.
 - `program` must NOT contain any of these characters: `(`, `)`, `{`, `}` — payloads containing them are rejected.
 
 ## Server-side preprocessing
@@ -89,7 +98,7 @@ Single program (object with `machinedata`):
   "machinedata": [
     {
       "program": "N10 G00 X0 Y0\nN20 G01 X10 Y0",
-      "machineName": "SB12RG_F",
+      "machineName": "FANUC_STAR",
       "canalNr": 1
     }
   ]
@@ -100,8 +109,8 @@ Equivalent as a plain list:
 [
   {
     "program": "N10 G00 X0 Y0\nN20 G01 X10 Y0",
-    "machineName": "SB12RG_F",
-    "canalNr": "canal1"
+      "machineName": "FANUC_STAR",
+      "canalNr": "canal1"
   }
 ]
 
@@ -111,7 +120,7 @@ Equivalent as a plain list:
 $json = @'
 {
   "machinedata": [
-    { "program": "N10 G00 X0 Y0\nN20 G01 X10 Y0", "machineName": "SB12RG_F", "canalNr": 1 }
+    { "program": "N10 G00 X0 Y0\nN20 G01 X10 Y0", "machineName": "FANUC_STAR", "canalNr": 1 }
   ]
 }
 '@
@@ -153,8 +162,8 @@ Response JSON body:
 
 {
   "machines": [
-    { "machineName": "SB12RG_F", "controlType": "StatefulIsoTurnNCControl" },
-    { "machineName": "SB12RG_B", "controlType": "StatefulIsoTurnNCControl" },
+    { "machineName": "FANUC_STAR", "controlType": "FANUC_STAR" },
+    { "machineName": "SIEMENS_840D", "controlType": "SIEMENS_840D" },
     ...
   ]
 }

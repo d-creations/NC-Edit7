@@ -81,9 +81,14 @@ class CNCState:
         if self.machine_config is None and FANUC_GENERIC_CONFIG is not None:
             self.machine_config = FANUC_GENERIC_CONFIG
         
-        # Initialize default feed mode from machine config if not already set
-        if "feed_mode" not in self.extra and self.machine_config is not None:
-            self.extra["feed_mode"] = self.machine_config.default_feed_mode
+        if self.machine_config is not None:
+            # Initialize default feed mode from machine config if not already set
+            if "feed_mode" not in self.extra:
+                self.extra["feed_mode"] = self.machine_config.default_feed_mode
+            
+            # Apply diameter axes from machine config if not already evaluated
+            for axis in self.machine_config.diameter_axes:
+                self.set_axis_unit(axis, "diameter")
 
     def clone(self) -> "CNCState":
         """Return a deep copy of the state for transactional updates."""

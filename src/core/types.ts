@@ -2,14 +2,7 @@
 
 export type ChannelId = '1' | '2' | '3';
 
-export type MachineType =
-  | 'SB12RG_F'
-  | 'FANUC_T'
-  | 'SR20JII_F'
-  | 'SB12RG_B'
-  | 'SR20JII_B'
-  | 'FANUC_MILL'
-  | 'SIEMENS_MILL';
+export type MachineType = string;
 
 export interface PatternRange {
   min: number;

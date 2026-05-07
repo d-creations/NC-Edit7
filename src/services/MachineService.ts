@@ -63,24 +63,19 @@ export class MachineService {
 
   private getDefaultMachines(): MachineProfile[] {
     const machineTypes: MachineType[] = [
-      'SB12RG_F',
-      'FANUC_T',
-      'SR20JII_F',
-      'SB12RG_B',
-      'SR20JII_B',
-      'FANUC_MILL',
-      'SIEMENS_MILL',
+      'FANUC_GENERIC',
+      'SIEMENS_GENERIC',
     ];
 
     return machineTypes.map((machineType) => ({
       machineName: machineType,
-      controlType: 'CNC',
+      controlType: machineType === 'SIEMENS_GENERIC' ? 'SIEMENS' : 'FANUC',
       axes: ['X', 'Y', 'Z'],
       feedLimits: { min: 0, max: 10000 },
       defaultTools: [],
       availableChannels: 3,
       regexPatterns: this.getDefaultRegexPatterns(),
-      variablePrefix: machineType === 'SIEMENS_MILL' ? 'R' : '#',
+      variablePrefix: machineType === 'SIEMENS_GENERIC' ? 'R' : '#',
     }));
   }
 
