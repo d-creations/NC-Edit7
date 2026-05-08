@@ -116,16 +116,20 @@ async function bootstrap() {
     );
 
     // Initialize the app
-    const appElement = document.createElement('nc-editor-app');
-    const appContainer = document.getElementById('app');
-
-    if (!appContainer) {
-      throw new Error('App container not found');
+    // @ts-ignore
+    if (window.isFocasPanel) {
+      const appElement = document.createElement('nc-focas-transfer');
+      const appContainer = document.getElementById('app-root') || document.getElementById('app');
+      if (!appContainer) throw new Error('App container not found');
+      appContainer.innerHTML = '';
+      appContainer.appendChild(appElement);
+    } else {
+      const appElement = document.createElement('nc-editor-app');
+      const appContainer = document.getElementById('app');
+      if (!appContainer) throw new Error('App container not found');
+      appContainer.innerHTML = '';
+      appContainer.appendChild(appElement);
     }
-
-    // Clear loading message
-    appContainer.innerHTML = '';
-    appContainer.appendChild(appElement);
 
     console.log('NC-Edit7 application initialized successfully');
   } catch (error) {

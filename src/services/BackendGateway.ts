@@ -5,6 +5,9 @@ import type {
   PlotResponse,
   ServerMachineListRequest,
   ServerMachineListResponse,
+  FocasListResponse,
+  FocasUploadResponse,
+  FocasDownloadResponse,
 } from '@core/types';
 
 // Simple API Key for basic security
@@ -24,12 +27,65 @@ export class BackendGateway {
     const port = (window as any).backendPort || 8000;
     this.config = {
       baseUrl: `http://127.0.0.1:${port}/cgiserver_import`, // Modified for Extension Backend
-      // baseUrl: '/ncplot7py/scripts/cgiserver.cgi',
       timeout: 30000,
       retries: 3,
       ...config,
     };
   }
+
+  // --- FOCAS API Methods ---
+  
+  async getFeatures(): Promise<import('@core/types').BackendFeatures> {
+    const port = (window as any).backendPort || 8000;
+    const response = await fetch(`http://127.0.0.1:${port}/api/features`);
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  private getFocasUrl(path: string): string {
+    const port = (window as any).backendPort || 8000;
+    return `http://127.0.0.1:${port}/api/focas/${path}`;
+  }
+
+  async focasPing(ip: string): Promise<import('@core/types').FocasPingResponse> {
+    const response = await fetch(`${this.getFocasUrl(`ping`)}?ip_address=${ip}`);
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  async focasConnect(ip: string, port: number = 8193): Promise<{status: string, message: string}> {
+    const response = await fetch(this.getFocasUrl('connect'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip_address: ip, port, timeout: 10 })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  async focasListPrograms(ip: string, pathNo: number, port: number = 8193): Promise<FocasListResponse> {
+    const response = await fetch(`${this.getFocasUrl(`programs/${pathNo}`)}?ip_address=${ip}&port=${port}`);
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  async focasUpload(ip: string, pathNo: number, progNum: number, port: number = 8193): Promise<FocasUploadResponse> {
+    const response = await fetch(`${this.getFocasUrl(`upload/${pathNo}/${progNum}`)}?ip_address=${ip}&port=${port}`);
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  async focasDownload(ip: string, pathNo: number, programText: string, port: number = 8193): Promise<FocasDownloadResponse> {
+    const response = await fetch(`${this.getFocasUrl(`download/${pathNo}`)}?ip_address=${ip}&port=${port}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program_text: programText })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  // --- CGI API Methods ---
 
   async listMachines(): Promise<ServerMachineListResponse> {
     const request: ServerMachineListRequest = {

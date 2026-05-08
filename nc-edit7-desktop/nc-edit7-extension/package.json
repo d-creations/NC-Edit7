@@ -65,7 +65,26 @@
         ],
         "priority": "default"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "ncEdit7BottomPanel",
+          "title": "NC-Edit7",
+          "icon": "$(tools)"
+        }
+      ]
+    },
+    "views": {
+      "ncEdit7BottomPanel": [
+        {
+          "type": "webview",
+          "id": "nc-edit7.focasView",
+          "name": "CNC Transfer",
+          "icon": "$(arrow-swap)"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

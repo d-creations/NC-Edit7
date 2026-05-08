@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as net from 'net';
 import { NCEditorProvider } from './NCEditorProvider';
+import { FocasWebviewViewProvider } from './FocasWebviewViewProvider';
 
 let backendProcess: cp.ChildProcess | undefined;
 
@@ -23,8 +24,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register our custom editor provider
 	context.subscriptions.push(NCEditorProvider.register(context, backendPort));
-
-	// 1. Spawning the Python Backend
+        
+        // Register FOCAS WebviewViewProvider (bottom panel)
+        const focasProvider = new FocasWebviewViewProvider(context.extensionUri, backendPort);
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(FocasWebviewViewProvider.viewType, focasProvider)
+        );
 	// Search for the python executable in the bundled extraResources (going up from the extension path)
 	const possiblePaths = [
 		path.join(context.extensionPath, '..', '..', '..', 'python_embedded', 'python.exe'), // Production build structure

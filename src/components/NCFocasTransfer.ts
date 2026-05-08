@@ -1,0 +1,519 @@
+import { ServiceRegistry } from '@core/ServiceRegistry';
+import { BACKEND_GATEWAY_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { BackendGateway } from '@services/BackendGateway';
+import { IFileManagerService } from '@services/IFileManagerService';
+
+import { FocasProgram } from '@core/types';
+
+interface GroupedProgram {
+  number: number;
+  comment: string;
+  paths: {
+    1?: FocasProgram;
+    2?: FocasProgram;
+    3?: FocasProgram;
+  };
+  isPA: boolean; // Indicates if it exists on multiple paths identically
+}
+
+export class NCFocasTransfer extends HTMLElement {
+  private backend: BackendGateway;
+  private fileManager: IFileManagerService;
+
+  
+  private cncPrograms: Map<number, GroupedProgram> = new Map();
+  private ipAddress: string = '192.168.1.1';
+  private isFocasConnected: boolean = false;
+  loading: boolean = false;
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this.backend = ServiceRegistry.getInstance().get(BACKEND_GATEWAY_TOKEN);
+    this.fileManager = ServiceRegistry.getInstance().get(FILE_MANAGER_SERVICE_TOKEN);
+
+    // Listen for file drops fetched via Extension
+    window.addEventListener('message', (event) => {
+        const message = event.data;
+        if (message.type === 'DO_FOCAS_UPLOAD') {
+            this.uploadDroppedFile(message.content, message.pathId);
+        }
+    });
+  }
+
+  connectedCallback() {
+    this.render();
+    this.attachEventListeners();
+    setTimeout(() => this.checkPing(), 100);
+  }
+
+  private async handleConnect() {
+    const ipInput = this.shadowRoot?.getElementById('ip-address') as HTMLInputElement;
+    if (ipInput) this.ipAddress = ipInput.value;
+
+    try {
+      this.loading = true;
+      this.render();
+      await this.backend.focasConnect(this.ipAddress);
+      this.isFocasConnected = true;
+      await this.fetchPrograms();
+    } catch (e) {
+      alert("Failed to connect to FOCAS: " + e);
+      this.isFocasConnected = false;
+    } finally {
+      this.loading = false;
+      this.render();
+      this.attachEventListeners();
+    }
+  }
+
+  private async checkPing() {
+    const ipInput = this.shadowRoot?.querySelector('#ip-address') as HTMLInputElement;
+    if (!ipInput || !ipInput.value) return;
+    
+    // Update local state without full reload
+    this.ipAddress = ipInput.value;
+    
+    const pingIndicator = this.shadowRoot?.querySelector('#ping-indicator') as HTMLElement;
+    if (pingIndicator) {
+      pingIndicator.style.background = 'gray'; // pending
+    }
+    
+    try {
+      const response = await this.backend.focasPing(this.ipAddress);
+      if (pingIndicator) {
+        pingIndicator.style.background = response.available ? '#89d185' : '#f48771';
+        pingIndicator.title = response.available ? 'Machine Reachable (Ping OK)' : 'Machine Unreachable';
+      }
+    } catch(e) {
+      if (pingIndicator) {
+        pingIndicator.style.background = '#f48771';
+        pingIndicator.title = 'Ping Failed';
+      }
+    }
+  }
+
+  private async fetchPrograms() {
+    const paths = [1, 2, 3];
+    this.cncPrograms.clear();
+
+    for (const path of paths) {
+      try {
+        const response = await this.backend.focasListPrograms(this.ipAddress, path);
+        for (const prog of response.programs) {
+          if (!this.cncPrograms.has(prog.number)) {
+            this.cncPrograms.set(prog.number, {
+              number: prog.number,
+              comment: prog.comment,
+              paths: {},
+              isPA: false
+            });
+          }
+          
+          const group = this.cncPrograms.get(prog.number)!;
+          // @ts-ignore
+          group.paths[path as keyof typeof group.paths] = prog;
+          
+          // Check if PA (common across at least paths 1 & 2)
+          group.isPA = !!(group.paths[1] && group.paths[2]);
+          if (!group.comment && prog.comment) {
+            group.comment = prog.comment; // Inherit comment if missing
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to list programs on path ${path}`, e);
+      }
+    }
+  }
+
+  private async handleUpload(progNum: number, pathNo: string) {
+    try {
+      if (pathNo === 'PA') {
+        const prog = this.cncPrograms.get(progNum);
+        if (!prog) return;
+
+        let combinedContent = "%\n";
+        
+        // Include header information (assuming prog.comment is available)
+        combinedContent += `&F=/O${progNum.toString().padStart(4, '0')}(${prog.comment || 'PA_PROG'})/\n`;
+
+        for (const p of [1, 2, 3] as const) {
+            if (prog.paths[p]) {
+                const resp = await this.backend.focasUpload(this.ipAddress, p, progNum);
+                this.fileManager.updateActiveProgramContent(p.toString(), resp.program_text);
+                
+                // Format block with <> XML-like tags matching the specified standard
+                combinedContent += `<O${progNum.toString().padStart(4, '0')}.P${p}>\n`;
+                
+                // Remove trailing % or whitespace from individual blocks if present, to prevent mid-file terminations
+                let cleanText = resp.program_text.trim();
+                if (cleanText.endsWith('%')) {
+                   cleanText = cleanText.slice(0, -1).trimEnd();
+                }
+                if (cleanText.startsWith('%')) {
+                   cleanText = cleanText.slice(1).trimStart();
+                }
+                // Also strip the `OXXXX` header if it's there
+                const firstNewLine = cleanText.indexOf('\n');
+                if (cleanText.startsWith('O') && firstNewLine > -1 && firstNewLine < 15) {
+                    cleanText = cleanText.slice(firstNewLine + 1).trimStart();
+                }
+                
+                combinedContent += `${cleanText}\n \n`;
+            }
+        }
+        
+        combinedContent += "%\n";
+
+        const fileName = `O${progNum.toString().padStart(4, '0')}.PA`;
+        if ((window as any).vscode) {
+            (window as any).vscode.postMessage({
+                type: 'SAVE_FOCAS_FILE',
+                fileName: fileName,
+                content: combinedContent
+            });
+        }
+        alert(`Program O${progNum} (PA) uploaded successfully to workspace!`);
+
+      } else {
+        const pNum = parseInt(pathNo, 10);
+        const resp = await this.backend.focasUpload(this.ipAddress, pNum, progNum);
+        
+        // Load into matching local channel
+        const channelId = pNum.toString();
+        this.fileManager.updateActiveProgramContent(channelId, resp.program_text);
+        
+        const fileName = `O${progNum.toString().padStart(4, '0')}.P${pNum}`;
+        if ((window as any).vscode) {
+            (window as any).vscode.postMessage({
+                type: 'SAVE_FOCAS_FILE',
+                fileName: fileName,
+                content: resp.program_text
+            });
+        }
+
+        alert(`Program O${progNum} from Path ${pNum} uploaded successfully to workspace!`);
+      }
+    } catch (e) {
+      alert("Upload failed: " + e);
+    }
+  }
+
+  private render() {
+    if (!this.shadowRoot) return;
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          background: var(--vscode-editor-background, #1e1e1e);
+          color: var(--vscode-editor-foreground, #d4d4d4);
+          font-family: var(--vscode-font-family, sans-serif);
+          padding: 10px;
+          border-left: 1px solid var(--vscode-widget-border, #444);
+        }
+        .header {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 15px;
+          align-items: center;
+        }
+        input {
+          background: var(--vscode-input-background, #3c3c3c);
+          color: var(--vscode-input-foreground, #cccccc);
+          border: 1px solid var(--vscode-input-border, #3c3c3c);
+          padding: 4px 8px;
+        }
+        button {
+          background: var(--vscode-button-background, #0e639c);
+          color: var(--vscode-button-foreground, #ffffff);
+          border: none;
+          padding: 4px 12px;
+          cursor: pointer;
+        }
+        button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+        .list {
+          flex: 1;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .prog-item {
+          background: var(--vscode-editorWidget-background, #252526);
+          border: 1px solid var(--vscode-widget-border, #444);
+          padding: 8px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .prog-info {
+          display: flex;
+          flex-direction: column;
+        }
+        .prog-num { font-weight: bold; color: var(--vscode-symbolIcon-keywordForeground, #007acc); }
+        .pa-badge { background: #d7ba7d; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; }
+        .single-badge { border: 1px solid var(--vscode-button-background, #0e639c); color: var(--vscode-foreground, #d4d4d4); padding: 1px 5px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; }
+        .actions {
+          display: flex;
+          gap: 5px;
+        }
+        .actions button {
+          font-size: 0.85em;
+          background: var(--vscode-button-secondaryBackground, #3a3d41);
+        }
+        .actions button:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+        
+        .download-panel {
+          margin-top: 15px;
+          padding-top: 15px;
+          border-top: 1px solid var(--vscode-widget-border, #444);
+        }
+        .drop-panels {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        .drop-zone {
+          flex: 1;
+          border: 2px dashed var(--vscode-widget-border, #444);
+          border-radius: 4px;
+          text-align: center;
+          padding: 20px 5px;
+          color: var(--vscode-descriptionForeground, #cccccc);
+          transition: all 0.2s ease-in-out;
+          font-weight: bold;
+        }
+        .drop-zone.drag-over {
+          border-color: var(--vscode-focusBorder, #007fd4);
+          background: var(--vscode-list-hoverBackground, #2a2d2e);
+          color: var(--vscode-focusBorder, #007fd4);
+        }
+      </style>
+      
+      <div class="header">
+        <strong>FOCAS 2 Transfer</strong>
+        <span id="ping-indicator" title="Ping Status" style="display:inline-block; width:10px; height:10px; border-radius:50%; background:gray; margin-left:8px; cursor:help;"></span>
+        <input type="text" id="ip-address" value="${this.ipAddress}" placeholder="CNC IP" />
+        <button id="connect-btn">${this.loading ? 'Connecting...' : (this.isFocasConnected ? 'Reconnect' : 'Connect')}</button>
+      </div>
+
+      ${this.isFocasConnected ? `
+        <div class="list">
+          <h3>CNC Memory</h3>
+          ${Array.from(this.cncPrograms.values()).sort((a,b)=>a.number-b.number).map(prog => `
+            <div class="prog-item" draggable="true" data-drag-prog="${prog.number}" data-drag-pa="${prog.isPA ? 'true' : 'false'}">
+              <div class="prog-info">
+                <div>
+                  <span class="prog-num">O${prog.number.toString().padStart(4, '0')}</span>
+                  ${prog.isPA 
+                    ? '<span class="pa-badge">PA Program</span>' 
+                    : `<span class="single-badge">Path ${[1,2,3].filter(p => prog.paths[p as 1|2|3]).join(', ')}</span>`
+                  }
+                </div>
+                <small>${prog.comment}</small>
+              </div>
+              <div class="actions">
+                ${prog.isPA ? 
+                  `<button class="btn-upl" data-path="PA" data-prog="${prog.number}">Pull PA</button>` : 
+                  ''
+                }
+                ${[1,2,3].map(path => prog.paths[path as 1|2|3] ? 
+                  `<button class="btn-upl" data-path="${path}" data-prog="${prog.number}">Pull P${path}</button>` : 
+                  ''
+                ).join('')}
+              </div>
+            </div>
+          `).join('')}
+          ${this.cncPrograms.size === 0 ? '<p>No programs found on machine.</p>' : ''}
+        </div>
+
+        <div class="download-panel">
+          <h3>Push Local File to CNC</h3>
+          <span>Click a button to select a file from your computer:</span>
+          <div class="drop-panels">
+            <div class="drop-zone upload-zone" data-path="PA" style="cursor:pointer">Upload PA</div>
+            <div class="drop-zone upload-zone" data-path="1" style="cursor:pointer">Upload P1</div>
+            <div class="drop-zone upload-zone" data-path="2" style="cursor:pointer">Upload P2</div>
+            <div class="drop-zone upload-zone" data-path="3" style="cursor:pointer">Upload P3</div>
+          </div>
+        </div>
+      ` : `
+        <div class="list">
+          <p>Please connect to a machine to browse and transfer programs.</p>
+        </div>
+      `}
+    `;
+  }
+
+  private attachEventListeners() {
+    this.shadowRoot?.getElementById('connect-btn')?.addEventListener('click', () => this.handleConnect());
+    
+    const ipInput = this.shadowRoot?.getElementById('ip-address') as HTMLInputElement;
+    if (ipInput) {
+      ipInput.addEventListener('change', () => this.checkPing());
+      ipInput.addEventListener('blur', () => this.checkPing());
+    }
+    
+    if (this.isFocasConnected) {
+      const uplButtons = this.shadowRoot?.querySelectorAll('.btn-upl');
+      uplButtons?.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          const prog = parseInt(target.getAttribute('data-prog') || '0', 10);
+          const path = target.getAttribute('data-path') || '1';
+          if(prog) this.handleUpload(prog, path);
+        });
+      });
+
+      const progItems = this.shadowRoot?.querySelectorAll('.prog-item');
+      progItems?.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+          const dragEvent = e as DragEvent;
+          if (dragEvent.dataTransfer) {
+            const progNum = item.getAttribute('data-drag-prog') || '';
+            const isPA = item.getAttribute('data-drag-pa') === 'true';
+            
+            // Set text payload so it can at least be dropped into text editors
+            dragEvent.dataTransfer.setData('text/plain', `FOCAS Program O${progNum.padStart(4, '0')} (${isPA ? 'PA' : 'Multi-path'})`);
+            dragEvent.dataTransfer.effectAllowed = 'copy';
+          }
+        });
+      });
+
+      this.attachFilePickerListeners();
+    }
+  }
+
+  private attachFilePickerListeners() {
+    const zones = this.shadowRoot?.querySelectorAll('.upload-zone');
+    
+    // Create a hidden file input element attached to the component
+    let fileInput = this.shadowRoot?.getElementById('hidden-file-input') as HTMLInputElement;
+    if (!fileInput) {
+      fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.id = 'hidden-file-input';
+      fileInput.style.display = 'none';
+      this.shadowRoot?.appendChild(fileInput);
+    }
+
+    zones?.forEach(zone => {
+      // Keep hover effects
+      zone.addEventListener('mouseenter', () => zone.classList.add('drag-over'));
+      zone.addEventListener('mouseleave', () => zone.classList.remove('drag-over'));
+      
+      zone.addEventListener('click', () => {
+        const pathId = (zone as HTMLElement).getAttribute('data-path');
+        
+        // Temporarily bind the change event to capture this specific click
+        const handleChange = async (e: Event) => {
+           fileInput.removeEventListener('change', handleChange);
+           const target = e.target as HTMLInputElement;
+           
+           if (target.files && target.files.length > 0) {
+             const file = target.files[0];
+             try {
+               const content = await file.text();
+               this.uploadDroppedFile(content, pathId);
+             } catch(err) {
+               alert("Could not read file: " + err);
+             }
+           }
+           
+           // Format reset so clicking the exact same file twice still triggers change
+           fileInput.value = '';
+        };
+        
+        fileInput.addEventListener('change', handleChange);
+        fileInput.click();
+      });
+    });
+  }
+
+  private async uploadDroppedFile(content: string, targetPath: string | null) {
+    if (!targetPath) return;
+
+    try {
+      this.loading = true;
+      this.render();
+      if (targetPath === 'PA') {
+        const pathContents: Record<number, string> = {};
+        const tagRegex = /<[^>]*P(\d+)>/g;
+        let match;
+        let lastIndex = 0;
+        let lastPath = -1;
+
+        while ((match = tagRegex.exec(content)) !== null) {
+          if (lastPath !== -1) {
+            pathContents[lastPath] = content.substring(lastIndex, match.index).trim();
+          }
+          lastPath = parseInt(match[1], 10);
+          lastIndex = tagRegex.lastIndex;
+        }
+        if (lastPath !== -1) {
+          pathContents[lastPath] = content.substring(lastIndex).trim();
+        }
+
+        if (Object.keys(pathContents).length === 0) {
+          alert('Could not find PA format tags (e.g., <O1234.P1>) in the file. Uploading aborted.');
+          return;
+        }
+
+        const uploadedPaths: number[] = [];
+        const errors: string[] = [];
+        
+        for (const [pStr, partContent] of Object.entries(pathContents)) {
+          const p = parseInt(pStr, 10);
+          
+          let cleanContent = partContent.trim();
+          if (cleanContent.startsWith('%')) cleanContent = cleanContent.slice(1).trimStart();
+          if (cleanContent.endsWith('%')) cleanContent = cleanContent.slice(0, -1).trimEnd();
+          
+          // FOCAS cnc_download3 format: Must start with LF and end with % (no leading %)
+          const finalContent = `\n${cleanContent}\n%`;
+          
+          try {
+            await this.backend.focasDownload(this.ipAddress, p, finalContent);
+            uploadedPaths.push(p);
+          } catch(e) {
+            console.warn(`Failed to push to Path ${p}`, e);
+            errors.push(`P${p}: ${e}`);
+          }
+        }
+        
+        if (errors.length > 0 && uploadedPaths.length === 0) {
+          alert(`Failed to push PA file:\\n${errors.join('\\n')}`);
+        } else if (errors.length > 0) {
+          alert(`File pushed to Paths ${uploadedPaths.join(', ')}.\\nErrors:\\n${errors.join('\\n')}`);
+        } else {
+          alert(`PA File pushed to Paths ${uploadedPaths.join(', ')} successfully!`);
+        }
+      } else {
+        const pathNo = parseInt(targetPath, 10);
+        
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('%')) cleanContent = cleanContent.slice(1).trimStart();
+        if (cleanContent.endsWith('%')) cleanContent = cleanContent.slice(0, -1).trimEnd();
+        
+        // FOCAS cnc_download3 format: Must start with LF and end with % (no leading %)
+        const finalContent = `\n${cleanContent}\n%`;
+        
+        await this.backend.focasDownload(this.ipAddress, pathNo, finalContent);
+        alert(`File pushed to Path ${pathNo} successfully!`);
+      }
+    } catch(e) {
+      alert("Push failed: " + e);
+    } finally {
+      await this.fetchPrograms();
+      this.loading = false;
+      this.render();
+      this.attachEventListeners();
+    }
+  }
+
+}
+
+customElements.define('nc-focas-transfer', NCFocasTransfer);

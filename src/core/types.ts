@@ -1,3 +1,8 @@
+export interface BackendFeatures {
+  focas_enabled: boolean;
+  cgi_path: string;
+}
+
 // Core type definitions for NC-Edit7
 
 export type ChannelId = '1' | '2' | '3';
@@ -219,4 +224,31 @@ export interface NCProgram {
   channelId: string;
   sourceFileId: string;
   lastModified: number;
+}
+
+export interface FocasProgram {
+  number: number;
+  length: number;
+  comment: string;
+}
+
+export interface FocasListResponse {
+  status: string;
+  programs: FocasProgram[];
+}
+
+export interface FocasPingResponse {
+  status: string;
+  available: boolean;
+  error?: string;
+}
+
+export interface FocasUploadResponse {
+  status: string;
+  program_text: string;
+}
+
+export interface FocasDownloadResponse {
+  status: string;
+  message: string;
 }
