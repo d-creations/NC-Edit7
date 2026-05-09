@@ -1,0 +1,11 @@
+node_modules
+nc-edit7-desktop
+nc-edit7-extension
+plugins
+python_embedded
+.git
+.vscode
+__pycache__
+*.pyc
+dist
+*.log

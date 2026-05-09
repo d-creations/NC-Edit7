@@ -176,6 +176,10 @@ class BaseStatefulControl(BaseNCControlInterface):
 # --- UNIVERSAL CONFIG-DRIVEN CONTROL ---
 
 HANDLER_REGISTRY = {
+    # Core
+    "variable": ("ncplot7py.domain.handlers.variable", "VariableHandler"),
+    "control_flow": ("ncplot7py.domain.handlers.control_flow", "ControlFlowHandler"),
+    
     # Base
     "motion": ("ncplot7py.domain.handlers.motion", "MotionHandler"),
     "modal": ("ncplot7py.domain.handlers.modal", "ModalHandler"),
@@ -220,8 +224,6 @@ class UniversalConfigDrivenCanal(BaseStatefulCanal):
         super().__init__(name, init_state)
         
         # Imports here to avoid circular dep
-        from ncplot7py.domain.handlers.variable import VariableHandler
-        from ncplot7py.domain.handlers.control_flow import ControlFlowHandler
         from ncplot7py.infrastructure.handler_chain_builder import HandlerChainBuilder
         from ncplot7py.domain.machines import get_machine_config
 
@@ -233,8 +235,6 @@ class UniversalConfigDrivenCanal(BaseStatefulCanal):
             self._state.extra["siemens_mode"] = False
 
         builder = HandlerChainBuilder()
-        builder.add(VariableHandler)
-        builder.add(ControlFlowHandler)
 
         # Map groups to handler modules via dynamic imports
         config_groups = self._state.machine_config.supported_gcode_groups

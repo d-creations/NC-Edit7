@@ -33,6 +33,44 @@ async def get_features():
         "cgi_path": CGI_PATH
     }
 
+@app.get("/api/syntax/{control_type}")
+async def get_syntax(control_type: str):
+    """Endpoint providing ACE Editor syntax highlights dynamically by reading machines.json directly."""
+    # Find machines.json
+    config_path = Path(__file__).resolve().parents[1] / "ncplot7py" / "config" / "machines.json"
+    
+    rules = []
+    
+    try:
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                machines_data = json.load(f)
+                
+            # Scan for the first config matching the control_type to get its syntax_rules
+            for key, config in machines_data.items():
+                if isinstance(config, dict) and config.get("control_type", "").upper() == control_type.upper():
+                    rules = config.get("syntax_rules", [])
+                    break
+    except Exception as e:
+        logging.error("Failed to read machines.json for syntax endpoint: %s", e)
+
+    # Fallback if no rules found for the control type
+    if not rules:
+        rules = [
+            {"token": "comment.line.modifier", "regex": "^\\s*\\/.*"},
+            {"token": "comment", "regex": "\\([^)]*\\)"},
+            {"token": "string.quoted.double", "regex": "\"[^\"]*\""},
+            {"token": "keyword.control", "regex": "\\b(?:GOTO|IF|WHILE|DO|END)\\b"},
+            {"token": "support.function", "regex": "\\b(?:SQRT|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|BIN|BCD|ROUND|FIX|FUP)\\b"},
+            {"token": "keyword.operator", "regex": "[\\+\\-\\*\\/=]"},
+            {"token": "variable.parameter", "regex": "#(\\d+)"},
+            {"token": "constant.language.gcode", "regex": "[Gg]\\s*\\d+(?:\\.\\d+)?"},
+            {"token": "constant.language.mcode", "regex": "[Mm]\\s*\\d+(?:\\.\\d+)?"},
+            {"token": ["entity.name.tag", "constant.numeric"], "regex": "([A-Z])(\\s*[+-]?\\d+(?:\\.\\d+)?)"}
+        ]
+        
+    return {"status": "success", "control_type": control_type.upper(), "rules": rules}
+
 def strip_cgi_headers(output: str) -> str:
     """Strip CGI HTTP headers from output, returning just the body.
 

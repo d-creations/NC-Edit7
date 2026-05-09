@@ -98,6 +98,7 @@ export class NCCodePane extends HTMLElement {
     // Listen for machine changes to re-parse with new regex patterns
     this.machineChangedSubscription = this.eventBus.subscribe(EVENT_NAMES.MACHINE_CHANGED, () => {
       this.triggerParse();
+      this.updateSyntaxHighlighting();
     });
 
     this.eventBus.subscribe('program:active_changed', (data: { channelId: string, program: NCProgram | null }) => {
@@ -295,6 +296,7 @@ export class NCCodePane extends HTMLElement {
 
     // Trigger initial parse
     this.triggerParse();
+    setTimeout(() => this.updateSyntaxHighlighting(), 100);
 
     this.editor.on('change', () => {
       if (this.isSettingValue) return;
@@ -325,6 +327,63 @@ export class NCCodePane extends HTMLElement {
         lineNumber: lineNumber,
       });
     });
+  }
+
+  private updateSyntaxHighlighting() {
+    const activeMachine = this.stateService.getState().activeMachine;
+    if (activeMachine && activeMachine.controlType) {
+        this.applySyntaxRules(activeMachine.controlType);
+    } else {
+        this.applySyntaxRules("FANUC_MILL");
+    }
+  }
+
+  private async applySyntaxRules(controlType: string) {
+    try {
+      const port = (window as any).backendPort || 8000;
+      const portUrl = `http://127.0.0.1:${port}`;
+      const response = await fetch(`${portUrl}/api/syntax/${controlType}`);
+      if (!response.ok) throw new Error("Failed to load syntax");
+      const data = await response.json();
+      
+      const machineRules = data.rules || [];
+      const modeName = `ace/mode/nc_${controlType.toLowerCase()}`;
+      
+      // ACE requires dynamic modules to be defined before use
+      ace.define(`${modeName}_highlight_rules`, ["require", "exports", "module", "ace/lib/oop", "ace/mode/text_highlight_rules"], function(require: any, exports: any, _module: any) {
+          const oop = require("ace/lib/oop");
+          const TextHighlightRules = require("ace/mode/text_highlight_rules").TextHighlightRules;
+
+          const NCRules = function(this: any) {
+              this.$rules = {
+                  "start": machineRules
+              };
+          };
+
+          oop.inherits(NCRules, TextHighlightRules);
+          exports.NCRules = NCRules;
+      });
+
+      ace.define(modeName, ["require", "exports", "module", "ace/lib/oop", "ace/mode/text", `${modeName}_highlight_rules`], function(require: any, exports: any, _module: any) {
+          const oop = require("ace/lib/oop");
+          const TextMode = require("ace/mode/text").Mode;
+          const NCRules = require(`${modeName}_highlight_rules`).NCRules;
+
+          const Mode = function(this: any) {
+              this.HighlightRules = NCRules;
+          };
+
+          oop.inherits(Mode, TextMode);
+          exports.Mode = Mode;
+      });
+
+      if (this.editor && this.editor.session) {
+        this.editor.session.setMode(modeName);
+        console.log(`Applied syntax highlighting mode: ${modeName} via backend`);
+      }
+    } catch (e) {
+      console.error("Syntax Highlighting Error:", e);
+    }
   }
 
   private triggerParse() {

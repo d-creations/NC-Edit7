@@ -10,8 +10,8 @@ services:
     environment:
       - CGI_PATH=/app/ncplot7py/scripts/cgiserver.cgi
       - CGI_TIMEOUT=30
-    # volumes:
-    #   - ./:/app:cached
+    volumes:
+      - ./:/app:cached
     networks:
       - ncnet
 
