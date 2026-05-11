@@ -281,5 +281,39 @@ describe('ExecutedProgramService', () => {
       expect(result.variableSnapshot.get(26)).toBe(3.1415);
       expect(result.variableSnapshot.get(100)).toBe(1.005);
     });
+
+    it('should map timing to segment line numbers instead of all executed lines', async () => {
+      const mockResponse: PlotResponse = {
+        canal: {
+          '1': {
+            segments: [
+              {
+                type: 'LINEAR',
+                lineNumber: 2,
+                toolNumber: 1,
+                points: [
+                  { x: 0, y: 0, z: 0 },
+                  { x: 1, y: 0, z: 0 },
+                ],
+              },
+            ],
+            executedLines: [1, 2],
+            variables: {},
+            timing: [0.6],
+          },
+        },
+      };
+
+      vi.mocked(mockBackend.requestPlot).mockResolvedValue(mockResponse);
+
+      const result = await service.executeProgram({
+        channelId: '1',
+        program: 'F100\nG1 X1',
+        machineName: 'SIEMENS_MILL',
+      });
+
+      expect(result.timingData.get(1)).toBeUndefined();
+      expect(result.timingData.get(2)).toBe(0.6);
+    });
   });
 });

@@ -1,7 +1,10 @@
 import ctypes
 import os
+import re
 import time
 import logging
+from copy import deepcopy
+from threading import Lock
 from typing import Optional, Tuple, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,147 @@ class DummyFocasClient(FocasClientBase):
     """Dummy FOCAS client for testing without a CNC or DLLs."""
     def __init__(self):
         self.connected = False
+        self._lock = Lock()
+        self._programs_by_path = self._build_seed_programs()
+
+    @staticmethod
+    def _make_program(number: int, comment: str, body: str) -> Dict[str, Any]:
+        program_text = body.strip()
+        if not program_text.startswith("%"):
+            program_text = f"%\n{program_text}"
+        if not program_text.rstrip().endswith("%"):
+            program_text = f"{program_text.rstrip()}\n%"
+        return {
+            "number": number,
+            "comment": comment,
+            "program_text": program_text,
+        }
+
+    @classmethod
+    def _build_seed_programs(cls) -> Dict[int, Dict[int, Dict[str, Any]]]:
+        return {
+            1: {
+                1000: cls._make_program(1000, "PA MAIN SPINDLE", """
+O1000
+(DEMO PA MAIN - PATH 1)
+G21
+G17 G40 G80
+G0 X0. Y0. Z20.
+G1 Z-3. F180.
+X20. Y0.
+Y20.
+X0.
+Y0.
+G0 Z20.
+M30
+"""),
+                1101: cls._make_program(1101, "FRONT OP ROUGH", """
+O1101
+(DEMO FRONT OP - PATH 1)
+T0101
+G97 S1800 M3
+G0 X32. Z4.
+G1 Z0. F0.2
+X18.
+Z-24.
+G0 X80. Z80.
+M30
+"""),
+                1201: cls._make_program(1201, "MILL SLOT", """
+O1201
+(DEMO MILL SLOT - PATH 1)
+G90 G54
+G0 X-12. Y0. Z10.
+G1 Z-2.5 F120.
+X12.
+G0 Z10.
+M30
+"""),
+            },
+            2: {
+                1000: cls._make_program(1000, "PA MAIN SPINDLE", """
+O1000
+(DEMO PA MAIN - PATH 2)
+G21
+G17 G40 G80
+G0 X0. Y0. Z18.
+G1 Z-2. F200.
+X15. Y15.
+X30. Y0.
+G0 Z18.
+M30
+"""),
+                2100: cls._make_program(2100, "SUB SPINDLE PICKOFF", """
+O2100
+(DEMO SUB SPINDLE - PATH 2)
+G50 S4000
+G97 S2200 M3
+G0 X24. Z2.
+G1 Z-12. F0.18
+X12.
+G0 X80. Z80.
+M30
+"""),
+                2205: cls._make_program(2205, "BACK WORK", """
+O2205
+(DEMO BACK WORK - PATH 2)
+G0 X0. Y0. Z12.
+G1 Z-1.5 F90.
+X8. Y-8.
+X16. Y0.
+G0 Z12.
+M30
+"""),
+            },
+            3: {
+                3007: cls._make_program(3007, "GANG DRILL", """
+O3007
+(DEMO GANG TOOL - PATH 3)
+G90 G54
+G0 X0. Y0. Z15.
+G81 X0. Y0. Z-8. R2. F100.
+X18. Y0.
+X18. Y18.
+G80
+G0 Z15.
+M30
+"""),
+                3010: cls._make_program(3010, "THREAD MILL", """
+O3010
+(DEMO THREAD MILL - PATH 3)
+G90 G54
+G0 X6. Y0. Z8.
+G3 I-6. Z-6. F80.
+G0 Z8.
+M30
+"""),
+            },
+        }
+
+    @staticmethod
+    def _normalize_program_text(program_text: str) -> str:
+        normalized = (program_text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not normalized.startswith("%"):
+            normalized = f"%\n{normalized.lstrip()}"
+        if not normalized.rstrip().endswith("%"):
+            normalized = f"{normalized.rstrip()}\n%"
+        return normalized
+
+    @staticmethod
+    def _extract_program_number(program_text: str) -> Optional[int]:
+        match = re.search(r"(?:^|\n)O(\d+)(?:\b|\s)", program_text, flags=re.IGNORECASE)
+        if not match:
+            return None
+        return int(match.group(1))
+
+    @staticmethod
+    def _extract_comment(program_text: str, fallback: str) -> str:
+        match = re.search(r"\(([^\n\r()]*)\)", program_text)
+        if match:
+            comment = match.group(1).strip()
+            if comment:
+                return comment[:48]
+        return fallback
         
     def connect(self, ip: str, port: int = 8193, timeout: int = 10) -> bool:
         logger.info(f"[DUMMY] Connecting to {ip}:{port}")
@@ -77,21 +221,53 @@ class DummyFocasClient(FocasClientBase):
         logger.info(f"[DUMMY] Path set to {path_no}")
         
     def download_program(self, program_text: str, path_no: int = 0):
-        logger.info(f"[DUMMY] Downloading {len(program_text)} bytes to Path {path_no}")
-        time.sleep(0.5) # Simulate transfer time
+        target_path = path_no or 1
+        logger.info(f"[DUMMY] Downloading {len(program_text)} bytes to Path {target_path}")
+        normalized = self._normalize_program_text(program_text)
+        program_number = self._extract_program_number(normalized)
+        if program_number is None:
+            raise FocasError(EW_DATA, "Demo upload requires an O-number in the program header")
+
+        with self._lock:
+            path_programs = self._programs_by_path.setdefault(target_path, {})
+            existing = path_programs.get(program_number)
+            fallback_comment = existing["comment"] if existing else f"DEMO PATH {target_path}"
+            path_programs[program_number] = {
+                "number": program_number,
+                "comment": self._extract_comment(normalized, fallback_comment),
+                "program_text": normalized,
+            }
+
+        time.sleep(0.1)
         
     def upload_program(self, prog_num: int, path_no: int = 0) -> str:
-        logger.info(f"[DUMMY] Uploading O{prog_num} from Path {path_no}")
-        time.sleep(0.5) # Simulate transfer time
-        return f"\nO{prog_num}\n(DUMMY DATA FOR PATH {path_no})\nG0 X0 Z0;\nM30\n%"
+        target_path = path_no or 1
+        logger.info(f"[DUMMY] Uploading O{prog_num} from Path {target_path}")
+        with self._lock:
+            program = self._programs_by_path.get(target_path, {}).get(prog_num)
+            if not program:
+                raise FocasError(EW_DATA, f"Program O{prog_num} not found on demo path {target_path}")
+            program_text = program["program_text"]
+        time.sleep(0.1)
+        return program_text
 
     def list_programs(self, path_no: int = 0) -> list:
-        logger.info(f"[DUMMY] Listing programs for Path {path_no}")
-        return [
-            {"number": 1000, "length": 250, "comment": "MAIN PART A"},
-            {"number": 1001, "length": 450, "comment": "MAIN PART B"},
-            {"number": 1002, "length": 1500, "comment": "FINISHING"}
-        ]
+        target_path = path_no or 1
+        logger.info(f"[DUMMY] Listing programs for Path {target_path}")
+        with self._lock:
+            programs = list(self._programs_by_path.get(target_path, {}).values())
+            return [
+                {
+                    "number": program["number"],
+                    "length": len(program["program_text"].encode("ascii", errors="ignore")),
+                    "comment": program["comment"],
+                }
+                for program in sorted(programs, key=lambda item: item["number"])
+            ]
+
+    def reset_demo_state(self):
+        with self._lock:
+            self._programs_by_path = deepcopy(self._build_seed_programs())
 
 class RealFocasClient(FocasClientBase):
     def __init__(self, dll_path: str = "focas_dlls/FWLIB64.DLL"):
@@ -304,3 +480,14 @@ _focas_instance = DummyFocasClient() if USE_MOCK else RealFocasClient()
 def get_focas_client() -> FocasClientBase:
     """FastAPI Dependency for FOCAS operations"""
     return _focas_instance
+
+
+_demo_focas_instance = DummyFocasClient()
+
+
+def is_demo_ip(ip_address: str) -> bool:
+    return ip_address.strip().upper() == "DEMO"
+
+
+def get_demo_focas_client() -> DummyFocasClient:
+    return _demo_focas_instance

@@ -35,6 +35,20 @@ class TestMachineSetup(unittest.TestCase):
 
         self.assertEqual(canal._state.extra["g_group_16_plane"], "Y_Z")
 
+    def test_machine_config_can_define_rapid_feed_rate(self):
+        custom_turn = MachineConfig(
+            name="TEST_TURN_RAPID",
+            control_type="FANUC",
+            variable_pattern=r'#(\d+)',
+            variable_prefix='#',
+            tool_range=(0, 99),
+            machine_type="TURN",
+            supported_gcode_groups=("motion",),
+            rapid_feed_rate=1200.0,
+        )
+
+        self.assertEqual(custom_turn.rapid_feed_rate, 1200.0)
+
 
 if __name__ == '__main__':
     unittest.main()

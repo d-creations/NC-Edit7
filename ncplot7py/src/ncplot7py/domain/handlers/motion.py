@@ -86,7 +86,7 @@ class MotionHandler(Handler):
         params = state.normalize_arc_params(params)
 
         if interp_mode == "G01" or interp_mode == "G00":
-            points, duration = self._linear_interpolate(start, resolved, state)
+            points, duration = self._linear_interpolate(start, resolved, state, rapid=interp_mode == "G00")
         elif interp_mode in ("G02", "G03"):
             cw = interp_mode == "G02"
             points, duration = self._circular_interpolate(start, resolved, params, state, cw)
@@ -102,7 +102,13 @@ class MotionHandler(Handler):
         # compute durations.
         return self._transform_points_for_plot(points, state), duration
 
-    def _linear_interpolate(self, start: Dict[str, float], end: Dict[str, float], state: CNCState) -> Tuple[List[Point], float]:
+    def _linear_interpolate(
+        self,
+        start: Dict[str, float],
+        end: Dict[str, float],
+        state: CNCState,
+        rapid: bool = False,
+    ) -> Tuple[List[Point], float]:
         # compute distance in XYZ space and include C-axis sweep as physical
         # travel when the tool is offset from the rotary center.
         axes = ("X", "Y", "Z")
@@ -126,8 +132,12 @@ class MotionHandler(Handler):
         if eff_max_segment <= 0.0:
             eff_max_segment = float(self.max_segment)
         n = max(1, int(math.ceil(dist / eff_max_segment)))
-        feed_mm_s = self._get_feed_mm_s(state)
-        duration = dist / feed_mm_s if feed_mm_s > 0 else 0.0
+        if rapid:
+            rapid_mm_s = self._get_rapid_mm_s(state)
+            duration = dist / rapid_mm_s if rapid_mm_s > 0 else 0.0
+        else:
+            feed_mm_s = self._get_feed_mm_s(state)
+            duration = dist / feed_mm_s if feed_mm_s > 0 else 0.0
 
         points: List[Point] = []
         # include explicit start point so joins between segments preserve
@@ -377,6 +387,17 @@ class MotionHandler(Handler):
                 effective_feed_mm_per_min = float(feed)
 
         return effective_feed_mm_per_min / 60.0
+
+    def _get_rapid_mm_s(self, state: CNCState) -> float:
+        try:
+            rapid_feed_rate = getattr(getattr(state, "machine_config", None), "rapid_feed_rate", None)
+            if rapid_feed_rate is None:
+                return 0.0
+            rapid_mm_per_min = float(rapid_feed_rate)
+        except Exception:
+            return 0.0
+
+        return rapid_mm_per_min / 60.0 if rapid_mm_per_min > 0 else 0.0
 
 
 __all__ = ["MotionHandler", "Point"]

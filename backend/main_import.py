@@ -16,11 +16,11 @@ from pydantic import BaseModel
 
 # Focas Service
 try:
-    from backend.focas_service import get_focas_client, FocasClientBase, FocasError
+    from backend.focas_service import get_focas_client, get_demo_focas_client, is_demo_ip, FocasClientBase, FocasError
     FOCAS_IMPORT_OK = True
 except ImportError:
     try:
-        from focas_service import get_focas_client, FocasClientBase, FocasError
+        from focas_service import get_focas_client, get_demo_focas_client, is_demo_ip, FocasClientBase, FocasError
         FOCAS_IMPORT_OK = True
     except ImportError as e:
         import logging
@@ -28,6 +28,8 @@ except ImportError:
         FOCAS_IMPORT_OK = False
         class FocasClientBase: pass
         def get_focas_client(): return None
+        def get_demo_focas_client(): return None
+        def is_demo_ip(ip_address: str): return False
         class FocasError(Exception): pass
 
 # Simple security: API Key to prevent basic bot requests
@@ -794,7 +796,9 @@ async def focas_ping(ip_address: str):
 
 @app.post("/api/focas/connect")
 async def focas_connect(conn: FocasConnection, client: FocasClientBase = Depends(get_focas_client)):
-    if not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+    if is_demo_ip(conn.ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
     try:
         success = client.connect(conn.ip_address, conn.port, conn.timeout)
@@ -808,7 +812,9 @@ async def focas_connect(conn: FocasConnection, client: FocasClientBase = Depends
 
 @app.get("/api/focas/programs/{path_no}")
 async def focas_list_programs(path_no: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
-    if not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
     try:
         if not client.connect(ip_address, port):
@@ -823,7 +829,9 @@ async def focas_list_programs(path_no: int, ip_address: str, port: int = 8193, c
 
 @app.get("/api/focas/upload/{path_no}/{prog_num}")
 async def focas_upload(path_no: int, prog_num: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
-    if not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
     try:
         if not client.connect(ip_address, port):
@@ -838,7 +846,9 @@ async def focas_upload(path_no: int, prog_num: int, ip_address: str, port: int =
 
 @app.post("/api/focas/download/{path_no}")
 async def focas_download(path_no: int, ip_address: str, data: FocasDownloadData, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
-    if not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
     try:
         if not client.connect(ip_address, port):

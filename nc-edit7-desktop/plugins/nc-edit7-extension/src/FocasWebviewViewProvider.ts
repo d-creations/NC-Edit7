@@ -128,7 +128,7 @@ export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
                 });
 
                 const config = vscode.workspace.getConfiguration('ncEdit7.focas');
-                const defaultIp = config.get<string>('defaultIpAddress') || '192.168.1.1';
+                const defaultIp = config.get<string>('defaultIpAddress') || 'DEMO';
 
                 // Inject our configuration
                 const scriptInjection = `
