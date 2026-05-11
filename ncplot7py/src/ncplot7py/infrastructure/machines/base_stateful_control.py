@@ -9,6 +9,15 @@ from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.shared.point import Point
 
 
+def _plane_from_default_code(default_plane: str) -> str:
+    plane_code = str(default_plane or "").upper()
+    if plane_code == "G18":
+        return "X_Z"
+    if plane_code == "G19":
+        return "Y_Z"
+    return "X_Y"
+
+
 class BaseStatefulCanal(BaseNCCanalInterface):
     """Base canal implementing standard execution and control flow logic."""
 
@@ -119,13 +128,16 @@ class BaseStatefulControl(BaseNCControlInterface):
             names = [canal_names for _ in range(self.count_of_canals)]
         else:
             names = list(canal_names)
+        if len(names) < self.count_of_canals:
+            names.extend(f"C{i+1}" for i in range(len(names), self.count_of_canals))
 
         init_states = list(init_nc_states) if init_nc_states is not None else [None] * self.count_of_canals
+        if len(init_states) < self.count_of_canals:
+            init_states.extend([None] * (self.count_of_canals - len(init_states)))
 
         self._canals: Dict[int, Any] = {}
         for idx in range(self.count_of_canals):
-            init_state = init_states[idx] if idx < len(init_states) else None
-            self._canals[idx + 1] = canal_class(names[idx], init_state)
+            self._canals[idx + 1] = canal_class(names[idx], init_states[idx])
 
     def get_canal_name(self, canal: int) -> str:
         c = self._canals.get(canal)
@@ -230,9 +242,12 @@ class UniversalConfigDrivenCanal(BaseStatefulCanal):
         if self._state.machine_config is None or self._state.machine_config.name == "FANUC_GENERIC":
             self._state.machine_config = get_machine_config("FANUC_MILL")
 
+        default_plane = _plane_from_default_code(self._state.machine_config.default_plane)
         if self._state.machine_config.control_type == "SIEMENS":
-            self._state.extra["g_group_16_plane"] = "X_Y"
+            self._state.extra["g_group_16_plane"] = default_plane
             self._state.extra["siemens_mode"] = False
+        else:
+            self._state.extra["g_group_16_plane"] = default_plane
 
         builder = HandlerChainBuilder()
 

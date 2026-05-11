@@ -8,6 +8,14 @@ from ncplot7py.domain.cnc_state import CNCState
 
 
 class TestGCodeGroup21Polar(unittest.TestCase):
+    def test_late_machine_config_assignment_applies_polar_defaults(self):
+        cstate = CNCState()
+        cstate.machine_config = get_machine_config("FANUC_STAR_x-D_y-D_z_R")
+
+        self.assertEqual(cstate.extra["polar_interpolate_axis"], "Y")
+        self.assertTrue(cstate.is_axis_diameter("X"))
+        self.assertTrue(cstate.is_axis_diameter("Y"))
+
     def test_polar_remap_c_to_v_and_h_to_u_with_axis_y(self):
         # Setup canal and state with polar axis Y
         cstate = CNCState(); cstate.machine_config = get_machine_config("FANUC_TURN")
@@ -32,6 +40,33 @@ class TestGCodeGroup21Polar(unittest.TestCase):
                     test_case.assertAlmostEqual(float(node.command_parameter['Y']), 10.0)
                     test_case.assertNotIn('C', node.command_parameter)
                     test_case.assertNotIn('H', node.command_parameter)
+                return None, None
+        curr = canal._chain
+        while curr.next_handler is not None:
+             curr = curr.next_handler
+        curr.next_handler = Verifier()
+
+        canal.run_nc_code_list([node_enable, node_motion])
+
+    def test_decimal_g112_is_recognized(self):
+        cstate = CNCState()
+        cstate.machine_config = get_machine_config("FANUC_STAR_x-D_y-R_z_R")
+        canal = UniversalConfigDrivenCanal('C1', init_state=cstate)
+
+        node_enable = NCCommandNode(g_code_command={'G112.0'}, command_parameter={})
+        node_motion = NCCommandNode(g_code_command={'G1'}, command_parameter={'C': '10.0'})
+        node_enable._next_ncCode = node_motion
+        node_motion._before_ncCode = node_enable
+
+        test_case = self
+        from ncplot7py.domain.exec_chain import Handler
+        class Verifier(Handler):
+            def handle(self, node, state):
+                if 'G1' in getattr(node, 'g_code', set()):
+                    test_case.assertEqual(state.extra.get('g_group_21_star'), 'POLAR_COORDINATE_ON')
+                    test_case.assertIn('Y', node.command_parameter)
+                    test_case.assertAlmostEqual(float(node.command_parameter['Y']), 10.0)
+                    test_case.assertNotIn('C', node.command_parameter)
                 return None, None
         curr = canal._chain
         while curr.next_handler is not None:

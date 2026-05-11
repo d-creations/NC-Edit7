@@ -43,7 +43,7 @@ class GCodeGroup21PolarCoExecChainLink(Handler):
                 continue
             try:
                 if g.upper().startswith("G"):
-                    gnum = int(g[1:])
+                    gnum = float(g[1:])
                 else:
                     continue
             except Exception:
@@ -78,10 +78,15 @@ class GCodeGroup21PolarCoExecChainLink(Handler):
         # If polar mode active, remap C/H -> axis and possibly swap arcs
         if state.extra.get("g_group_21_star") == "POLAR_COORDINATE_ON":
             # which axis is used for polar interpolation? default to 'Y'
-            polar_axis = state.extra.get("polar_interpolate_axis", "Y")
+            polar_axis = str(
+                state.extra.get(
+                    "polar_interpolate_axis",
+                    getattr(getattr(state, "machine_config", None), "polar_interpolate_axis", "Y"),
+                )
+            ).upper()
             # multipliers (defaults to 1.0)
-            xmul = float(state.extra.get("x_axis_multiplication", 1.0))
-            ymul = float(state.extra.get("y_axis_multiplication", 1.0))
+            xmul = float(state.extra.get("x_axis_multiplication", state.axis_multipliers.get("X", 1.0) or 1.0))
+            ymul = float(state.extra.get("y_axis_multiplication", state.axis_multipliers.get("Y", 1.0) or 1.0))
 
             # C parameter -> axis displacement
             if node.command_parameter and "C" in node.command_parameter:
@@ -131,7 +136,7 @@ class GCodeGroup21PolarCoExecChainLink(Handler):
                     try:
                         if not g.upper().startswith("G"):
                             continue
-                        num = int(g[1:])
+                        num = float(g[1:])
                     except Exception:
                         continue
                     if num == 2:

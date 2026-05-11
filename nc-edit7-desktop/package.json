@@ -26,7 +26,7 @@
     "start": "theia start --plugins=local-dir:plugins",
     "download:python": "node scripts/download-python.js",
     "build:ext": "node nc-edit7-extension/scripts/bundle.js && cd nc-edit7-extension && npm run compile",
-    "copy:ext": "node -e \"require('fs').mkdirSync('plugins', { recursive: true })\" && xcopy /E /I /Y nc-edit7-extension plugins\\nc-edit7-extension",
+    "copy:ext": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path 'plugins/nc-edit7-extension' | Out-Null; robocopy 'nc-edit7-extension' 'plugins/nc-edit7-extension' /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP; if ($LASTEXITCODE -gt 7) { exit $LASTEXITCODE } else { exit 0 }\"",
     "build:electron": "npm run build:ext && npm run copy:ext && electron-builder"
   },
   "theiaPluginsDir": "plugins",

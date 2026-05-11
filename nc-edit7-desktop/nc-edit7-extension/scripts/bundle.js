@@ -19,9 +19,17 @@ function copyFolderSync(from, to) {
     fs.readdirSync(from).forEach(element => {
         const stat = fs.lstatSync(path.join(from, element));
         if (stat.isFile()) {
-            fs.copyFileSync(path.join(from, element), path.join(to, element));
+            try {
+                fs.copyFileSync(path.join(from, element), path.join(to, element));
+            } catch (error) {
+                console.warn(`Warning: Failed to copy file ${path.join(from, element)} -> ${path.join(to, element)}: ${error.message}`);
+            }
         } else if (stat.isSymbolicLink()) {
-            fs.symlinkSync(fs.readlinkSync(path.join(from, element)), path.join(to, element));
+            try {
+                fs.symlinkSync(fs.readlinkSync(path.join(from, element)), path.join(to, element));
+            } catch (error) {
+                console.warn(`Warning: Failed to copy symlink ${path.join(from, element)} -> ${path.join(to, element)}: ${error.message}`);
+            }
         } else if (stat.isDirectory()) {
             copyFolderSync(path.join(from, element), path.join(to, element));
         }
@@ -30,7 +38,11 @@ function copyFolderSync(from, to) {
 
 console.log('Bundling assets for self-contained extension...');
 if (fs.existsSync(bundleDir)) {
-    fs.rmSync(bundleDir, { recursive: true, force: true });
+    try {
+        fs.rmSync(bundleDir, { recursive: true, force: true });
+    } catch (error) {
+        console.warn(`Warning: Failed to remove existing bundle directory, continuing with in-place update: ${error.message}`);
+    }
 }
 fs.mkdirSync(bundleDir, { recursive: true });
 
@@ -42,5 +54,15 @@ foldersToBundle.forEach(({ src, dest }) => {
         console.warn(`Warning: Could not find ${src}`);
     }
 });
+
+const bundledPth = path.join(bundleDir, 'python_embedded', 'python311._pth');
+if (fs.existsSync(bundledPth)) {
+    const pth = fs.readFileSync(bundledPth, 'utf8');
+    const rewritten = pth.replace('..\\..\\ncplot7py\\src\\', '..\\ncplot7py\\src\\');
+    if (rewritten !== pth) {
+        fs.writeFileSync(bundledPth, rewritten, 'utf8');
+        console.log(`Rewrote ${bundledPth} to point at bundled ncplot7py sources.`);
+    }
+}
 
 console.log('Bundle complete.');

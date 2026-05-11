@@ -43,14 +43,4 @@ foldersToBundle.forEach(({ src, dest }) => {
     }
 });
 
-const bundledPth = path.join(bundleDir, 'python_embedded', 'python311._pth');
-if (fs.existsSync(bundledPth)) {
-    const pth = fs.readFileSync(bundledPth, 'utf8');
-    const rewritten = pth.replace('..\\..\\ncplot7py\\src\\', '..\\ncplot7py\\src\\');
-    if (rewritten !== pth) {
-        fs.writeFileSync(bundledPth, rewritten, 'utf8');
-        console.log(`Rewrote ${bundledPth} to point at bundled ncplot7py sources.`);
-    }
-}
-
 console.log('Bundle complete.');

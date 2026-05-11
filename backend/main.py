@@ -7,7 +7,7 @@ import asyncio
 import json
 import os
 import logging
-from focas_service import get_focas_client, FocasClientBase, FocasError
+from focas_service import get_focas_client, FocasClientBase, FocasError, DummyFocasClient
 
 app = FastAPI(title="ncplot7py-adapter")
 
@@ -145,6 +145,9 @@ async def focas_ping(ip_address: str):
     if not ENABLE_FOCAS:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled on this server.")
     
+    if ip_address.upper() == "DEMO":
+        return {"status": "success", "available": True}
+
     import platform
     import asyncio
     
@@ -168,6 +171,10 @@ async def focas_ping(ip_address: str):
 async def focas_connect(conn: FocasConnection, client: FocasClientBase = Depends(get_focas_client)):
     if not ENABLE_FOCAS:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    
+    if conn.ip_address.upper() == "DEMO":
+        client = DummyFocasClient()
+        
     try:
         success = client.connect(conn.ip_address, conn.port, conn.timeout)
         if not success:
@@ -183,6 +190,10 @@ async def focas_connect(conn: FocasConnection, client: FocasClientBase = Depends
 async def focas_list_programs(path_no: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
     if not ENABLE_FOCAS:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    
+    if ip_address.upper() == "DEMO":
+        client = DummyFocasClient()
+        
     try:
         if not client.connect(ip_address, port):
             raise HTTPException(status_code=500, detail="Failed to connect to CNC")
@@ -198,6 +209,10 @@ async def focas_list_programs(path_no: int, ip_address: str, port: int = 8193, c
 async def focas_upload(path_no: int, prog_num: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
     if not ENABLE_FOCAS:
         raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    
+    if ip_address.upper() == "DEMO":
+        client = DummyFocasClient()
+        
     try:
         # FOCAS requires connecting, doing the operation, and disconnecting
         if not client.connect(ip_address, port):
@@ -212,6 +227,9 @@ async def focas_upload(path_no: int, prog_num: int, ip_address: str, port: int =
 
 @app.post("/api/focas/download/{path_no}")
 async def focas_download(path_no: int, ip_address: str, data: FocasDownloadData, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
+    if ip_address.upper() == "DEMO":
+        client = DummyFocasClient()
+        
     try:
         if not client.connect(ip_address, port):
             raise HTTPException(status_code=500, detail="Failed to connect to CNC before download")

@@ -77,18 +77,31 @@ class CNCState:
     # Machine Configuration
     machine_config: Optional[MachineConfig] = field(default=None)
 
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        if name == "machine_config":
+            self._apply_machine_config_defaults()
+
     def __post_init__(self):
         if self.machine_config is None and FANUC_GENERIC_CONFIG is not None:
             self.machine_config = FANUC_GENERIC_CONFIG
-        
-        if self.machine_config is not None:
-            # Initialize default feed mode from machine config if not already set
-            if "feed_mode" not in self.extra:
-                self.extra["feed_mode"] = self.machine_config.default_feed_mode
-            
-            # Apply diameter axes from machine config if not already evaluated
-            for axis in self.machine_config.diameter_axes:
-                self.set_axis_unit(axis, "diameter")
+
+        self._apply_machine_config_defaults()
+
+    def _apply_machine_config_defaults(self) -> None:
+        config = getattr(self, "machine_config", None)
+        if config is None:
+            return
+
+        extra = getattr(self, "extra", None)
+        if isinstance(extra, dict):
+            if "feed_mode" not in extra:
+                extra["feed_mode"] = config.default_feed_mode
+            if "polar_interpolate_axis" not in extra:
+                extra["polar_interpolate_axis"] = config.polar_interpolate_axis
+
+        for axis in getattr(config, "diameter_axes", ()):
+            self.set_axis_unit(axis, "diameter")
 
     def clone(self) -> "CNCState":
         """Return a deep copy of the state for transactional updates."""

@@ -26,6 +26,15 @@ class MachineConfig:
     polar_interpolate_axis: str = "Y"
     diameter_axes: Tuple[str, ...] = ()
 
+
+FANUC_GENERIC_CONFIG = MachineConfig(
+    name='FANUC_GENERIC',
+    control_type='FANUC',
+    variable_pattern=r'#(\d+)',
+    variable_prefix='#',
+    tool_range=(0, 9999),
+)
+
 # --- Machine Definitions ---
 
 # Registry of configs
@@ -33,6 +42,7 @@ MACHINE_CONFIGS: Dict[str, MachineConfig] = {}
 
 def load_machine_configs():
     global MACHINE_CONFIGS
+    MACHINE_CONFIGS = {'FANUC_GENERIC': FANUC_GENERIC_CONFIG}
     config_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config', 'machines.json')
     try:
         with open(config_path, 'r') as f:
@@ -70,17 +80,12 @@ def load_machine_configs():
                 
     except Exception as e:
         print(f"Warning: Failed to load machines.json: {e}")
-        # Fallback generic
-        MACHINE_CONFIGS['FANUC_GENERIC'] = MachineConfig(
-            name='FANUC_GENERIC', control_type='FANUC', variable_pattern=r'#(\d+)',
-            variable_prefix='#', tool_range=(0,9999)
-        )
 
 load_machine_configs()
 
 def get_machine_config(machine_name: str) -> MachineConfig:
     """Retrieve configuration for a given machine name."""
-    return MACHINE_CONFIGS.get(machine_name, MACHINE_CONFIGS.get('FANUC_GENERIC'))
+    return MACHINE_CONFIGS.get(machine_name) or FANUC_GENERIC_CONFIG
 
 def get_machine_regex_patterns(control_type: str) -> Dict[str, Any]:
     """Return regex patterns for parsing NC code based on control type.

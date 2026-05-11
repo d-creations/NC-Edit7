@@ -568,6 +568,13 @@ async def cgiserver_import(request: Request):
     for idx in range(len(programs)):
         if CNCState is not None:
             state = CNCState()
+            machine_name = machine_names[idx] if idx < len(machine_names) else ""
+            if machine_name:
+                try:
+                    state.machine_config = get_machine_config(machine_name)
+                except Exception:
+                    logging.warning("Failed to load machine config for %s", machine_name)
+
             # Set custom variables into state parameters
             custom_vars = custom_variables_list[idx] if idx < len(custom_variables_list) else []
             for var in custom_vars:

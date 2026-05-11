@@ -11,6 +11,7 @@ import {
   EXECUTED_PROGRAM_SERVICE_TOKEN,
   PLOT_SERVICE_TOKEN,
   FILE_MANAGER_SERVICE_TOKEN,
+  CONFIG_SERVICE_TOKEN,
 } from '@core/ServiceTokens';
 import { EventBus } from '@services/EventBus';
 import { StateService } from '@services/StateService';
@@ -22,12 +23,25 @@ import { ExecutedProgramService } from '@services/ExecutedProgramService';
 import { PlotService } from '@services/PlotService';
 import { FileManagerService } from '@services/FileManagerService';
 import { VsCodeFileManagerService } from '@services/VsCodeFileManagerService';
+import { VsCodeConfigService } from '@services/config/VsCodeConfigService';
+import { WebConfigService } from '@services/config/WebConfigService';
 import '@components/NCEditorApp';
 
 // Bootstrap application
 async function bootstrap() {
   try {
     const registry = ServiceRegistry.getInstance();
+
+    // Determine environment
+    // @ts-ignore
+    const isVSCode = window.acquireVsCodeApi !== undefined || (window.parent && window.parent !== window);
+
+    // Register Config Service early (Factory/Strategy pattern based on environment)
+    registry.register(
+      CONFIG_SERVICE_TOKEN,
+      () => isVSCode ? new VsCodeConfigService() : new WebConfigService(),
+      ServiceScope.Singleton
+    );
 
     // Register services using the tokens directly
     registry.register(EVENT_BUS_TOKEN, () => new EventBus(), ServiceScope.Singleton);

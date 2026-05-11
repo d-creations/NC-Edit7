@@ -1,7 +1,8 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { BACKEND_GATEWAY_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { BACKEND_GATEWAY_TOKEN, FILE_MANAGER_SERVICE_TOKEN, CONFIG_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { BackendGateway } from '@services/BackendGateway';
 import { IFileManagerService } from '@services/IFileManagerService';
+import { IConfigService } from '@services/config/IConfigService';
 
 import { FocasProgram } from '@core/types';
 
@@ -19,6 +20,7 @@ interface GroupedProgram {
 export class NCFocasTransfer extends HTMLElement {
   private backend: BackendGateway;
   private fileManager: IFileManagerService;
+  private configService: IConfigService;
 
   
   private cncPrograms: Map<number, GroupedProgram> = new Map();
@@ -31,6 +33,13 @@ export class NCFocasTransfer extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.backend = ServiceRegistry.getInstance().get(BACKEND_GATEWAY_TOKEN);
     this.fileManager = ServiceRegistry.getInstance().get(FILE_MANAGER_SERVICE_TOKEN);
+    this.configService = ServiceRegistry.getInstance().get(CONFIG_SERVICE_TOKEN);
+    
+    // Asynchronously load the default IP address from our configuration factory
+    this.configService.get('focasDefaultIp').then(ip => {
+      this.ipAddress = ip;
+      this.render(); // Re-render to show loaded IP
+    });
 
     // Listen for file drops fetched via Extension
     window.addEventListener('message', (event) => {

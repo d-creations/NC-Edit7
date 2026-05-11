@@ -1,4 +1,4 @@
-"""Motion handler for G1/G2/G3 moves located in domain.handlers.
+﻿"""Motion handler for G1/G2/G3 moves located in domain.handlers.
 
 This is the domain-located copy of the motion handler implementation.
 """
@@ -146,7 +146,7 @@ class MotionHandler(Handler):
         return points, duration
 
     def _get_active_plane(self, state: CNCState) -> str:
-        plane = getattr(state, "extra", {}).get("g_group_16_plane", "X_Y")
+        plane = getattr(state, "extra", {}).get("g_group_16_plane", "X_Z")
         if hasattr(plane, "value"):
             plane = plane.value
         plane_name = str(plane)
@@ -185,8 +185,10 @@ class MotionHandler(Handler):
             center_u = center_by_axis[ordered_axes[0]]
             center_v = center_by_axis[ordered_axes[1]]
         elif "R" in params and params.get("R", 0.0) != 0.0:
-            # derive center from radius — choose the smaller arc by default
-            r = params.get("R", 0.0)
+            # derive center from radius
+            r_val = params.get("R", 0.0)
+            r = abs(r_val)
+            is_major = r_val < 0
             # compute midpoint
             mx = (start_u + end_u) / 2.0
             my = (start_v + end_v) / 2.0
@@ -201,41 +203,37 @@ class MotionHandler(Handler):
             cy1 = my + h * dx
             cx2 = mx + h * dy
             cy2 = my - h * dx
-            # Determine which center yields the requested sweep direction
-            # and prefer the smaller absolute sweep (minor arc) when both
-            # satisfy the direction. Compute sweep angles for both centers
-            # and pick the best candidate.
-            def sweep_for_center(cx_c, cy_c):
+
+            def directional_sweep(cx_c, cy_c, cw_flag):
                 a0_c = math.atan2(start_v - cy_c, start_u - cx_c)
                 a1_c = math.atan2(end_v - cy_c, end_u - cx_c)
                 da_c = a1_c - a0_c
-                # normalize to [-pi, pi]
-                if da_c > math.pi:
-                    da_c -= 2 * math.pi
-                if da_c < -math.pi:
-                    da_c += 2 * math.pi
+                if cw_flag:
+                    while da_c >= 0:
+                        da_c -= 2 * math.pi
+                    while da_c < -2 * math.pi:
+                        da_c += 2 * math.pi
+                else:
+                    while da_c <= 0:
+                        da_c += 2 * math.pi
+                    while da_c > 2 * math.pi:
+                        da_c -= 2 * math.pi
                 return da_c
+            
+            da1 = directional_sweep(cx1, cy1, cw)
+            da2 = directional_sweep(cx2, cy2, cw)
 
-            da1 = sweep_for_center(cx1, cy1)
-            da2 = sweep_for_center(cx2, cy2)
-
-            # For cw=True we want a negative sweep (clockwise), for cw=False
-            # we want a positive sweep (counter-clockwise). Prefer the center
-            # that matches the desired sign; if both match or neither match,
-            # pick the one with smaller absolute sweep (minor arc).
-            def matches_cw(da_val, cw_flag):
-                return (da_val < 0) if cw_flag else (da_val > 0)
-
-            if matches_cw(da1, cw) and not matches_cw(da2, cw):
-                center_u, center_v = cx1, cy1
-            elif matches_cw(da2, cw) and not matches_cw(da1, cw):
-                center_u, center_v = cx2, cy2
-            else:
-                # both match or both don't — choose the smaller absolute sweep
-                if abs(da1) <= abs(da2):
+            if is_major:
+                if abs(da1) >= math.pi:
                     center_u, center_v = cx1, cy1
                 else:
                     center_u, center_v = cx2, cy2
+            else:
+                if abs(da1) <= math.pi:
+                    center_u, center_v = cx1, cy1
+                else:
+                    center_u, center_v = cx2, cy2
+
         else:
             # cannot compute arc center
             raise ValueError("Arc requires I/J or R parameter")
@@ -382,3 +380,4 @@ class MotionHandler(Handler):
 
 
 __all__ = ["MotionHandler", "Point"]
+

@@ -9,9 +9,11 @@ import { ExecutedProgramService } from '../services/ExecutedProgramService';
 import { PlotService } from '../services/PlotService';
 
 import { IFileManagerService } from '../services/IFileManagerService';
+import { IConfigService } from '../services/config/IConfigService';
 
 export const EVENT_BUS_TOKEN = createServiceToken<EventBus>('EventBus');
 export const FILE_MANAGER_SERVICE_TOKEN = createServiceToken<IFileManagerService>('FileManagerService');
+export const CONFIG_SERVICE_TOKEN = createServiceToken<IConfigService>('ConfigService');
 export const STATE_SERVICE_TOKEN = createServiceToken<StateService>('StateService');
 export const BACKEND_GATEWAY_TOKEN = createServiceToken<BackendGateway>('BackendGateway');
 export const MACHINE_SERVICE_TOKEN = createServiceToken<MachineService>('MachineService');
