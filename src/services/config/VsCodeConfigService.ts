@@ -3,7 +3,8 @@ import { IConfigService, AppConfiguration } from './IConfigService';
 export class VsCodeConfigService implements IConfigService {
   private config: AppConfiguration = {
     focasDefaultIp: '192.168.1.1',
-    backendPort: 8000
+    backendPort: 8000,
+    themeMode: 'vscode'
   }; // Defaults
   private listeners: ((cfg: AppConfiguration) => void)[] = [];
 

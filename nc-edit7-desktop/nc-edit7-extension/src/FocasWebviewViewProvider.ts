@@ -129,12 +129,14 @@ export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
 
                 const config = vscode.workspace.getConfiguration('ncEdit7.focas');
                 const defaultIp = config.get<string>('defaultIpAddress') || 'DEMO';
+                const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
 
                 // Inject our configuration
                 const scriptInjection = `
                 <script>
                     window.backendPort = ${this._backendPort};
                     window.focasDefaultIp = "${defaultIp}";
+                    window.vscodeConfig = { backendPort: ${this._backendPort}, focasDefaultIp: "${defaultIp}", themeMode: "${themeMode}" };
                     window.vscode = acquireVsCodeApi();
                     window.isFocasPanel = true; // Tell the app we are in the panel
                 </script>

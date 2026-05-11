@@ -27,6 +27,88 @@ import { VsCodeConfigService } from '@services/config/VsCodeConfigService';
 import { WebConfigService } from '@services/config/WebConfigService';
 import '@components/NCEditorApp';
 
+function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: boolean) {
+  const body = document.body;
+  if (!body) return;
+
+  const oneDarkPalette: Record<string, string> = {
+    '--vscode-editor-background': '#282c34',
+    '--vscode-editor-foreground': '#abb2bf',
+    '--vscode-editorGroupHeader-tabsBackground': '#21252b',
+    '--vscode-editorGroup-border': '#181a1f',
+    '--vscode-sideBar-background': '#21252b',
+    '--vscode-sideBar-border': '#181a1f',
+    '--vscode-button-background': '#61afef',
+    '--vscode-button-foreground': '#1f2329',
+    '--vscode-button-hoverBackground': '#70b7ff',
+    '--vscode-button-secondaryBackground': '#3a3f4b',
+    '--vscode-button-secondaryForeground': '#abb2bf',
+    '--vscode-disabledForeground': '#7f848e',
+    '--vscode-textLink-foreground': '#61afef',
+    '--vscode-widget-border': '#181a1f',
+    '--vscode-statusBar-background': '#21252b',
+    '--vscode-statusBar-foreground': '#abb2bf',
+    '--vscode-inputValidation-errorBackground': '#e06c75',
+    '--vscode-inputValidation-errorForeground': '#1f2329',
+    '--vscode-descriptionForeground': '#7f848e',
+    '--vscode-list-hoverBackground': 'rgba(255, 255, 255, 0.05)',
+    '--vscode-editor-lineHighlightBackground': '#2c313c',
+    '--vscode-editorHoverWidget-border': '#3e4451',
+    '--vscode-editorCursor-foreground': '#61afef',
+    '--vscode-editorLineNumber-activeForeground': '#abb2bf',
+    '--vscode-titleBar-activeBackground': '#21252b',
+    '--vscode-focusBorder': '#528bff',
+    '--vscode-editorWidget-background': '#21252b'
+  };
+
+  const lightPalette: Record<string, string> = {
+    '--vscode-editor-background': '#ffffff',
+    '--vscode-editor-foreground': '#24292f',
+    '--vscode-editorGroupHeader-tabsBackground': '#f6f8fa',
+    '--vscode-editorGroup-border': '#d0d7de',
+    '--vscode-sideBar-background': '#f6f8fa',
+    '--vscode-sideBar-border': '#d0d7de',
+    '--vscode-button-background': '#0969da',
+    '--vscode-button-foreground': '#ffffff',
+    '--vscode-button-hoverBackground': '#0860ca',
+    '--vscode-button-secondaryBackground': '#eaeef2',
+    '--vscode-button-secondaryForeground': '#24292f',
+    '--vscode-disabledForeground': '#6e7781',
+    '--vscode-textLink-foreground': '#0969da',
+    '--vscode-widget-border': '#d0d7de',
+    '--vscode-statusBar-background': '#f6f8fa',
+    '--vscode-statusBar-foreground': '#24292f',
+    '--vscode-inputValidation-errorBackground': '#ffebe9',
+    '--vscode-inputValidation-errorForeground': '#24292f',
+    '--vscode-descriptionForeground': '#57606a',
+    '--vscode-list-hoverBackground': '#f3f4f6',
+    '--vscode-editor-lineHighlightBackground': '#f6f8fa',
+    '--vscode-editorHoverWidget-border': '#d0d7de',
+    '--vscode-editorCursor-foreground': '#0969da',
+    '--vscode-editorLineNumber-activeForeground': '#24292f',
+    '--vscode-titleBar-activeBackground': '#f6f8fa',
+    '--vscode-focusBorder': '#0969da',
+    '--vscode-editorWidget-background': '#f6f8fa'
+  };
+
+  const overridePalette = themeMode === 'one-dark' ? oneDarkPalette : themeMode === 'light' ? lightPalette : undefined;
+  body.dataset.themeMode = themeMode;
+
+  const knownKeys = new Set([...Object.keys(oneDarkPalette), ...Object.keys(lightPalette)]);
+  for (const key of knownKeys) {
+    body.style.removeProperty(key);
+  }
+
+  if (themeMode === 'vscode' && isVSCode) {
+    return;
+  }
+
+  const palette = overridePalette ?? oneDarkPalette;
+  for (const [key, value] of Object.entries(palette)) {
+    body.style.setProperty(key, value);
+  }
+}
+
 // Bootstrap application
 async function bootstrap() {
   try {
@@ -42,6 +124,13 @@ async function bootstrap() {
       () => isVSCode ? new VsCodeConfigService() : new WebConfigService(),
       ServiceScope.Singleton
     );
+
+    const configService = registry.get(CONFIG_SERVICE_TOKEN);
+    const syncTheme = (config: { themeMode: 'vscode' | 'one-dark' | 'light' }) => {
+      applyThemeMode(config.themeMode, isVSCode);
+    };
+    syncTheme(await configService.getConfig());
+    configService.onConfigChanged(syncTheme);
 
     // Register services using the tokens directly
     registry.register(EVENT_BUS_TOKEN, () => new EventBus(), ServiceScope.Singleton);

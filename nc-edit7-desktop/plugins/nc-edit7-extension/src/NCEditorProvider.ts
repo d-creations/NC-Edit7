@@ -205,13 +205,15 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
                     return `${attr}="${basePathUri.toString()}/${filePath}"`;
                 });
 
-                const config = vscode.workspace.getConfiguration('ncEdit7.focas');
-                const defaultIp = config.get<string>('defaultIpAddress') || '192.168.1.1';
+                const focasConfig = vscode.workspace.getConfiguration('ncEdit7.focas');
+                const defaultIp = focasConfig.get<string>('defaultIpAddress') || '192.168.1.1';
+                const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
 
                 const scriptInjection = `
                 <script>
                     window.backendPort = ${this.backendPort};
                     window.focasDefaultIp = "${defaultIp}";
+                    window.vscodeConfig = { backendPort: ${this.backendPort}, focasDefaultIp: "${defaultIp}", themeMode: "${themeMode}" };
                     const vscode = acquireVsCodeApi();
                     window.addEventListener('message', event => {
                         const message = event.data;

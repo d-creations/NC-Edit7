@@ -97,8 +97,8 @@ export class NCEditorApp extends HTMLElement {
           flex-direction: column;
           width: 100%;
           height: 100%;
-          background: #1e1e1e;
-          color: #d4d4d4;
+          background: var(--vscode-editor-background, #282c34);
+          color: var(--vscode-editor-foreground, #abb2bf);
           /* CSS custom properties for consistent sizing */
           --bottom-nav-height: 70px;
         }
@@ -109,14 +109,14 @@ export class NCEditorApp extends HTMLElement {
           gap: 16px;
           /* Use safe area inset so header content won't be covered by iPhone URL/notch */
           padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
-          background: #252526;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-titleBar-activeBackground, var(--vscode-editorGroupHeader-tabsBackground, #21252b));
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
 
         .app-title {
           font-size: 18px;
           font-weight: 600;
-          color: #569cd6;
+          color: var(--vscode-textLink-foreground, #61afef);
         }
 
         .app-channel-controls {
@@ -127,8 +127,8 @@ export class NCEditorApp extends HTMLElement {
 
         .app-channel-toggle {
           padding: 4px 12px;
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
           border: none;
           border-radius: 4px;
           cursor: pointer;
@@ -136,38 +136,38 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .app-channel-toggle.inactive {
-          background: #3c3c3c;
-          color: #888;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-disabledForeground, #7f848e);
         }
 
         .app-focas-toggle {
           padding: 4px 12px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
         }
 
         .app-focas-toggle.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
 
         .app-plot-toggle {
           padding: 4px 12px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
         }
 
         .app-plot-toggle.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
 
         /* Small open-bar that shows when plot panel is hidden */
@@ -179,11 +179,11 @@ export class NCEditorApp extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
           cursor: pointer;
           border-radius: 6px 0 0 6px;
-          border: 1px solid #084a70;
+          border: 1px solid var(--vscode-focusBorder, #528bff);
           z-index: 200;
           /* make the label render vertically so it's readable in narrow bar */
           writing-mode: vertical-rl;
@@ -192,7 +192,7 @@ export class NCEditorApp extends HTMLElement {
           font-size: 13px;
         }
         .plot-open-bar:hover {
-          background: #1177bb;
+          background: var(--vscode-button-hoverBackground, #70b7ff);
         }
         .plot-open-bar.hidden {
           display: none;
@@ -207,8 +207,8 @@ export class NCEditorApp extends HTMLElement {
 
         .app-sidebar {
           width: 250px;
-          background: #252526;
-          border-right: 1px solid #3e3e42;
+          background: var(--vscode-sideBar-background, #21252b);
+          border-right: 1px solid var(--vscode-sideBar-border, var(--vscode-editorGroup-border, #181a1f));
           overflow-y: auto;
         }
 
@@ -222,7 +222,7 @@ export class NCEditorApp extends HTMLElement {
         .app-focas-container {
           width: 350px;
           display: none;
-          background: #1e1e1e;
+          background: var(--vscode-editor-background, #282c34);
         }
         
         .app-main-content.show-focas .app-focas-container {
@@ -232,8 +232,8 @@ export class NCEditorApp extends HTMLElement {
         .app-plot-container {
           width: 0;
           display: none;
-          background: #1e1e1e;
-          border-left: 1px solid #3e3e42;
+          background: var(--vscode-editor-background, #282c34);
+          border-left: 1px solid var(--vscode-editorGroup-border, #181a1f);
           overflow: hidden;
           position: relative;
         }
@@ -248,7 +248,7 @@ export class NCEditorApp extends HTMLElement {
         .plot-resize-handle {
           width: 6px;
           cursor: ew-resize;
-          background: #3e3e42;
+          background: var(--vscode-editorGroup-border, #181a1f);
           flex-shrink: 0;
           display: flex;
           align-items: center;
@@ -257,7 +257,7 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .plot-resize-handle:hover {
-          background: #0e639c;
+          background: var(--vscode-button-background, #61afef);
         }
 
         .plot-resize-handle::before {
@@ -282,8 +282,8 @@ export class NCEditorApp extends HTMLElement {
           transform: translateY(-50%);
           width: 16px;
           height: 40px;
-          background: #3c3c3c;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-left: none;
           border-radius: 0 4px 4px 0;
           cursor: pointer;
@@ -294,12 +294,12 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .plot-hide-bar:hover {
-          background: #0e639c;
+          background: var(--vscode-button-background, #61afef);
         }
 
         .plot-hide-bar::before {
           content: '›';
-          color: #d4d4d4;
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
           font-size: 14px;
           font-weight: bold;
         }
@@ -321,15 +321,15 @@ export class NCEditorApp extends HTMLElement {
           align-items: center;
           gap: 16px;
           padding: 4px 16px;
-          background: #007acc;
-          color: #fff;
+          background: var(--vscode-statusBar-background, #21252b);
+          color: var(--vscode-statusBar-foreground, #abb2bf);
           font-size: 12px;
         }
 
         .error-message {
           padding: 16px;
-          background: #f48771;
-          color: #1e1e1e;
+          background: var(--vscode-inputValidation-errorBackground, #e06c75);
+          color: var(--vscode-inputValidation-errorForeground, #1f2329);
           margin: 8px;
           border-radius: 4px;
         }
@@ -408,8 +408,8 @@ export class NCEditorApp extends HTMLElement {
             left: 0;
             width: 100%;
             height: var(--bottom-nav-height);
-            background: #252526;
-            border-top: 1px solid #3e3e42;
+            background: var(--vscode-sideBar-background, #21252b);
+            border-top: 1px solid var(--vscode-editorGroup-border, #181a1f);
             z-index: 200;
           }
 
@@ -419,7 +419,7 @@ export class NCEditorApp extends HTMLElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #888;
+            color: var(--vscode-disabledForeground, #7f848e);
             font-size: 14px; /* Increased from 12px */
             cursor: pointer;
             border: none;
@@ -429,8 +429,8 @@ export class NCEditorApp extends HTMLElement {
           }
 
           .nav-item.active {
-            color: #0e639c;
-            background: rgba(255, 255, 255, 0.05);
+            color: var(--vscode-button-background, #61afef);
+            background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
           }
 
           .nav-item.disabled {
@@ -466,7 +466,7 @@ export class NCEditorApp extends HTMLElement {
         <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
       </div>
 
-      <nc-file-manager style="display: block; border-bottom: 1px solid #3e3e42;"></nc-file-manager>
+      <nc-file-manager style="display: block; border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);"></nc-file-manager>
 
       <div class="app-main-content" id="main-content">
         <div class="app-channel-container">
@@ -664,7 +664,7 @@ export class NCEditorApp extends HTMLElement {
 
     const content = document.createElement('div');
     content.style.cssText = `
-      background: #252526;
+      background: var(--vscode-editorWidget-background, #21252b);
       padding: 20px;
       border-radius: 8px;
       width: 80%;
@@ -695,8 +695,8 @@ export class NCEditorApp extends HTMLElement {
       toggle.textContent = channel?.active ? 'ON' : 'OFF';
       toggle.style.cssText = `
         padding: 8px 16px;
-        background: ${channel?.active ? '#0e639c' : '#3c3c3c'};
-        color: #fff;
+        background: ${channel?.active ? 'var(--vscode-button-background, #61afef)' : 'var(--vscode-button-secondaryBackground, #3a3f4b)'};
+        color: ${channel?.active ? 'var(--vscode-button-foreground, #1f2329)' : 'var(--vscode-button-secondaryForeground, #abb2bf)'};
         border: none;
         border-radius: 6px;
         cursor: pointer;
@@ -709,11 +709,13 @@ export class NCEditorApp extends HTMLElement {
         if (channel?.active) {
           this.stateService.deactivateChannel(channelId);
           toggle.textContent = 'OFF';
-          toggle.style.background = '#3c3c3c';
+          toggle.style.background = 'var(--vscode-button-secondaryBackground, #3a3f4b)';
+          toggle.style.color = 'var(--vscode-button-secondaryForeground, #abb2bf)';
         } else {
           this.stateService.activateChannel(channelId);
           toggle.textContent = 'ON';
-          toggle.style.background = '#0e639c';
+          toggle.style.background = 'var(--vscode-button-background, #61afef)';
+          toggle.style.color = 'var(--vscode-button-foreground, #1f2329)';
         }
         this.updateChannelDisplay();
       });
@@ -728,8 +730,8 @@ export class NCEditorApp extends HTMLElement {
     closeBtn.style.cssText = `
       margin-top: 10px;
       padding: 10px 20px;
-      background: #3c3c3c;
-      color: #fff;
+      background: var(--vscode-button-secondaryBackground, #3a3f4b);
+      color: var(--vscode-button-secondaryForeground, #abb2bf);
       border: none;
       border-radius: 6px;
       cursor: pointer;

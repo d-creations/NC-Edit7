@@ -95,6 +95,16 @@
           "type": "string",
           "default": "DEMO",
           "description": "Default IP Address to use for the FOCAS CNC connection."
+        },
+        "ncEdit7.theme.mode": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "one-dark",
+            "light"
+          ],
+          "default": "vscode",
+          "description": "Theme mode for NC-Edit7. Use VS Code theme inside the extension, or force One Dark/light."
         }
       }
     }

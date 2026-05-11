@@ -102,7 +102,7 @@ export class NCToolpathPlot extends HTMLElement {
           display: block;
           width: 100%;
           height: 100%;
-          background: #1e1e1e;
+          background: var(--vscode-editor-background, #282c34);
           position: relative;
         }
         :host([hidden]) {
@@ -124,31 +124,31 @@ export class NCToolpathPlot extends HTMLElement {
         }
         .plot-button {
           padding: 4px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
         }
         .plot-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .plot-button.primary {
-          background: #0e639c;
-          color: #fff;
-          border: 1px solid #0e639c;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
+          border: 1px solid var(--vscode-button-background, #61afef);
         }
         .plot-button.primary:hover {
-          background: #1177bb;
+          background: var(--vscode-button-hoverBackground, #70b7ff);
         }
         .plot-button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
         .plot-button.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
         .view-controls {
           position: absolute;
@@ -185,9 +185,9 @@ export class NCToolpathPlot extends HTMLElement {
           width: 32px;
           height: 32px;
           padding: 0;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 18px;
@@ -196,15 +196,15 @@ export class NCToolpathPlot extends HTMLElement {
           justify-content: center;
         }
         .zoom-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .plot-info {
           position: absolute;
           bottom: 8px;
           left: 8px;
-          color: #d4d4d4;
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-size: 12px;
-          background: rgba(30, 30, 30, 0.8);
+          background: color-mix(in srgb, var(--vscode-editor-background, #282c34) 80%, transparent);
           padding: 4px 8px;
           border-radius: 4px;
         }
@@ -212,9 +212,9 @@ export class NCToolpathPlot extends HTMLElement {
           position: absolute;
           bottom: 8px;
           right: 8px;
-          color: #888;
+          color: var(--vscode-descriptionForeground, #7f848e);
           font-size: 10px;
-          background: rgba(30, 30, 30, 0.8);
+          background: color-mix(in srgb, var(--vscode-editor-background, #282c34) 80%, transparent);
           padding: 4px 8px;
           border-radius: 4px;
         }

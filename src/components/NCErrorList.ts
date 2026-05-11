@@ -105,8 +105,8 @@ export class NCErrorList extends HTMLElement {
           display: block;
           height: 100%;
           overflow-y: auto;
-          background: #252526;
-          color: #d4d4d4;
+          background: var(--vscode-editorWidget-background, #21252b);
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-family: monospace;
           font-size: 12px;
           padding: 4px;
@@ -116,12 +116,12 @@ export class NCErrorList extends HTMLElement {
           display: flex;
           gap: 8px;
           padding: 4px 8px;
-          border-bottom: 1px solid #3e3e42;
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           cursor: pointer;
         }
 
         .error-item:hover {
-          background: #2a2d2e;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
 
         .error-item.error {
@@ -133,7 +133,7 @@ export class NCErrorList extends HTMLElement {
         }
 
         .line-number {
-          color: #858585;
+          color: var(--vscode-descriptionForeground, #7f848e);
           min-width: 60px;
         }
 
@@ -144,7 +144,7 @@ export class NCErrorList extends HTMLElement {
         .empty-message {
           padding: 16px;
           text-align: center;
-          color: #858585;
+          color: var(--vscode-descriptionForeground, #7f848e);
         }
       </style>
 

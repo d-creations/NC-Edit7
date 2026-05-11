@@ -1,6 +1,7 @@
 export interface AppConfiguration {
   focasDefaultIp: string;
   backendPort: number;
+  themeMode: 'vscode' | 'one-dark' | 'light';
 }
 
 export interface IConfigService {

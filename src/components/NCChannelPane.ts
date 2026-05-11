@@ -140,12 +140,12 @@ export class NCChannelPane extends HTMLElement {
           flex-direction: column;
           height: 100%;
           overflow: hidden;
-          border: 1px solid #3e3e42;
+          border: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
         .channel-header {
           padding: 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           font-weight: bold;
           display: flex;
           justify-content: space-between;
@@ -157,19 +157,19 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-button {
           padding: 2px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 3px;
           cursor: pointer;
           font-size: 11px;
         }
         .channel-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .channel-button.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
         .channel-content {
           display: flex;
@@ -180,7 +180,7 @@ export class NCChannelPane extends HTMLElement {
           width: auto;
           min-width: 60px;
           max-width: 120px;
-          border-right: 1px solid #3e3e42;
+          border-right: 1px solid var(--vscode-editorGroup-border, #181a1f);
           display: flex;
           flex-direction: column;
         }
@@ -196,7 +196,7 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-tools-panel {
           height: 150px;
-          border-top: 1px solid #3e3e42;
+          border-top: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
         .mobile-sidebar-toggle {
           display: none;
@@ -212,9 +212,9 @@ export class NCChannelPane extends HTMLElement {
             height: calc(100% - 45px); /* Updated to match new top position */
             width: 85%;
             max-width: 300px;
-            background: #252526;
+            background: var(--vscode-editorWidget-background, #21252b);
             z-index: 50;
-            border-right: 1px solid #3e3e42;
+            border-right: 1px solid var(--vscode-editorGroup-border, #181a1f);
             box-shadow: 2px 0 10px rgba(0,0,0,0.5);
           }
           
