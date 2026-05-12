@@ -6,15 +6,17 @@ import './NCExecutedList';
 import './NCBottomPanel';
 import './NCProgramManager';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { CONFIG_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { CONFIG_SERVICE_TOKEN, EVENT_BUS_TOKEN, HOST_BRIDGE_SERVICE_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
 import type { IConfigService } from '@services/config/IConfigService';
+import type { IHostBridgeService } from '@services/HostBridgeService';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
   private eventBus: EventBus;
   private stateService: import('@services/StateService').StateService;
   private configService: IConfigService;
+  private hostBridge: IHostBridgeService;
   private showEmbeddedBottomPanel = true;
 
   static get observedAttributes() {
@@ -27,6 +29,7 @@ export class NCChannelPane extends HTMLElement {
     this.eventBus = registry.get(EVENT_BUS_TOKEN);
     this.stateService = registry.get(STATE_SERVICE_TOKEN);
     this.configService = registry.get(CONFIG_SERVICE_TOKEN);
+    this.hostBridge = registry.get(HOST_BRIDGE_SERVICE_TOKEN);
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -114,6 +117,15 @@ export class NCChannelPane extends HTMLElement {
       }
 
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, { channelId: this.channelId });
+
+      // When Plot is pressed, also surface the variables pane so the user can
+      // inspect the resulting state immediately in either host.
+      this.hostBridge.openWorkbenchPanel('variables');
+
+      const bottomPanel = this.querySelector('#bottom-panel') as
+        | (HTMLElement & { open?: (tabName?: 'variables' | 'errors') => void })
+        | null;
+      bottomPanel?.open?.('variables');
     });
 
     // Forward keyword-click events to the code pane

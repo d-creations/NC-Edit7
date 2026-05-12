@@ -1,3 +1,5 @@
+export type WorkbenchTab = 'variables' | 'errors' | 'focas';
+
 export type WorkbenchBridgeMessage =
   | {
       type: 'WORKBENCH_BRIDGE';
@@ -29,6 +31,7 @@ export type WorkbenchBridgeMessage =
 export interface IHostBridgeService {
   isAvailable(): boolean;
   relayToWorkbench(message: WorkbenchBridgeMessage): void;
+  openWorkbenchPanel(tab?: WorkbenchTab): void;
 }
 
 type VsCodeApi = {
@@ -41,6 +44,8 @@ export class BrowserHostBridgeService implements IHostBridgeService {
   }
 
   relayToWorkbench(_message: WorkbenchBridgeMessage): void {}
+
+  openWorkbenchPanel(_tab?: WorkbenchTab): void {}
 }
 
 export class VsCodeHostBridgeService implements IHostBridgeService {
@@ -64,6 +69,13 @@ export class VsCodeHostBridgeService implements IHostBridgeService {
     this.api?.postMessage({
       type: 'workbench:relay',
       message,
+    });
+  }
+
+  openWorkbenchPanel(tab?: WorkbenchTab): void {
+    this.api?.postMessage({
+      type: 'workbench:open-panel',
+      tab,
     });
   }
 }

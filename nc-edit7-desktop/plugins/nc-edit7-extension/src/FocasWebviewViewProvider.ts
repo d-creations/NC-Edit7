@@ -123,6 +123,18 @@ export class WorkbenchPanelWebviewViewProvider implements vscode.WebviewViewProv
         return this.postMessage({ type: 'UPDATE_CONFIG', config });
     }
 
+    public async reveal(tab?: 'variables' | 'errors' | 'focas'): Promise<void> {
+        await vscode.commands.executeCommand('workbench.action.focusPanel');
+        await vscode.commands.executeCommand('workbench.view.extension.ncEdit7BottomPanel');
+
+        const view = this.currentWebviewView as vscode.WebviewView & { show?: (preserveFocus?: boolean) => void };
+        view.show?.(true);
+
+        if (tab) {
+            await this.postMessage({ type: 'OPEN_WORKBENCH_PANEL', tab });
+        }
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview, distPath: vscode.Uri): string {
         const indexHtmlPath = vscode.Uri.joinPath(distPath, 'index.html');
         
@@ -161,6 +173,9 @@ export class WorkbenchPanelWebviewViewProvider implements vscode.WebviewViewProv
                         }
                         if (message.type === 'WORKBENCH_BRIDGE') {
                             window.dispatchEvent(new CustomEvent('vscode:workbench-bridge', { detail: message }));
+                        }
+                        if (message.type === 'OPEN_WORKBENCH_PANEL') {
+                            window.dispatchEvent(new CustomEvent('vscode:workbench-panel-command', { detail: { tab: message.tab } }));
                         }
                     });
                 </script>

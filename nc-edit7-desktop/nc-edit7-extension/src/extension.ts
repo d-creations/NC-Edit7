@@ -6,6 +6,8 @@ import * as net from 'net';
 import { NCEditorProvider } from './NCEditorProvider';
 import { WorkbenchPanelWebviewViewProvider } from './FocasWebviewViewProvider';
 
+type WorkbenchTab = 'variables' | 'errors' | 'focas';
+
 let backendProcess: cp.ChildProcess | undefined;
 
 async function getFreePort(): Promise<number> {
@@ -47,10 +49,30 @@ export async function activate(context: vscode.ExtensionContext) {
         };
     };
 
+    type WorkbenchRelayMessage =
+        | { type: 'OPEN_WORKBENCH_PANEL'; tab?: WorkbenchTab }
+        | { type: 'FILES_OPENED'; isSingleFile: boolean; activeChannel: string; channels: Record<string, string> }
+        | { type: 'FILE_UPDATED_EXTERNALLY'; channels: Record<string, string> }
+        | { type: 'FILE_UPDATED_EXTERNALLY'; channel: string; text: string; activeChannel?: string }
+        | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_COMPLETED'; payload: { channelId: string; result: { variableSnapshotEntries: Array<[number, number]>; errors: unknown[] } } }
+        | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_ERROR'; payload: { channelId: string; error: { message: string } } }
+        | { type: 'WORKBENCH_BRIDGE'; eventType: 'PLOT_CLEARED'; payload: Record<string, never> };
+
     const workbenchPanelProvider = new WorkbenchPanelWebviewViewProvider(context.extensionUri, backendPort);
-    const editorProvider = new NCEditorProvider(context, backendPort, (message) => {
+    const editorProvider = new NCEditorProvider(context, backendPort, (message: WorkbenchRelayMessage) => {
+        if (message.type === 'OPEN_WORKBENCH_PANEL') {
+            void workbenchPanelProvider.reveal(message.tab);
+            return;
+        }
+
         void workbenchPanelProvider.postMessage(message);
     });
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ncEdit7.openWorkbenchPanel', async (tab?: 'variables' | 'errors' | 'focas') => {
+            await workbenchPanelProvider.reveal(tab);
+        })
+    );
 
     // Register our custom editor provider
     context.subscriptions.push(

@@ -322,14 +322,40 @@ export class NCBottomPanel extends HTMLElement {
     });
   }
 
-  toggle() {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
+  open(tabName: 'variables' | 'errors' = 'variables') {
+    this.switchTab(tabName);
+
+    if (!this.isOpen) {
+      this.isOpen = true;
       this.setAttribute('open', '');
       this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-    } else {
-      this.removeAttribute('open');
     }
+
+    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.textContent = 'Close';
+    }
+  }
+
+  close() {
+    if (!this.isOpen) return;
+
+    this.isOpen = false;
+    this.removeAttribute('open');
+
+    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.textContent = 'Open';
+    }
+  }
+
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+      return;
+    }
+
+    this.open();
   }
 }
 

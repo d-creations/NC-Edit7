@@ -15,6 +15,12 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "ncEdit7.openWorkbenchPanel",
+        "title": "NC-Edit7: Open Workbench Panel"
+      }
+    ],
     "customEditors": [
       {
         "viewType": "ncEdit7.editor",

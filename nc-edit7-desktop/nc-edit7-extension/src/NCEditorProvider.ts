@@ -2,10 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
+type WorkbenchTab = 'variables' | 'errors' | 'focas';
+
 type EditorRelayMessage =
     | { type: 'FILES_OPENED'; isSingleFile: boolean; activeChannel: string; channels: Record<string, string> }
     | { type: 'FILE_UPDATED_EXTERNALLY'; channels: Record<string, string> }
     | { type: 'FILE_UPDATED_EXTERNALLY'; channel: string; text: string; activeChannel?: string }
+    | { type: 'OPEN_WORKBENCH_PANEL'; tab?: WorkbenchTab }
     | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_COMPLETED'; payload: { channelId: string; result: { variableSnapshotEntries: Array<[number, number]>; errors: unknown[] } } }
     | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_ERROR'; payload: { channelId: string; error: { message: string } } }
     | { type: 'WORKBENCH_BRIDGE'; eventType: 'PLOT_CLEARED'; payload: Record<string, never> };
@@ -230,6 +233,12 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
                     return;
                 case 'workbench:relay':
                     this.relayMessageToWorkbench(webviewPanel, e.message as EditorRelayMessage);
+                    return;
+                case 'workbench:open-panel':
+                    this.relayMessageToWorkbench(webviewPanel, {
+                        type: 'OPEN_WORKBENCH_PANEL',
+                        tab: e.tab as WorkbenchTab | undefined,
+                    });
                     return;
             }
         });

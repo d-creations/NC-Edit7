@@ -8,8 +8,7 @@ import { EventBus, EVENT_NAMES, type EventSubscription } from '@services/EventBu
 import { ParserService } from '@services/ParserService';
 import type { IFileManagerService } from '@services/IFileManagerService';
 import { StateService } from '@services/StateService';
-
-type WorkbenchTab = 'variables' | 'errors' | 'focas';
+import type { WorkbenchTab } from '@services/HostBridgeService';
 
 export class NCWorkbenchPanelApp extends HTMLElement {
   private stateService: StateService;
@@ -20,6 +19,7 @@ export class NCWorkbenchPanelApp extends HTMLElement {
   private subscriptions: EventSubscription[] = [];
   private fileSyncListener?: EventListener;
   private bridgeListener?: EventListener;
+  private panelCommandListener?: EventListener;
 
   constructor() {
     super();
@@ -46,6 +46,9 @@ export class NCWorkbenchPanelApp extends HTMLElement {
     }
     if (this.bridgeListener) {
       window.removeEventListener('vscode:workbench-bridge', this.bridgeListener);
+    }
+    if (this.panelCommandListener) {
+      window.removeEventListener('message', this.panelCommandListener);
     }
   }
 
@@ -109,6 +112,10 @@ export class NCWorkbenchPanelApp extends HTMLElement {
       if (!detail || detail.type !== 'WORKBENCH_BRIDGE') return;
 
       if (detail.eventType === 'EXECUTION_COMPLETED') {
+        if (['1', '2', '3'].includes(detail.payload.channelId)) {
+          this.stateService.setWorkbenchSelectedChannel(detail.payload.channelId as ChannelId);
+        }
+
         const result: ExecutedProgramResult = {
           executedLines: [],
           variableSnapshot: new Map(detail.payload.result.variableSnapshotEntries),
@@ -124,6 +131,10 @@ export class NCWorkbenchPanelApp extends HTMLElement {
       }
 
       if (detail.eventType === 'EXECUTION_ERROR') {
+        if (['1', '2', '3'].includes(detail.payload.channelId)) {
+          this.stateService.setWorkbenchSelectedChannel(detail.payload.channelId as ChannelId);
+        }
+
         this.eventBus.publish(EVENT_NAMES.EXECUTION_ERROR, {
           channelId: detail.payload.channelId,
           error: detail.payload.error,
@@ -135,6 +146,18 @@ export class NCWorkbenchPanelApp extends HTMLElement {
       }
     }) as EventListener;
     window.addEventListener('vscode:workbench-bridge', this.bridgeListener);
+
+    this.panelCommandListener = ((event: Event) => {
+      const detail = (event as CustomEvent).detail as { tab?: WorkbenchTab } | undefined;
+      if (!detail) return;
+
+      if (detail.tab && detail.tab !== this.activeTab) {
+        this.activeTab = detail.tab;
+      }
+
+      this.syncTabState();
+    }) as EventListener;
+    window.addEventListener('vscode:workbench-panel-command', this.panelCommandListener);
   }
 
   private syncFromState() {
@@ -166,7 +189,7 @@ export class NCWorkbenchPanelApp extends HTMLElement {
     });
 
     this.shadowRoot?.querySelectorAll<HTMLElement>('.tab-panel').forEach((panel) => {
-      panel.style.display = panel.dataset.tabPanel === this.activeTab ? 'block' : 'none';
+      panel.style.display = panel.dataset.tabPanel === this.activeTab ? 'flex' : 'none';
     });
   }
 

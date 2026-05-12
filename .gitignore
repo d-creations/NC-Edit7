@@ -49,3 +49,4 @@ dist2/
 out/
 dist/
 bundle/
+*.vsix
