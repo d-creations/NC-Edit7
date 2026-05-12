@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as net from 'net';
 import { NCEditorProvider } from './NCEditorProvider';
-import { FocasWebviewViewProvider } from './FocasWebviewViewProvider';
+import { WorkbenchPanelWebviewViewProvider } from './FocasWebviewViewProvider';
 
 let backendProcess: cp.ChildProcess | undefined;
 
@@ -22,14 +22,66 @@ async function getFreePort(): Promise<number> {
 export async function activate(context: vscode.ExtensionContext) {
 	const backendPort = await getFreePort();
 
-	// Register our custom editor provider
-	context.subscriptions.push(NCEditorProvider.register(context, backendPort));
+    const getEditorWebviewConfig = () => {
+        const focasConfig = vscode.workspace.getConfiguration('ncEdit7.focas');
+        const layoutConfig = vscode.workspace.getConfiguration('ncEdit7.layout');
+        const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
+        return {
+            backendPort,
+            focasDefaultIp: focasConfig.get<string>('defaultIpAddress') || '192.168.1.1',
+            themeMode,
+            hostMode: 'vscode-editor',
+            focasPlacement: layoutConfig.get<string>('focasPlacement') || 'external-panel',
+        };
+    };
+
+    const getPanelWebviewConfig = () => {
+        const focasConfig = vscode.workspace.getConfiguration('ncEdit7.focas');
+        const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
+        return {
+            backendPort,
+            focasDefaultIp: focasConfig.get<string>('defaultIpAddress') || 'DEMO',
+            themeMode,
+            hostMode: 'vscode-panel',
+            focasPlacement: 'disabled',
+        };
+    };
+
+    const workbenchPanelProvider = new WorkbenchPanelWebviewViewProvider(context.extensionUri, backendPort);
+    const editorProvider = new NCEditorProvider(context, backendPort, (message) => {
+        void workbenchPanelProvider.postMessage(message);
+    });
+
+    // Register our custom editor provider
+    context.subscriptions.push(
+        vscode.window.registerCustomEditorProvider(
+            NCEditorProvider.viewType,
+            editorProvider,
+            {
+                webviewOptions: {
+                    retainContextWhenHidden: true
+                }
+            }
+        )
+    );
         
-        // Register FOCAS WebviewViewProvider (bottom panel)
-        const focasProvider = new FocasWebviewViewProvider(context.extensionUri, backendPort);
+        // Register the composite NC workbench panel provider
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(FocasWebviewViewProvider.viewType, focasProvider)
+            vscode.window.registerWebviewViewProvider(WorkbenchPanelWebviewViewProvider.viewType, workbenchPanelProvider)
         );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration((event) => {
+            if (
+                event.affectsConfiguration('ncEdit7') ||
+                event.affectsConfiguration('ncEdit7.focas') ||
+                event.affectsConfiguration('ncEdit7.layout')
+            ) {
+                editorProvider.updateConfig(getEditorWebviewConfig());
+                void workbenchPanelProvider.updateConfig(getPanelWebviewConfig());
+            }
+        })
+    );
 	// Explicitly resolve the embedded backend from the pre-bundled dependencies
         const pythonPath = path.join(context.extensionPath, 'bundle', 'python_embedded', 'python.exe');
         const backendDir = path.join(context.extensionPath, 'bundle', 'backend');

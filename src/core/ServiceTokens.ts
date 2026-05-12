@@ -7,6 +7,7 @@ import { ParserService } from '../services/ParserService';
 import { DiagnosticsService } from '../services/DiagnosticsService';
 import { ExecutedProgramService } from '../services/ExecutedProgramService';
 import { PlotService } from '../services/PlotService';
+import { IHostBridgeService } from '../services/HostBridgeService';
 
 import { IFileManagerService } from '../services/IFileManagerService';
 import { IConfigService } from '../services/config/IConfigService';
@@ -23,3 +24,4 @@ export const DIAGNOSTICS_SERVICE_TOKEN =
 export const EXECUTED_PROGRAM_SERVICE_TOKEN =
   createServiceToken<ExecutedProgramService>('ExecutedProgramService');
 export const PLOT_SERVICE_TOKEN = createServiceToken<PlotService>('PlotService');
+export const HOST_BRIDGE_SERVICE_TOKEN = createServiceToken<IHostBridgeService>('HostBridgeService');

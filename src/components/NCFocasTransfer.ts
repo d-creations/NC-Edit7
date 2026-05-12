@@ -38,7 +38,11 @@ export class NCFocasTransfer extends HTMLElement {
     // Asynchronously load the default IP address from our configuration factory
     this.configService.get('focasDefaultIp').then(ip => {
       this.ipAddress = ip;
-      this.render(); // Re-render to show loaded IP
+      this.render();
+      if (this.isConnected) {
+        this.attachEventListeners();
+        void this.checkPing();
+      }
     });
 
     // Listen for file drops fetched via Extension
@@ -175,8 +179,8 @@ export class NCFocasTransfer extends HTMLElement {
         combinedContent += "%\n";
 
         const fileName = `O${progNum.toString().padStart(4, '0')}.PA`;
-        if ((window as any).vscode) {
-            (window as any).vscode.postMessage({
+        if ((window as any).vscodeApi) {
+          (window as any).vscodeApi.postMessage({
                 type: 'SAVE_FOCAS_FILE',
                 fileName: fileName,
                 content: combinedContent
@@ -193,8 +197,8 @@ export class NCFocasTransfer extends HTMLElement {
         this.fileManager.updateActiveProgramContent(channelId, resp.program_text);
         
         const fileName = `O${progNum.toString().padStart(4, '0')}.P${pNum}`;
-        if ((window as any).vscode) {
-            (window as any).vscode.postMessage({
+        if ((window as any).vscodeApi) {
+          (window as any).vscodeApi.postMessage({
                 type: 'SAVE_FOCAS_FILE',
                 fileName: fileName,
                 content: resp.program_text

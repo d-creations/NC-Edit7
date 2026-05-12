@@ -1,7 +1,13 @@
+export type HostMode = 'web' | 'vscode-editor' | 'vscode-panel';
+
+export type FocasPlacement = 'side-panel' | 'bottom-panel' | 'external-panel' | 'disabled';
+
 export interface AppConfiguration {
   focasDefaultIp: string;
   backendPort: number;
   themeMode: 'vscode' | 'one-dark' | 'light';
+  hostMode: HostMode;
+  focasPlacement: FocasPlacement;
 }
 
 export interface IConfigService {

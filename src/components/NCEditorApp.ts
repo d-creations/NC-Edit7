@@ -2,10 +2,11 @@
 
 import type { ChannelId } from '@core/types';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { BACKEND_GATEWAY_TOKEN, STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { BACKEND_GATEWAY_TOKEN, STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN, FILE_MANAGER_SERVICE_TOKEN, CONFIG_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
+import type { IConfigService } from '@services/config/IConfigService';
 import './NCChannelPane';
 import './NCSyncControls';
 import './NCStatusIndicator';
@@ -23,6 +24,7 @@ export class NCEditorApp extends HTMLElement {
   private stateService: StateService;
   private machineService: MachineService;
   private eventBus: EventBus;
+  private configService: IConfigService;
   private activeMobileView: string = 'channel-1';
 
   constructor() {
@@ -33,6 +35,7 @@ export class NCEditorApp extends HTMLElement {
     this.stateService = this.registry.get(STATE_SERVICE_TOKEN);
     this.machineService = this.registry.get(MACHINE_SERVICE_TOKEN);
     this.eventBus = this.registry.get(EVENT_BUS_TOKEN);
+    this.configService = this.registry.get(CONFIG_SERVICE_TOKEN);
   }
 
   async connectedCallback(): Promise<void> {
@@ -61,14 +64,16 @@ export class NCEditorApp extends HTMLElement {
 
   private async init(): Promise<void> {
     try {
+      const config = await this.configService.getConfig();
+
+      if (config.focasPlacement === 'external-panel' || config.focasPlacement === 'disabled') {
+        this.hideEmbeddedFocas();
+      }
+
       // Check feature flags
       this.registry.get(BACKEND_GATEWAY_TOKEN).getFeatures().then(features => {
         if (!features.focas_enabled) {
-          const focasToggle = this.querySelector('#focas-toggle');
-          if (focasToggle) (focasToggle as HTMLElement).style.display = 'none';
-          
-          const focasTab = this.querySelector('.side-tab[data-view="focas"]');
-          if (focasTab) (focasTab as HTMLElement).style.display = 'none';
+          this.hideEmbeddedFocas();
         }
       }).catch(() => { /* Ignore network feature check errors on init */ });
 
@@ -86,6 +91,23 @@ export class NCEditorApp extends HTMLElement {
     } catch (error) {
       console.error('Failed to initialize app:', error);
       this.showError('Failed to initialize application');
+    }
+  }
+
+  private hideEmbeddedFocas(): void {
+    const focasToggle = this.querySelector('#focas-toggle');
+    if (focasToggle) {
+      (focasToggle as HTMLElement).style.display = 'none';
+    }
+
+    const focasTab = this.querySelector('.side-tab[data-view="focas"]');
+    if (focasTab) {
+      (focasTab as HTMLElement).style.display = 'none';
+    }
+
+    const focasView = this.querySelector('#side-view-focas');
+    if (focasView) {
+      (focasView as HTMLElement).style.display = 'none';
     }
   }
 

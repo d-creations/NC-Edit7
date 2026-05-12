@@ -11,7 +11,7 @@
   ],
   "activationEvents": [
     "onCustomEditor:ncEdit7.editor",
-    "onView:nc-edit7.focasView"
+    "onView:nc-edit7.workbenchPanelView"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -82,9 +82,9 @@
       "ncEdit7BottomPanel": [
         {
           "type": "webview",
-          "id": "nc-edit7.focasView",
-          "name": "CNC Transfer",
-          "icon": "$(arrow-swap)"
+          "id": "nc-edit7.workbenchPanelView",
+          "name": "NC Workbench",
+          "icon": "$(layout-panel)"
         }
       ]
     },
@@ -104,7 +104,18 @@
             "light"
           ],
           "default": "vscode",
-          "description": "Theme mode for NC-Edit7. Use VS Code theme inside the extension, or force One Dark/light."
+          "description": "Theme mode used inside NC-Edit7 webviews."
+        },
+        "ncEdit7.layout.focasPlacement": {
+          "type": "string",
+          "enum": [
+            "side-panel",
+            "bottom-panel",
+            "external-panel",
+            "disabled"
+          ],
+          "default": "external-panel",
+          "description": "Where FOCAS should appear inside the VS Code custom editor host."
         }
       }
     }

@@ -2,6 +2,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
+type EditorRelayMessage =
+    | { type: 'FILES_OPENED'; isSingleFile: boolean; activeChannel: string; channels: Record<string, string> }
+    | { type: 'FILE_UPDATED_EXTERNALLY'; channels: Record<string, string> }
+    | { type: 'FILE_UPDATED_EXTERNALLY'; channel: string; text: string; activeChannel?: string }
+    | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_COMPLETED'; payload: { channelId: string; result: { variableSnapshotEntries: Array<[number, number]>; errors: unknown[] } } }
+    | { type: 'WORKBENCH_BRIDGE'; eventType: 'EXECUTION_ERROR'; payload: { channelId: string; error: { message: string } } }
+    | { type: 'WORKBENCH_BRIDGE'; eventType: 'PLOT_CLEARED'; payload: Record<string, never> };
+
 export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 	public static register(context: vscode.ExtensionContext, backendPort: number): vscode.Disposable {
 		const provider = new NCEditorProvider(context, backendPort);
@@ -17,8 +25,15 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
 		return providerRegistration;
 	}
 
-	private static readonly viewType = 'ncEdit7.editor';
-    constructor(private readonly context: vscode.ExtensionContext, private readonly backendPort: number) { }
+	public static readonly viewType = 'ncEdit7.editor';
+    private readonly webviewPanels = new Set<vscode.WebviewPanel>();
+    private activeWebviewPanel?: vscode.WebviewPanel;
+
+    constructor(
+        private readonly context: vscode.ExtensionContext,
+        private readonly backendPort: number,
+        private readonly relayToWorkbenchPanel?: (message: EditorRelayMessage) => void,
+    ) { }
 
     private isUpdatingDocument = false;
 
@@ -104,6 +119,8 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken
     ): Promise<void> {
+        this.webviewPanels.add(webviewPanel);
+        this.activeWebviewPanel = webviewPanel;
 
         webviewPanel.webview.options = {
             enableScripts: true,
@@ -142,26 +159,40 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
             if (isSingleFile) {
                 if (e.document.uri.toString() === document.uri.toString()) {
                     const parsed = this.parsePAFile(document.getText());
-                    paChannelsContent = parsed.channels;
-                    webviewPanel.webview.postMessage({
+                    const message: EditorRelayMessage = {
                         type: 'FILE_UPDATED_EXTERNALLY',
-                        channels: Object.fromEntries(paChannelsContent)
-                    });
+                        channels: Object.fromEntries(parsed.channels)
+                    };
+                    paChannelsContent = parsed.channels;
+                    webviewPanel.webview.postMessage(message);
+                    this.relayMessageToWorkbench(webviewPanel, message);
                 }
             } else {
                 for (const [ch, doc] of channelDocs.entries()) {
                     if (e.document.uri.toString() === doc.uri.toString()) {
-                        webviewPanel.webview.postMessage({
+                        const message: EditorRelayMessage = {
                             type: 'FILE_UPDATED_EXTERNALLY',
                             channel: ch,
                             text: doc.getText()
-                        });
+                        };
+                        webviewPanel.webview.postMessage(message);
+                        this.relayMessageToWorkbench(webviewPanel, message);
                     }
                 }
             }
         });
 
+        webviewPanel.onDidChangeViewState(({ webviewPanel: panel }) => {
+            if (panel.active) {
+                this.activeWebviewPanel = panel;
+            }
+        });
+
         webviewPanel.onDidDispose(() => {
+            this.webviewPanels.delete(webviewPanel);
+            if (this.activeWebviewPanel === webviewPanel) {
+                this.activeWebviewPanel = Array.from(this.webviewPanels.values())[0];
+            }
             changeDocumentSubscription.dispose();
         });
 
@@ -169,12 +200,14 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
             switch (e.type) {
                 case 'ready':
                     const channelsData = await loadChannels();
-                    webviewPanel.webview.postMessage({
+                    const readyMessage: EditorRelayMessage = {
                         type: 'FILES_OPENED',
                         isSingleFile,
                         activeChannel,
                         channels: channelsData
-                    });
+                    };
+                    webviewPanel.webview.postMessage(readyMessage);
+                    this.relayMessageToWorkbench(webviewPanel, readyMessage);
                     return;
                 case 'changed':
                     if (isSingleFile) {
@@ -187,9 +220,34 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
                             await this.updateTextDocument(targetDoc, e.text);
                         }
                     }
+
+                    this.relayMessageToWorkbench(webviewPanel, {
+                        type: 'FILE_UPDATED_EXTERNALLY',
+                        channel: e.channel,
+                        text: e.text,
+                        activeChannel: e.channel,
+                    });
+                    return;
+                case 'workbench:relay':
+                    this.relayMessageToWorkbench(webviewPanel, e.message as EditorRelayMessage);
                     return;
             }
         });
+    }
+
+    public updateConfig(config: Record<string, unknown>): void {
+        this.webviewPanels.forEach((panel) => {
+            panel.webview.postMessage({ type: 'UPDATE_CONFIG', config });
+        });
+    }
+
+    private relayMessageToWorkbench(sourcePanel: vscode.WebviewPanel, message: EditorRelayMessage): void {
+        if (this.activeWebviewPanel && this.activeWebviewPanel !== sourcePanel && !sourcePanel.active) {
+            return;
+        }
+
+        this.activeWebviewPanel = sourcePanel;
+        this.relayToWorkbenchPanel?.(message);
     }
 
     private getHtmlForWebview(webview: vscode.Webview): string {
@@ -206,15 +264,23 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
                 });
 
                 const focasConfig = vscode.workspace.getConfiguration('ncEdit7.focas');
+                const layoutConfig = vscode.workspace.getConfiguration('ncEdit7.layout');
                 const defaultIp = focasConfig.get<string>('defaultIpAddress') || '192.168.1.1';
                 const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
+                const focasPlacement = layoutConfig.get<string>('focasPlacement') || 'external-panel';
 
                 const scriptInjection = `
                 <script>
                     window.backendPort = ${this.backendPort};
                     window.focasDefaultIp = "${defaultIp}";
-                    window.vscodeConfig = { backendPort: ${this.backendPort}, focasDefaultIp: "${defaultIp}", themeMode: "${themeMode}" };
-                    const vscode = acquireVsCodeApi();
+                    window.vscodeConfig = {
+                        backendPort: ${this.backendPort},
+                        focasDefaultIp: "${defaultIp}",
+                        themeMode: "${themeMode}",
+                        hostMode: "vscode-editor",
+                        focasPlacement: "${focasPlacement}"
+                    };
+                    window.vscodeApi = window.vscodeApi || acquireVsCodeApi();
                     window.addEventListener('message', event => {
                         const message = event.data;
                         if (message.type === 'FILES_OPENED' || message.type === 'FILE_UPDATED_EXTERNALLY') {
@@ -222,10 +288,10 @@ export class NCEditorProvider implements vscode.CustomTextEditorProvider {
                         }
                     });
                     window.addEventListener('DOMContentLoaded', () => {
-                        vscode.postMessage({ type: 'ready' });
+                        window.vscodeApi.postMessage({ type: 'ready' });
                     });
                     window.addEventListener('vscode:file-changed', event => {
-                        vscode.postMessage({ type: 'changed', channel: event.detail.channel, text: event.detail.text });
+                        window.vscodeApi.postMessage({ type: 'changed', channel: event.detail.channel, text: event.detail.text });
                     });
                 </script>
                 `;

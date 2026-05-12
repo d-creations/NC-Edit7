@@ -139,15 +139,16 @@ export class NCProgramManager extends HTMLElement {
           display: flex;
           flex-direction: column;
           height: 100%;
-          background: #252526;
+          background: var(--vscode-sideBar-background, #21252b);
+          color: var(--vscode-editor-foreground, #abb2bf);
           overflow: hidden;
         }
         .header {
             padding: 8px;
-            background: #333333;
+            background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
             font-weight: bold;
             font-size: 12px;
-            border-bottom: 1px solid #3e3e42;
+            border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
         .program-list {
             flex: 1;
@@ -163,17 +164,17 @@ export class NCProgramManager extends HTMLElement {
             cursor: pointer;
             border-radius: 3px;
             font-size: 13px;
-            color: #cccccc;
+            color: var(--vscode-editor-foreground, #abb2bf);
         }
         .program-item:hover {
-            background: #2a2d2e;
+            background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .program-item.active {
-            background: #094771;
-            color: white;
+            background: var(--vscode-button-background, #61afef);
+            color: var(--vscode-button-foreground, #1f2329);
         }
         .program-item.active:hover {
-            background: #094771;
+            background: var(--vscode-button-hoverBackground, #70b7ff);
         }
         .program-name {
             flex: 1;
@@ -195,7 +196,7 @@ export class NCProgramManager extends HTMLElement {
         .empty-message {
             padding: 10px;
             text-align: center;
-            color: #888;
+          color: var(--vscode-descriptionForeground, #7f848e);
             font-style: italic;
             font-size: 12px;
         }
@@ -206,7 +207,7 @@ export class NCProgramManager extends HTMLElement {
         .add-btn {
             background: none;
             border: none;
-            color: #ccc;
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
@@ -214,8 +215,8 @@ export class NCProgramManager extends HTMLElement {
             border-radius: 3px;
         }
         .add-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
+          color: var(--vscode-editor-foreground, #abb2bf);
         }
       </style>
       <div class="header" style="display: flex; justify-content: space-between;">

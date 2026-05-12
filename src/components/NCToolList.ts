@@ -87,18 +87,18 @@ export class NCToolList extends HTMLElement {
           display: block;
           height: 100%;
           overflow-y: auto;
-          background: #252526;
-          color: #d4d4d4;
+          background: var(--vscode-sideBar-background, #21252b);
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-family: monospace;
           font-size: 12px;
         }
 
         .tool-header {
           padding: 4px 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           font-weight: bold;
-          color: #569cd6;
+          color: var(--vscode-textLink-foreground, #61afef);
         }
 
         .tool-list {
@@ -107,14 +107,14 @@ export class NCToolList extends HTMLElement {
 
         .tool-item {
           padding: 4px 8px;
-          border-bottom: 1px solid #3e3e42;
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
 
         .tool-item:hover {
-          background: #2a2d2e;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
 
         .tool-row {
@@ -124,7 +124,7 @@ export class NCToolList extends HTMLElement {
         }
 
         .tool-number {
-          color: #dcdcaa;
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-weight: bold;
         }
 
@@ -135,7 +135,7 @@ export class NCToolList extends HTMLElement {
         }
 
         .tool-param {
-          color: #b5cea8;
+          color: var(--vscode-descriptionForeground, #7f848e);
         }
 
         .tool-inputs {
@@ -151,16 +151,16 @@ export class NCToolList extends HTMLElement {
         }
 
         .input-group label {
-          color: #9cdcfe;
+          color: var(--vscode-textLink-foreground, #61afef);
           font-size: 11px;
         }
 
         .input-group input {
           width: 50px;
           padding: 2px 4px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-input-background, #3c3f41);
+          color: var(--vscode-input-foreground, #abb2bf);
+          border: 1px solid var(--vscode-input-border, #181a1f);
           border-radius: 3px;
           font-size: 11px;
           font-family: monospace;
@@ -168,17 +168,17 @@ export class NCToolList extends HTMLElement {
 
         .input-group input:focus {
           outline: none;
-          border-color: #569cd6;
+          border-color: var(--vscode-focusBorder, #528bff);
         }
 
         .input-group input::placeholder {
-          color: #666;
+          color: var(--vscode-descriptionForeground, #7f848e);
         }
 
         .empty-message {
           padding: 16px;
           text-align: center;
-          color: #858585;
+          color: var(--vscode-descriptionForeground, #7f848e);
           font-size: 11px;
         }
       </style>

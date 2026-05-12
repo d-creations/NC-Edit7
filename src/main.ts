@@ -12,6 +12,7 @@ import {
   PLOT_SERVICE_TOKEN,
   FILE_MANAGER_SERVICE_TOKEN,
   CONFIG_SERVICE_TOKEN,
+  HOST_BRIDGE_SERVICE_TOKEN,
 } from '@core/ServiceTokens';
 import { EventBus } from '@services/EventBus';
 import { StateService } from '@services/StateService';
@@ -25,17 +26,27 @@ import { FileManagerService } from '@services/FileManagerService';
 import { VsCodeFileManagerService } from '@services/VsCodeFileManagerService';
 import { VsCodeConfigService } from '@services/config/VsCodeConfigService';
 import { WebConfigService } from '@services/config/WebConfigService';
+import { BrowserHostBridgeService, VsCodeHostBridgeService } from '@services/HostBridgeService';
+import type { ExecutedProgramResult } from '@core/types';
+import { EVENT_NAMES } from '@services/EventBus';
 import '@components/NCEditorApp';
+import '@components/NCWorkbenchPanelApp';
 
 function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: boolean) {
   const body = document.body;
-  if (!body) return;
+  const root = document.documentElement;
+  if (!body || !root) return;
 
   const oneDarkPalette: Record<string, string> = {
     '--vscode-editor-background': '#282c34',
     '--vscode-editor-foreground': '#abb2bf',
     '--vscode-editorGroupHeader-tabsBackground': '#21252b',
     '--vscode-editorGroup-border': '#181a1f',
+    '--vscode-tab-activeBackground': '#282c34',
+    '--vscode-tab-activeForeground': '#abb2bf',
+    '--vscode-tab-inactiveBackground': '#21252b',
+    '--vscode-tab-inactiveForeground': '#7f848e',
+    '--vscode-tab-activeBorderTop': '#61afef',
     '--vscode-sideBar-background': '#21252b',
     '--vscode-sideBar-border': '#181a1f',
     '--vscode-button-background': '#61afef',
@@ -43,6 +54,9 @@ function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: bo
     '--vscode-button-hoverBackground': '#70b7ff',
     '--vscode-button-secondaryBackground': '#3a3f4b',
     '--vscode-button-secondaryForeground': '#abb2bf',
+    '--vscode-input-background': '#3c3f41',
+    '--vscode-input-foreground': '#abb2bf',
+    '--vscode-input-border': '#181a1f',
     '--vscode-disabledForeground': '#7f848e',
     '--vscode-textLink-foreground': '#61afef',
     '--vscode-widget-border': '#181a1f',
@@ -66,6 +80,11 @@ function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: bo
     '--vscode-editor-foreground': '#24292f',
     '--vscode-editorGroupHeader-tabsBackground': '#f6f8fa',
     '--vscode-editorGroup-border': '#d0d7de',
+    '--vscode-tab-activeBackground': '#ffffff',
+    '--vscode-tab-activeForeground': '#24292f',
+    '--vscode-tab-inactiveBackground': '#f6f8fa',
+    '--vscode-tab-inactiveForeground': '#57606a',
+    '--vscode-tab-activeBorderTop': '#0969da',
     '--vscode-sideBar-background': '#f6f8fa',
     '--vscode-sideBar-border': '#d0d7de',
     '--vscode-button-background': '#0969da',
@@ -73,6 +92,9 @@ function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: bo
     '--vscode-button-hoverBackground': '#0860ca',
     '--vscode-button-secondaryBackground': '#eaeef2',
     '--vscode-button-secondaryForeground': '#24292f',
+    '--vscode-input-background': '#ffffff',
+    '--vscode-input-foreground': '#24292f',
+    '--vscode-input-border': '#d0d7de',
     '--vscode-disabledForeground': '#6e7781',
     '--vscode-textLink-foreground': '#0969da',
     '--vscode-widget-border': '#d0d7de',
@@ -93,10 +115,12 @@ function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: bo
 
   const overridePalette = themeMode === 'one-dark' ? oneDarkPalette : themeMode === 'light' ? lightPalette : undefined;
   body.dataset.themeMode = themeMode;
+  root.dataset.themeMode = themeMode;
 
   const knownKeys = new Set([...Object.keys(oneDarkPalette), ...Object.keys(lightPalette)]);
   for (const key of knownKeys) {
     body.style.removeProperty(key);
+    root.style.removeProperty(key);
   }
 
   if (themeMode === 'vscode' && isVSCode) {
@@ -106,6 +130,7 @@ function applyThemeMode(themeMode: 'vscode' | 'one-dark' | 'light', isVSCode: bo
   const palette = overridePalette ?? oneDarkPalette;
   for (const [key, value] of Object.entries(palette)) {
     body.style.setProperty(key, value);
+    root.style.setProperty(key, value);
   }
 }
 
@@ -126,10 +151,18 @@ async function bootstrap() {
     );
 
     const configService = registry.get(CONFIG_SERVICE_TOKEN);
+    const initialConfig = await configService.getConfig();
+
+    registry.register(
+      HOST_BRIDGE_SERVICE_TOKEN,
+      () => initialConfig.hostMode.startsWith('vscode') ? new VsCodeHostBridgeService() : new BrowserHostBridgeService(),
+      ServiceScope.Singleton,
+    );
+
     const syncTheme = (config: { themeMode: 'vscode' | 'one-dark' | 'light' }) => {
       applyThemeMode(config.themeMode, isVSCode);
     };
-    syncTheme(await configService.getConfig());
+    syncTheme(initialConfig);
     configService.onConfigChanged(syncTheme);
 
     // Register services using the tokens directly
@@ -218,10 +251,56 @@ async function bootstrap() {
       ServiceScope.Singleton,
     );
 
+    const hostBridge = registry.get(HOST_BRIDGE_SERVICE_TOKEN);
+    if (
+      initialConfig.hostMode === 'vscode-editor' &&
+      hostBridge.isAvailable()
+    ) {
+      const eventBus = registry.get(EVENT_BUS_TOKEN);
+
+      const serializeExecutionResult = (result: ExecutedProgramResult) => ({
+        variableSnapshotEntries: Array.from(result.variableSnapshot.entries()),
+        errors: result.errors || [],
+      });
+
+      eventBus.subscribe(EVENT_NAMES.EXECUTION_COMPLETED, (data: unknown) => {
+        const executionData = data as { channelId: string; result: ExecutedProgramResult };
+        hostBridge.relayToWorkbench({
+          type: 'WORKBENCH_BRIDGE',
+          eventType: 'EXECUTION_COMPLETED',
+          payload: {
+            channelId: executionData.channelId,
+            result: serializeExecutionResult(executionData.result),
+          },
+        });
+      });
+
+      eventBus.subscribe(EVENT_NAMES.EXECUTION_ERROR, (data: unknown) => {
+        const errorData = data as { channelId: string; error: { message?: string } };
+        hostBridge.relayToWorkbench({
+          type: 'WORKBENCH_BRIDGE',
+          eventType: 'EXECUTION_ERROR',
+          payload: {
+            channelId: errorData.channelId,
+            error: {
+              message: errorData.error?.message || 'Unknown execution error',
+            },
+          },
+        });
+      });
+
+      eventBus.subscribe(EVENT_NAMES.PLOT_CLEARED, () => {
+        hostBridge.relayToWorkbench({
+          type: 'WORKBENCH_BRIDGE',
+          eventType: 'PLOT_CLEARED',
+          payload: {},
+        });
+      });
+    }
+
     // Initialize the app
-    // @ts-ignore
-    if (window.isFocasPanel) {
-      const appElement = document.createElement('nc-focas-transfer');
+    if (initialConfig.hostMode === 'vscode-panel') {
+      const appElement = document.createElement('nc-workbench-panel-app');
       const appContainer = document.getElementById('app-root') || document.getElementById('app');
       if (!appContainer) throw new Error('App container not found');
       appContainer.innerHTML = '';

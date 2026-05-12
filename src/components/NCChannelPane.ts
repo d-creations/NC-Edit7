@@ -6,13 +6,16 @@ import './NCExecutedList';
 import './NCBottomPanel';
 import './NCProgramManager';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { CONFIG_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
+import type { IConfigService } from '@services/config/IConfigService';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
   private eventBus: EventBus;
   private stateService: import('@services/StateService').StateService;
+  private configService: IConfigService;
+  private showEmbeddedBottomPanel = true;
 
   static get observedAttributes() {
     return ['channel-id'];
@@ -23,6 +26,7 @@ export class NCChannelPane extends HTMLElement {
     const registry = ServiceRegistry.getInstance();
     this.eventBus = registry.get(EVENT_BUS_TOKEN);
     this.stateService = registry.get(STATE_SERVICE_TOKEN);
+    this.configService = registry.get(CONFIG_SERVICE_TOKEN);
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -32,7 +36,9 @@ export class NCChannelPane extends HTMLElement {
     }
   }
 
-  connectedCallback() {
+  async connectedCallback() {
+    const config = await this.configService.getConfig();
+    this.showEmbeddedBottomPanel = config.hostMode !== 'vscode-editor';
     this.render();
     this.setupEventListeners();
   }
@@ -180,6 +186,7 @@ export class NCChannelPane extends HTMLElement {
           width: auto;
           min-width: 60px;
           max-width: 120px;
+          background: var(--vscode-sideBar-background, #21252b);
           border-right: 1px solid var(--vscode-editorGroup-border, #181a1f);
           display: flex;
           flex-direction: column;
@@ -276,7 +283,7 @@ export class NCChannelPane extends HTMLElement {
           <div class="channel-editor-wrapper">
             <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
           </div>
-          <nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>
+          ${this.showEmbeddedBottomPanel ? `<nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>` : ''}
         </div>
       </div>
     `;

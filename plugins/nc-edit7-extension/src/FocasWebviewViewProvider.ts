@@ -2,8 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'nc-edit7.focasView';
+export class WorkbenchPanelWebviewViewProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'nc-edit7.workbenchPanelView';
+    private currentWebviewView?: vscode.WebviewView;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -15,6 +16,7 @@ export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
+        this.currentWebviewView = webviewView;
         const distPath = vscode.Uri.joinPath(this._extensionUri, 'bundle', 'dist');
         
         webviewView.webview.options = {
@@ -113,6 +115,14 @@ export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
         );
     }
 
+    public postMessage(message: unknown): Thenable<boolean> | undefined {
+        return this.currentWebviewView?.webview.postMessage(message);
+    }
+
+    public updateConfig(config: Record<string, unknown>): Thenable<boolean> | undefined {
+        return this.postMessage({ type: 'UPDATE_CONFIG', config });
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview, distPath: vscode.Uri): string {
         const indexHtmlPath = vscode.Uri.joinPath(distPath, 'index.html');
         
@@ -127,18 +137,39 @@ export class FocasWebviewViewProvider implements vscode.WebviewViewProvider {
                     return `${attr}="${basePathUri.toString()}/${filePath}"`;
                 });
 
+                const focasConfig = vscode.workspace.getConfiguration('ncEdit7.focas');
+                const themeMode = vscode.workspace.getConfiguration('ncEdit7').get<string>('theme.mode') || 'vscode';
+                const defaultIp = focasConfig.get<string>('defaultIpAddress') || 'DEMO';
+
                 // Inject our configuration
                 const scriptInjection = `
                 <script>
                     window.backendPort = ${this._backendPort};
-                    window.vscode = acquireVsCodeApi();
-                    window.isFocasPanel = true; // Tell the app we are in the panel
+                    window.focasDefaultIp = "${defaultIp}";
+                    window.vscodeConfig = {
+                        backendPort: ${this._backendPort},
+                        focasDefaultIp: "${defaultIp}",
+                        themeMode: "${themeMode}",
+                        hostMode: "vscode-panel",
+                        focasPlacement: "disabled"
+                    };
+                    window.vscodeApi = window.vscodeApi || acquireVsCodeApi();
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        if (message.type === 'FILES_OPENED' || message.type === 'FILE_UPDATED_EXTERNALLY') {
+                            window.dispatchEvent(new CustomEvent('vscode:files-opened', { detail: message }));
+                        }
+                        if (message.type === 'WORKBENCH_BRIDGE') {
+                            window.dispatchEvent(new CustomEvent('vscode:workbench-bridge', { detail: message }));
+                        }
+                    });
                 </script>
                 <style>
-                    /* Force the app container to hold only the FOCAS component tightly */
-                    #app { overflow: hidden; background: var(--vscode-editor-background); }
-                    #app-root { height: 100%; width: 100%; display: flex; flex-direction: column; }
-                    nc-focas-transfer { flex: 1; height: 100%; width: 100%; }
+                    /* Force the app container to host the workbench panel content tightly */
+                    html, body { height: 100%; overflow: hidden; }
+                    #app { height: 100%; overflow: hidden; background: var(--vscode-editor-background); }
+                    #app-root { height: 100%; width: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+                    nc-workbench-panel-app { flex: 1; min-height: 0; height: 100%; width: 100%; }
                 </style>
                 `;
                 htmlContent = htmlContent.replace('<head>', '<head>' + scriptInjection);

@@ -30,6 +30,7 @@ export class NCToolpathPlot extends HTMLElement {
   private isPlotting = false;
   private currentPlotMetadata: PlotMetadata | null = null;
   private highlightObject: THREE.Object3D | null = null;
+  private themeObserver?: MutationObserver;
 
   constructor() {
     super();
@@ -54,6 +55,9 @@ export class NCToolpathPlot extends HTMLElement {
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
     }
     if (this.controls) {
       this.controls.dispose();
@@ -235,8 +239,8 @@ export class NCToolpathPlot extends HTMLElement {
             top: 40px;
             right: 8px;
             left: 8px;
-            background: rgba(30, 30, 30, 0.95);
-            border: 1px solid #555;
+            background: color-mix(in srgb, var(--vscode-editorWidget-background, #21252b) 92%, transparent);
+            border: 1px solid var(--vscode-widget-border, #181a1f);
             border-radius: 4px;
             padding: 8px;
             z-index: 20;
@@ -503,7 +507,7 @@ export class NCToolpathPlot extends HTMLElement {
 
     // Scene setup
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1e1e1e);
+    this.applyThemeToScene();
 
     // Camera setup
     const aspect = container.clientWidth / container.clientHeight || 1;
@@ -544,8 +548,50 @@ export class NCToolpathPlot extends HTMLElement {
     });
     this.resizeObserver.observe(container);
 
+    this.setupThemeObserver();
+
     // Start animation loop
     this.animateScene();
+  }
+
+  private setupThemeObserver() {
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
+    }
+
+    const observerTargetAttributes = ['style', 'class', 'data-theme-mode', 'data-themeMode'];
+    this.themeObserver = new MutationObserver(() => {
+      this.applyThemeToScene();
+    });
+
+    const body = document.body;
+    const root = document.documentElement;
+
+    if (body) {
+      this.themeObserver.observe(body, { attributes: true, attributeFilter: observerTargetAttributes });
+    }
+
+    if (root) {
+      this.themeObserver.observe(root, { attributes: true, attributeFilter: observerTargetAttributes });
+    }
+  }
+
+  private applyThemeToScene() {
+    if (!this.scene) return;
+
+    const backgroundColor = this.resolveThemeColor('--vscode-editor-background', '#282c34');
+    this.scene.background = new THREE.Color(backgroundColor);
+
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  private resolveThemeColor(cssVariable: string, fallback: string): string {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const bodyStyles = getComputedStyle(document.body);
+    const value = rootStyles.getPropertyValue(cssVariable).trim() || bodyStyles.getPropertyValue(cssVariable).trim();
+    return value || fallback;
   }
 
   private animateScene() {
