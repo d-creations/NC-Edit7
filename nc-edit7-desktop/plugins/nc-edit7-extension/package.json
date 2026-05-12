@@ -2,7 +2,11 @@
   "name": "nc-edit7-extension",
   "displayName": "NC-Edit7",
   "description": "Custom Editor for NC/MPF Files",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d-creations/NC-Edit7.git"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },

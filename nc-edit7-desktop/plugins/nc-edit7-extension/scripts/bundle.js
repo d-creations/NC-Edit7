@@ -4,6 +4,16 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '../../../');
 const extensionDir = path.resolve(__dirname, '../');
 const bundleDir = path.join(extensionDir, 'bundle');
+const filesToBundle = [
+    {
+        src: path.join(rootDir, 'THIRD_PARTY_NODE_LICENSES.md'),
+        dest: path.join(extensionDir, 'THIRD_PARTY_NODE_LICENSES.md')
+    },
+    {
+        src: path.join(rootDir, 'nc-edit7-desktop', 'THIRD_PARTY_PYTHON_LICENSES.md'),
+        dest: path.join(extensionDir, 'THIRD_PARTY_PYTHON_LICENSES.md')
+    }
+];
 
 // Folders to bundle
 const foldersToBundle = [
@@ -50,6 +60,15 @@ foldersToBundle.forEach(({ src, dest }) => {
     if (fs.existsSync(src)) {
         console.log(`Copying ${src} -> ${dest}`);
         copyFolderSync(src, dest);
+    } else {
+        console.warn(`Warning: Could not find ${src}`);
+    }
+});
+
+filesToBundle.forEach(({ src, dest }) => {
+    if (fs.existsSync(src)) {
+        console.log(`Copying ${src} -> ${dest}`);
+        fs.copyFileSync(src, dest);
     } else {
         console.warn(`Warning: Could not find ${src}`);
     }

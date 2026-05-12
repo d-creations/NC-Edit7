@@ -112,13 +112,15 @@ export async function activate(context: vscode.ExtensionContext) {
                 const backendScript = path.join(backendDir, 'main_import.py');
                 console.log(`Starting embedded backend from: ${pythonPath} on port ${backendPort}`);
 
-                backendProcess = cp.spawn(pythonPath, ['-m', 'uvicorn', 'backend.main_import:app', '--port', backendPort.toString()], {
-                        cwd: path.join(backendDir, '..'),
+        backendProcess = cp.spawn(pythonPath, ['-m', 'uvicorn', 'main_import:app', '--app-dir', backendDir, '--port', backendPort.toString()], {
+            cwd: backendDir,
                         detached: false
                 });
 
                 backendProcess.stdout?.on('data', data => console.log(`Backend: ${data}`));
 		backendProcess.stderr?.on('data', data => console.error(`Backend Error: ${data}`));
+		backendProcess.on('error', error => console.error(`Backend process failed to start: ${error.message}`));
+		backendProcess.on('exit', code => console.log(`Backend process exited with code ${code ?? 'null'}`));
 	} else {
 		console.warn('Embedded Python not found. Assumed to be running externally or missing.');
 	}
