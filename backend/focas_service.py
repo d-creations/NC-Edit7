@@ -425,7 +425,9 @@ class RealFocasClient(FocasClientBase):
                 if ret == EW_OK:
                     chunk_str = buffer.raw[:length.value].decode('ascii', errors='ignore')
                     result_text.append(chunk_str)
-                    if "%" in chunk_str: break
+                    combined_text = "".join(result_text).rstrip("\r\n ")
+                    if combined_text.count("%") >= 2 and combined_text.endswith("%"):
+                        break
                 elif ret == EW_RESET:
                     break
                 else:

@@ -7,6 +7,21 @@ from ncplot7py.shared.nc_nodes import NCCommandNode
 
 
 class TestMotionPlanes(unittest.TestCase):
+    def test_modal_group_1_controls_axis_only_block(self):
+        state = CNCState()
+        state.feed_rate = 600.0
+        state.set_modal("G_GROUP_1", "G00")
+
+        node = NCCommandNode(g_code_command=set(), command_parameter={"X": "10.0", "Y": "5.0"})
+
+        points, duration = MotionHandler().handle(node, state)
+
+        self.assertIsNotNone(points)
+        self.assertIsNotNone(duration)
+        self.assertGreater(len(points), 1)
+        self.assertAlmostEqual(state.get_axis("X"), 10.0)
+        self.assertAlmostEqual(state.get_axis("Y"), 5.0)
+
     def test_g18_radius_arc_stays_in_xz_plane(self):
         state = CNCState()
         state.update_axes({"X": 2.0, "Y": 0.0, "Z": 0.0})

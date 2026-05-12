@@ -31,18 +31,32 @@ class MotionHandler(Handler):
         super().__init__(next_handler=next_handler)
         self.max_segment = float(max_segment)
 
+    def _normalize_interp_mode(self, code: Optional[str]) -> Optional[str]:
+        if not code:
+            return None
+
+        normalized = str(code).strip().upper()
+        if normalized in ("G00", "G0"):
+            return "G00"
+        if normalized in ("G01", "G1"):
+            return "G01"
+        if normalized in ("G02", "G2"):
+            return "G02"
+        if normalized in ("G03", "G3"):
+            return "G03"
+        return None
+
     def handle(self, node: NCCommandNode, state: CNCState) -> Tuple[Optional[List[Point]], Optional[float]]:
         # detect motion codes
         interp_mode = None  # 'G00','G01','G02','G03'
         for g in node.g_code:
-            if g.upper() in ("G00", "G0", "G0 "):
-                interp_mode = "G00"
-            if g.upper() in ("G01", "G1"):
-                interp_mode = "G01"
-            if g.upper() in ("G02", "G2"):
-                interp_mode = "G02"
-            if g.upper() in ("G03", "G3"):
-                interp_mode = "G03"
+            interp_mode = self._normalize_interp_mode(g) or interp_mode
+
+        motion_axes = {"X", "Y", "Z", "A", "B", "C", "U", "V", "W", "H"}
+        has_motion_words = any(str(key).upper() in motion_axes for key in node.command_parameter)
+
+        if interp_mode is None and has_motion_words:
+            interp_mode = self._normalize_interp_mode(state.get_modal("G_GROUP_1"))
 
         if interp_mode is None:
             return super().handle(node, state)

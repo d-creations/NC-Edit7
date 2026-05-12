@@ -10,6 +10,24 @@ from ncplot7py.domain.handlers.fanuc_turn_cnc.gcode_group5_feed_mode import Feed
 
 
 class TestFanucModals(unittest.TestCase):
+    def test_fanuc_mill_g0_remains_active_for_axis_only_blocks(self):
+        cstate = CNCState(); cstate.machine_config = get_machine_config("FANUC_MILL")
+        canal = UniversalConfigDrivenCanal('C1', init_state=cstate)
+        nodes = [
+            NCCommandNode(g_code_command={'G0'}, command_parameter={'X': '0.0', 'Y': '0.0', 'Z': '20.0'}),
+            NCCommandNode(g_code_command=set(), command_parameter={'Z': '-10.0', 'F': '180.0'}),
+            NCCommandNode(g_code_command=set(), command_parameter={'X': '20.0'}),
+            NCCommandNode(g_code_command=set(), command_parameter={'Y': '20.0'}),
+        ]
+
+        canal.run_nc_code_list(nodes)
+
+        self.assertEqual(cstate.get_modal('G_GROUP_1'), 'G00')
+        self.assertAlmostEqual(cstate.get_axis('X'), 20.0)
+        self.assertAlmostEqual(cstate.get_axis('Y'), 20.0)
+        self.assertAlmostEqual(cstate.get_axis('Z'), -10.0)
+        self.assertEqual(len(canal.get_tool_path()), 4)
+
     def test_g96_sets_surface_speed_mode(self):
         cstate = CNCState(); cstate.machine_config = get_machine_config("FANUC_TURN")
         canal = UniversalConfigDrivenCanal('C1', init_state=cstate)

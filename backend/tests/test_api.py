@@ -1,7 +1,9 @@
 from fastapi.testclient import TestClient
 import os
+import ctypes
 
 from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
+from backend.focas_service import EW_OK, RealFocasClient
 from ncplot7py.domain.cnc_state import CNCState
 
 
@@ -120,3 +122,36 @@ def test_apply_turn_axis_defaults_sets_y_to_diameter_for_sr20jii():
 
     assert state.get_axis_unit("X") == "diameter"
     assert state.get_axis_unit("Y") == "diameter"
+
+
+def test_real_focas_upload_program_reads_until_trailing_percent():
+    class UploadLibStub:
+        def __init__(self):
+            self.chunks = [
+                b"%\nO1234\nG1 X1.\n",
+                b"G1 X2.\nM30\n%",
+            ]
+            self.upend_calls = 0
+
+        def cnc_upstart3(self, handle, mode, start_prog, end_prog):
+            return EW_OK
+
+        def cnc_upload3(self, handle, length_ptr, buffer):
+            chunk = self.chunks.pop(0)
+            ctypes.memmove(buffer, chunk, len(chunk))
+            length_ptr._obj.value = len(chunk)
+            return EW_OK
+
+        def cnc_upend3(self, handle):
+            self.upend_calls += 1
+            return EW_OK
+
+    client_instance = RealFocasClient.__new__(RealFocasClient)
+    client_instance.lib = UploadLibStub()
+    client_instance.handle = ctypes.c_ushort(1)
+    client_instance.set_path = lambda path_no: None
+
+    program_text = client_instance.upload_program(1234)
+
+    assert program_text == "%\nO1234\nG1 X1.\nG1 X2.\nM30\n%"
+    assert client_instance.lib.upend_calls == 1
