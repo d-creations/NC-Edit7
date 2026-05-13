@@ -124,6 +124,10 @@ export class NCWorkbenchPanelApp extends HTMLElement {
           errors: detail.payload.result.errors as ExecutedProgramResult['errors'],
         };
 
+        const hasErrors = Array.isArray(result.errors) && result.errors.length > 0;
+        this.activeTab = hasErrors ? 'errors' : 'variables';
+        this.syncTabState();
+
         this.eventBus.publish(EVENT_NAMES.EXECUTION_COMPLETED, {
           channelId: detail.payload.channelId,
           result,
@@ -134,6 +138,9 @@ export class NCWorkbenchPanelApp extends HTMLElement {
         if (['1', '2', '3'].includes(detail.payload.channelId)) {
           this.stateService.setWorkbenchSelectedChannel(detail.payload.channelId as ChannelId);
         }
+
+        this.activeTab = 'errors';
+        this.syncTabState();
 
         this.eventBus.publish(EVENT_NAMES.EXECUTION_ERROR, {
           channelId: detail.payload.channelId,

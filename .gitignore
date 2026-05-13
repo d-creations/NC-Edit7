@@ -35,7 +35,7 @@ DEVELOPMENT.md
 BUILD_SUMMARY.md
 package-lock.json
 
-
+src-gen/
 python_embedded/
 release/
 cache/

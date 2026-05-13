@@ -39,6 +39,7 @@
     }
   },
   "build": {
+    "npmRebuild": false,
     "directories": {
       "output": "dist2"
     }
