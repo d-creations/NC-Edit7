@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple, Sequence, Type, Any
 from ncplot7py.interfaces.BaseNCCanal import NCControl as BaseNCControlInterface
 from ncplot7py.interfaces.BaseNCControl import NCCanal as BaseNCCanalInterface
 from ncplot7py.domain.cnc_state import CNCState
+from ncplot7py.domain.exceptions import ExceptionNode, ExceptionTyps, raise_nc_error
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.shared.point import Point
 
@@ -86,7 +87,18 @@ class BaseStatefulCanal(BaseNCCanalInterface):
 
             pts, dur = None, 0.0
             if self._chain is not None:
-                pts, dur = self._chain.handle(node, self._state)
+                try:
+                    pts, dur = self._chain.handle(node, self._state)
+                except ExceptionNode:
+                    raise
+                except Exception as exc:
+                    raise_nc_error(
+                        ExceptionTyps.NCCodeErrors,
+                        1999,
+                        message=str(exc),
+                        value=str(exc),
+                        line=getattr(node, "nc_code_line_nr", 0) or 0,
+                    )
 
             if logger.isEnabledFor(logging.DEBUG):
                 try:

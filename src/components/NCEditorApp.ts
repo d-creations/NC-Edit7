@@ -12,6 +12,7 @@ import './NCSyncControls';
 import './NCStatusIndicator';
 import './NCMachineSelector';
 import './NCToolpathPlot';
+import './NCDrawBoardPanel';
 import './NCFileManager'; // Keep for global file loading if needed, but removed from template
 import './NCFocasTransfer';
 
@@ -506,10 +507,14 @@ export class NCEditorApp extends HTMLElement {
           <div class="plot-content" style="display: flex; flex-direction: column;">
             <div class="side-panel-tabs" style="display: flex; background: var(--vscode-editorGroupHeader-tabsBackground, #2d2d2d); border-bottom: 1px solid var(--vscode-editorGroup-border, #3e3e42);">
               <button class="side-tab active" data-view="plot" style="flex:1; padding: 6px; background: var(--vscode-tab-activeBackground, #1e1e1e); color: var(--vscode-tab-activeForeground, #ffffff); border: none; cursor: pointer; border-top: 2px solid var(--vscode-tab-activeBorderTop, #007fd4);">Plot</button>
+              <button class="side-tab" data-view="draw" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">Draw</button>
               <button class="side-tab" data-view="focas" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">FOCAS</button>
             </div>
             <div id="side-view-plot" style="flex: 1; overflow: hidden; display: block;">
               <nc-toolpath-plot></nc-toolpath-plot>
+            </div>
+            <div id="side-view-draw" style="flex: 1; overflow: hidden; display: none;">
+              <nc-draw-board-panel></nc-draw-board-panel>
             </div>
             <div id="side-view-focas" style="flex: 1; overflow: hidden; display: none;">
               <nc-focas-transfer></nc-focas-transfer>
@@ -544,6 +549,10 @@ export class NCEditorApp extends HTMLElement {
         <button class="nav-item" data-view="plot">
           <span class="nav-icon">📈</span>
           <span>Plot</span>
+        </button>
+        <button class="nav-item" data-view="draw">
+          <span class="nav-icon">✏️</span>
+          <span>Draw</span>
         </button>
       </div>
     `;
@@ -839,6 +848,7 @@ export class NCEditorApp extends HTMLElement {
   private switchSidePanelView(view: string): void {
     const tabs = this.querySelectorAll('.side-tab');
     const plotView = this.querySelector('#side-view-plot') as HTMLElement;
+    const drawView = this.querySelector('#side-view-draw') as HTMLElement;
     const focasView = this.querySelector('#side-view-focas') as HTMLElement;
     
     tabs.forEach(t => {
@@ -856,11 +866,19 @@ export class NCEditorApp extends HTMLElement {
 
     if (view === 'plot') {
       if (plotView) plotView.style.display = 'block';
+      if (drawView) drawView.style.display = 'none';
+      if (focasView) focasView.style.display = 'none';
+      const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
+      if (focasToggle) focasToggle.classList.remove('active');
+    } else if (view === 'draw') {
+      if (plotView) plotView.style.display = 'none';
+      if (drawView) drawView.style.display = 'block';
       if (focasView) focasView.style.display = 'none';
       const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
       if (focasToggle) focasToggle.classList.remove('active');
     } else if (view === 'focas') {
       if (plotView) plotView.style.display = 'none';
+      if (drawView) drawView.style.display = 'none';
       if (focasView) focasView.style.display = 'block';
       const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
       if (focasToggle) focasToggle.classList.add('active');

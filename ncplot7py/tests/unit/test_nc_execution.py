@@ -5,6 +5,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from ncplot7py.application.nc_execution import NCExecutionEngine
+from ncplot7py.infrastructure.machines.base_stateful_control import BaseStatefulCanal
 
 
 class _Point:
@@ -68,6 +69,37 @@ class FakeParser:
         return _ParserNode(line_nr)
 
 
+class _RaisingChain:
+    def handle(self, node, state):
+        if node.nc_code_line_nr == 7:
+            raise ValueError("could not convert string to float: '[]'")
+        return None, 0.0
+
+
+class FakeControlWrappedExecutionError:
+    def __init__(self):
+        self._canal = BaseStatefulCanal("C1")
+        self._canal._chain = _RaisingChain()
+
+    def get_canal_count(self):
+        return 1
+
+    def run_nc_code_list(self, node_list, canal):
+        self._canal.run_nc_code_list(node_list)
+
+    def get_tool_path(self, canal: int):
+        return self._canal.get_tool_path()
+
+    def get_exected_nodes(self, canal: int):
+        return self._canal.get_exec_nodes()
+
+    def get_canal_name(self, idx: int):
+        return "C1"
+
+    def synchro_points(self, tool_paths, nodes):
+        return None
+
+
 class TestNCExecutionEngine(unittest.TestCase):
     def test_happy_path_returns_plot_structure(self):
         ctrl = FakeControlHappy()
@@ -123,6 +155,20 @@ class TestNCExecutionEngine(unittest.TestCase):
                 ("G1 X2 Y2 Z2", 4),
             ],
         )
+
+    def test_execution_error_reports_current_node_line(self):
+        ctrl = FakeControlWrappedExecutionError()
+        engine = NCExecutionEngine(ctrl)
+        fake_parser = FakeParser()
+        engine._get_parser = lambda: fake_parser
+
+        programs = ["N1\nN2\nN3\nN4\nN5\nN6\nBAD\nN8\nN9\nN10\nN11\nN12\nN13\nN14"]
+        result = engine.get_Syncro_plot(programs, synch=False)
+
+        self.assertEqual(result, [[], []])
+        self.assertTrue(engine.errors)
+        self.assertEqual(engine.errors[0]["line"], 7)
+        self.assertIn("could not convert string to float", engine.errors[0]["message"])
 
 if __name__ == "__main__":
     unittest.main()

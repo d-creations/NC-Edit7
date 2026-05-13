@@ -114,6 +114,20 @@ class NCExecutionEngine:
             pass
         return None
 
+    def _get_last_executed_line(self, canal_number: int) -> int:
+        try:
+            executed_nodes = self.cnc_control.get_exected_nodes(canal_number)
+        except Exception:
+            return 0
+
+        if not executed_nodes:
+            return 0
+
+        try:
+            return int(getattr(executed_nodes[-1], "nc_code_line_nr", 0) or 0)
+        except Exception:
+            return 0
+
     def _get_canal_variables(self, canal_index: int) -> Dict[str, float]:
         state = self._get_canal_state(canal_index)
         if state is None:
@@ -217,8 +231,7 @@ class NCExecutionEngine:
                 self.cnc_control.run_nc_code_list(node_list, canal_number + 1)
             except ExceptionNode as exc:
                 # Handle structured NC errors with localization
-                # Use exc.line if available, otherwise fallback to 0 or last line
-                err_line = exc.line if exc.line else (i + 1 if 'i' in locals() else 0)
+                err_line = exc.line if exc.line else self._get_last_executed_line(canal_number + 1)
                 self._add_error(exc, line=err_line, canal=canal_number+1)
                 error = True
                 break
@@ -238,10 +251,10 @@ class NCExecutionEngine:
                                 msg = catalog.format_exception(node)
                                 print_error(msg)
                     except Exception:
-                        self._add_error(exc, line=(i + 1 if 'i' in locals() else 0), canal=canal_number+1)
+                        self._add_error(exc, line=self._get_last_executed_line(canal_number + 1), canal=canal_number+1)
                 else:
                     # generic parser/control error
-                    self._add_error(exc, line=(i + 1 if 'i' in locals() else 0), canal=canal_number+1)
+                    self._add_error(exc, line=self._get_last_executed_line(canal_number + 1), canal=canal_number+1)
                 error = True
                 break
 

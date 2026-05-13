@@ -221,6 +221,10 @@ export class NCFocasTransfer extends HTMLElement {
           display: flex;
           flex-direction: column;
           height: 100%;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          box-sizing: border-box;
           background: var(--vscode-editor-background, #1e1e1e);
           color: var(--vscode-editor-foreground, #d4d4d4);
           font-family: var(--vscode-font-family, sans-serif);
@@ -232,6 +236,7 @@ export class NCFocasTransfer extends HTMLElement {
           gap: 10px;
           margin-bottom: 15px;
           align-items: center;
+          flex-shrink: 0;
         }
         input {
           background: var(--vscode-input-background, #3c3c3c);
@@ -248,8 +253,6 @@ export class NCFocasTransfer extends HTMLElement {
         }
         button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
         .list {
-          flex: 1;
-          overflow-y: auto;
           display: flex;
           flex-direction: column;
           gap: 8px;
