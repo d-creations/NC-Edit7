@@ -77,13 +77,31 @@ class CNCState:
     # Machine Configuration
     machine_config: Optional[MachineConfig] = field(default=None)
 
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        if name == "machine_config":
+            self._apply_machine_config_defaults()
+
     def __post_init__(self):
         if self.machine_config is None and FANUC_GENERIC_CONFIG is not None:
             self.machine_config = FANUC_GENERIC_CONFIG
-        
-        # Initialize default feed mode from machine config if not already set
-        if "feed_mode" not in self.extra and self.machine_config is not None:
-            self.extra["feed_mode"] = self.machine_config.default_feed_mode
+
+        self._apply_machine_config_defaults()
+
+    def _apply_machine_config_defaults(self) -> None:
+        config = getattr(self, "machine_config", None)
+        if config is None:
+            return
+
+        extra = getattr(self, "extra", None)
+        if isinstance(extra, dict):
+            if "feed_mode" not in extra:
+                extra["feed_mode"] = config.default_feed_mode
+            if "polar_interpolate_axis" not in extra:
+                extra["polar_interpolate_axis"] = config.polar_interpolate_axis
+
+        for axis in getattr(config, "diameter_axes", ()):
+            self.set_axis_unit(axis, "diameter")
 
     def clone(self) -> "CNCState":
         """Return a deep copy of the state for transactional updates."""
@@ -155,17 +173,18 @@ class CNCState:
         """Normalize common arc parameters (I,J,K,R) into internal units.
 
         - I -> X offset, J -> Y offset, K -> Z offset
-        - R is treated as a radial distance: if either X or Y is set to
-          'diameter' we assume R was provided in diameter units and divide by 2.
-          This is a reasonable heuristic for XY-plane arcs on lathes.
+        - R is treated as a radial distance.
+        Note: I, J, K are typically programmed in radius even when the corresponding
+        axis (e.g. X) is in diameter mode. Therefore, we do not applying diameter
+        division to I, J, K.
         """
         p = dict(params)
         if "I" in p:
-            p["I"] = float(self.normalize_axis_value("X", p.get("I", 0.0)))
+            p["I"] = float(p.get("I", 0.0))
         if "J" in p:
-            p["J"] = float(self.normalize_axis_value("Y", p.get("J", 0.0)))
+            p["J"] = float(p.get("J", 0.0))
         if "K" in p:
-            p["K"] = float(self.normalize_axis_value("Z", p.get("K", 0.0)))
+            p["K"] = float(p.get("K", 0.0))
         if "R" in p:
             # Treat R as a true radial distance. Do not alter R based on
             # per-axis 'diameter' interpretation — R is a geometric radius

@@ -6,7 +6,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from ncplot7py.application.nc_execution import NCExecutionEngine
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared import configure_logging, configure_i18n, get_message_stack
 
@@ -22,7 +24,7 @@ class TestLatheDiameterModeIntegration(unittest.TestCase):
         init_state.set_axis_unit('X', 'diameter')
 
         # create control with this initial state
-        ctrl = StatefulIsoTurnNCControl(init_nc_states=[init_state])
+        ctrl = UniversalConfigDrivenControl(init_nc_states=[init_state])
         engine = NCExecutionEngine(ctrl)
 
         # simple program: move X to 10 (interpreted as diameter -> radius 5)

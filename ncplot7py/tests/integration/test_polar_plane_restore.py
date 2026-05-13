@@ -7,8 +7,12 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from ncplot7py.application.nc_execution import NCExecutionEngine
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared import configure_logging, configure_i18n
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
 
 
 class TestPolarPlaneRestoreIntegration(unittest.TestCase):
@@ -26,7 +30,10 @@ class TestPolarPlaneRestoreIntegration(unittest.TestCase):
             "G113;"  # polar off (should restore previous plane X_Z)
         )
 
-        ctrl = StatefulIsoTurnNCControl(count_of_canals=1)
+        cstate = CNCState(); cstate.machine_config = get_machine_config("FANUC_TURN")
+        cstate.extra['polar_interpolate_axis'] = 'Y'
+        ctrl = UniversalConfigDrivenControl(init_nc_states=[cstate])
+
         engine = NCExecutionEngine(ctrl)
         result = engine.get_Syncro_plot([program], synch=False)
 

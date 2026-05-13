@@ -14,7 +14,26 @@ class ModalHandler(Handler):
     motion handlers can rely on modal state being set earlier in the chain.
     """
 
+    def _apply_modal_g_codes(self, node: NCCommandNode, state: CNCState) -> None:
+        for g_code in getattr(node, "g_code", ()):
+            code = str(g_code).strip().upper()
+            if code in ("G00", "G0"):
+                state.set_modal("G_GROUP_1", "G00")
+            elif code in ("G01", "G1"):
+                state.set_modal("G_GROUP_1", "G01")
+            elif code in ("G02", "G2"):
+                state.set_modal("G_GROUP_1", "G02")
+            elif code in ("G03", "G3"):
+                state.set_modal("G_GROUP_1", "G03")
+            elif code in ("G90", "G91"):
+                state.set_modal("distance", code)
+
     def handle(self, node: NCCommandNode, state: CNCState) -> Tuple[Optional[List], Optional[float]]:
+        try:
+            self._apply_modal_g_codes(node, state)
+        except Exception:
+            pass
+
         # Extract block parameters (keys are letters) and update modal state
         try:
             for k, v in node.command_parameter.items():

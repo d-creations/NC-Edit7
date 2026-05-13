@@ -7,7 +7,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from ncplot7py.application.nc_execution import NCExecutionEngine
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared import configure_logging, configure_i18n
 from ncplot7py.shared.file_adapter import get_program
 
@@ -53,7 +55,7 @@ class TestO6PointWhileLoopIntegration(unittest.TestCase):
         # preprocessing (remove parentheses, normalize whitespace).
         programs = get_program(program_lines, split_on_blank_line=True)
         # create control with same number of canals as programs
-        ctrl = StatefulIsoTurnNCControl(count_of_canals=max(1, len(programs)))
+        ctrl = UniversalConfigDrivenControl(count_of_canals=max(1, len(programs)))
         engine = NCExecutionEngine(ctrl)
 
         result = engine.get_Syncro_plot(programs, synch=False)

@@ -1,0 +1,143 @@
+{
+  "name": "nc-edit7-extension",
+  "displayName": "NC-Edit7",
+  "description": "Custom Editor for NC/MPF Files",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d-creations/NC-Edit7.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCustomEditor:ncEdit7.editor",
+    "onView:nc-edit7.workbenchPanelView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ncEdit7.openWorkbenchPanel",
+        "title": "NC-Edit7: Open Workbench Panel"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "ncEdit7.editor",
+        "displayName": "NC-Edit7 Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.mpf"
+          },
+          {
+            "filenamePattern": "*.nc"
+          },
+          {
+            "filenamePattern": "*.PA"
+          },
+          {
+            "filenamePattern": "*.pa"
+          },
+          {
+            "filenamePattern": "*.P1"
+          },
+          {
+            "filenamePattern": "*.p1"
+          },
+          {
+            "filenamePattern": "*.P2"
+          },
+          {
+            "filenamePattern": "*.p2"
+          },
+          {
+            "filenamePattern": "*.P3"
+          },
+          {
+            "filenamePattern": "*.p3"
+          },
+          {
+            "filenamePattern": "*.M"
+          },
+          {
+            "filenamePattern": "*.m"
+          },
+          {
+            "filenamePattern": "*.S"
+          },
+          {
+            "filenamePattern": "*.s"
+          },
+          {
+            "filenamePattern": "*p-2*"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "ncEdit7BottomPanel",
+          "title": "NC-Edit7",
+          "icon": "$(tools)"
+        }
+      ]
+    },
+    "views": {
+      "ncEdit7BottomPanel": [
+        {
+          "type": "webview",
+          "id": "nc-edit7.workbenchPanelView",
+          "name": "NC Workbench",
+          "icon": "$(layout-panel)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "NC-Edit7",
+      "properties": {
+        "ncEdit7.focas.defaultIpAddress": {
+          "type": "string",
+          "default": "DEMO",
+          "description": "Default IP Address to use for the FOCAS CNC connection."
+        },
+        "ncEdit7.theme.mode": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "one-dark",
+            "light"
+          ],
+          "default": "vscode",
+          "description": "Theme mode used inside NC-Edit7 webviews."
+        },
+        "ncEdit7.layout.focasPlacement": {
+          "type": "string",
+          "enum": [
+            "side-panel",
+            "bottom-panel",
+            "external-panel",
+            "disabled"
+          ],
+          "default": "external-panel",
+          "description": "Where FOCAS should appear inside the VS Code custom editor host."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.4"
+  }
+}

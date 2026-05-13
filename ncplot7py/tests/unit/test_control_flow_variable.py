@@ -1,6 +1,8 @@
 import unittest
 
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnCanal
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenCanal as UniversalConfigDrivenCanal
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
 
@@ -30,7 +32,7 @@ class TestVariableAndControlFlow(unittest.TestCase):
         state = CNCState()
         # set a reasonable feed rate so duration not zero
         state.feed_rate = 60.0
-        canal = StatefulIsoTurnCanal("C1", init_state=state)
+        canal = UniversalConfigDrivenCanal("C1", init_state=state)
 
         # DO1 L2 (label 1, loop 2 times)
         node_do = NCCommandNode(g_code_command=set(), command_parameter={"N": "10", "L": "2"}, loop_command="DO1", nc_code_line_nr=1)

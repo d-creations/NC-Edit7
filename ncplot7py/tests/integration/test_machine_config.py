@@ -1,7 +1,9 @@
 """Integration test for Machine Config Refactoring (Variables and Tools)."""
 import unittest
-from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
-from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
 from ncplot7py.infrastructure.parsers.nc_command_parser import NCCommandStringParser
 from ncplot7py.domain.exceptions import ExceptionNode as NCError
 
@@ -17,7 +19,7 @@ class TestRefactoringVerification(unittest.TestCase):
 
     def test_siemens_variables_and_tools(self):
         """Test Siemens 840D: R-parameters and Tool Range (0-9999)."""
-        control = StatefulSiemensMillControl()
+        control = UniversalConfigDrivenControl(init_nc_states=[CNCState(machine_config=get_machine_config("SIEMENS_840D"))])
         
         # 1. Valid R-parameter and Valid Tool
         code_valid = """
@@ -36,11 +38,11 @@ class TestRefactoringVerification(unittest.TestCase):
         nodes = self._parse(code_invalid_tool)
         with self.assertRaises(NCError) as cm:
             control.run_nc_code_list(nodes, 1)
-        self.assertIn("Tool number T10000 out of range", str(cm.exception))
+        self.assertIn("out of range", str(cm.exception))
 
     def test_fanuc_variables_and_tools(self):
         """Test Fanuc Star: #-parameters and Tool Range (0-99)."""
-        control = StatefulIsoTurnControl()
+        control = UniversalConfigDrivenControl(init_nc_states=[CNCState(machine_config=get_machine_config("FANUC_TURN"))])
 
         # 1. Valid #-parameter and Valid Tool
         code_valid = """

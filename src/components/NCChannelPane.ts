@@ -6,13 +6,18 @@ import './NCExecutedList';
 import './NCBottomPanel';
 import './NCProgramManager';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { CONFIG_SERVICE_TOKEN, EVENT_BUS_TOKEN, HOST_BRIDGE_SERVICE_TOKEN, STATE_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
+import type { IConfigService } from '@services/config/IConfigService';
+import type { IHostBridgeService } from '@services/HostBridgeService';
 
 export class NCChannelPane extends HTMLElement {
   private channelId: string = '';
   private eventBus: EventBus;
   private stateService: import('@services/StateService').StateService;
+  private configService: IConfigService;
+  private hostBridge: IHostBridgeService;
+  private showEmbeddedBottomPanel = true;
 
   static get observedAttributes() {
     return ['channel-id'];
@@ -23,6 +28,8 @@ export class NCChannelPane extends HTMLElement {
     const registry = ServiceRegistry.getInstance();
     this.eventBus = registry.get(EVENT_BUS_TOKEN);
     this.stateService = registry.get(STATE_SERVICE_TOKEN);
+    this.configService = registry.get(CONFIG_SERVICE_TOKEN);
+    this.hostBridge = registry.get(HOST_BRIDGE_SERVICE_TOKEN);
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -32,7 +39,9 @@ export class NCChannelPane extends HTMLElement {
     }
   }
 
-  connectedCallback() {
+  async connectedCallback() {
+    const config = await this.configService.getConfig();
+    this.showEmbeddedBottomPanel = config.hostMode !== 'vscode-editor';
     this.render();
     this.setupEventListeners();
   }
@@ -108,6 +117,15 @@ export class NCChannelPane extends HTMLElement {
       }
 
       this.eventBus.publish(EVENT_NAMES.PLOT_REQUEST, { channelId: this.channelId });
+
+      // When Plot is pressed, also surface the variables pane so the user can
+      // inspect the resulting state immediately in either host.
+      this.hostBridge.openWorkbenchPanel('variables');
+
+      const bottomPanel = this.querySelector('#bottom-panel') as
+        | (HTMLElement & { open?: (tabName?: 'variables' | 'errors') => void })
+        | null;
+      bottomPanel?.open?.('variables');
     });
 
     // Forward keyword-click events to the code pane
@@ -140,12 +158,12 @@ export class NCChannelPane extends HTMLElement {
           flex-direction: column;
           height: 100%;
           overflow: hidden;
-          border: 1px solid #3e3e42;
+          border: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
         .channel-header {
           padding: 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           font-weight: bold;
           display: flex;
           justify-content: space-between;
@@ -157,19 +175,19 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-button {
           padding: 2px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 3px;
           cursor: pointer;
           font-size: 11px;
         }
         .channel-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .channel-button.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
         .channel-content {
           display: flex;
@@ -178,9 +196,10 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-sidebar {
           width: auto;
-          min-width: 100px;
-          max-width: 180px;
-          border-right: 1px solid #3e3e42;
+          min-width: 60px;
+          max-width: 120px;
+          background: var(--vscode-sideBar-background, #21252b);
+          border-right: 1px solid var(--vscode-editorGroup-border, #181a1f);
           display: flex;
           flex-direction: column;
         }
@@ -196,7 +215,7 @@ export class NCChannelPane extends HTMLElement {
         }
         .channel-tools-panel {
           height: 150px;
-          border-top: 1px solid #3e3e42;
+          border-top: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
         .mobile-sidebar-toggle {
           display: none;
@@ -212,9 +231,9 @@ export class NCChannelPane extends HTMLElement {
             height: calc(100% - 45px); /* Updated to match new top position */
             width: 85%;
             max-width: 300px;
-            background: #252526;
+            background: var(--vscode-editorWidget-background, #21252b);
             z-index: 50;
-            border-right: 1px solid #3e3e42;
+            border-right: 1px solid var(--vscode-editorGroup-border, #181a1f);
             box-shadow: 2px 0 10px rgba(0,0,0,0.5);
           }
           
@@ -276,7 +295,7 @@ export class NCChannelPane extends HTMLElement {
           <div class="channel-editor-wrapper">
             <nc-code-pane channel-id="${this.channelId}"></nc-code-pane>
           </div>
-          <nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>
+          ${this.showEmbeddedBottomPanel ? `<nc-bottom-panel channel-id="${this.channelId}" id="bottom-panel"></nc-bottom-panel>` : ''}
         </div>
       </div>
     `;

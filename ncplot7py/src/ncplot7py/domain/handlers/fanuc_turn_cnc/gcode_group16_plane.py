@@ -43,7 +43,7 @@ class GCodeGroup16PlaneExecChainLink(Handler):
                 continue
             try:
                 if g.upper().startswith("G"):
-                    num = int(g[1:])
+                    num = float(g[1:])
                 else:
                     continue
             except Exception:
@@ -60,20 +60,11 @@ class GCodeGroup16PlaneExecChainLink(Handler):
             raise_nc_error(ExceptionTyps.NCCodeErrors, 120, message="Conflicting plane selection codes (G17/G18/G19)", value=str(node.g_code))
 
         if has17:
-            try:
-                state.extra["g_group_16_plane"] = PlaneMode.X_Y
-            except Exception:
-                state.extra["g_group_16_plane"] = PlaneMode.X_Y.value
+            state.extra["g_group_16_plane"] = PlaneMode.X_Y.value
         if has18:
-            try:
-                state.extra["g_group_16_plane"] = PlaneMode.X_Z
-            except Exception:
-                state.extra["g_group_16_plane"] = PlaneMode.X_Z.value
+            state.extra["g_group_16_plane"] = PlaneMode.X_Z.value
         if has19:
-            try:
-                state.extra["g_group_16_plane"] = PlaneMode.Y_Z
-            except Exception:
-                state.extra["g_group_16_plane"] = PlaneMode.Y_Z.value
+            state.extra["g_group_16_plane"] = PlaneMode.Y_Z.value
 
         if self.next_handler is not None:
             return self.next_handler.handle(node, state)

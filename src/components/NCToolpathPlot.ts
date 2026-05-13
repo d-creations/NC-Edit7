@@ -30,6 +30,7 @@ export class NCToolpathPlot extends HTMLElement {
   private isPlotting = false;
   private currentPlotMetadata: PlotMetadata | null = null;
   private highlightObject: THREE.Object3D | null = null;
+  private themeObserver?: MutationObserver;
 
   constructor() {
     super();
@@ -54,6 +55,9 @@ export class NCToolpathPlot extends HTMLElement {
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
     }
     if (this.controls) {
       this.controls.dispose();
@@ -102,7 +106,7 @@ export class NCToolpathPlot extends HTMLElement {
           display: block;
           width: 100%;
           height: 100%;
-          background: #1e1e1e;
+          background: var(--vscode-editor-background, #282c34);
           position: relative;
         }
         :host([hidden]) {
@@ -124,31 +128,31 @@ export class NCToolpathPlot extends HTMLElement {
         }
         .plot-button {
           padding: 4px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
         }
         .plot-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .plot-button.primary {
-          background: #0e639c;
-          color: #fff;
-          border: 1px solid #0e639c;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
+          border: 1px solid var(--vscode-button-background, #61afef);
         }
         .plot-button.primary:hover {
-          background: #1177bb;
+          background: var(--vscode-button-hoverBackground, #70b7ff);
         }
         .plot-button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
         .plot-button.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
         .view-controls {
           position: absolute;
@@ -185,9 +189,9 @@ export class NCToolpathPlot extends HTMLElement {
           width: 32px;
           height: 32px;
           padding: 0;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 18px;
@@ -196,15 +200,15 @@ export class NCToolpathPlot extends HTMLElement {
           justify-content: center;
         }
         .zoom-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         .plot-info {
           position: absolute;
           bottom: 8px;
           left: 8px;
-          color: #d4d4d4;
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-size: 12px;
-          background: rgba(30, 30, 30, 0.8);
+          background: color-mix(in srgb, var(--vscode-editor-background, #282c34) 80%, transparent);
           padding: 4px 8px;
           border-radius: 4px;
         }
@@ -212,9 +216,9 @@ export class NCToolpathPlot extends HTMLElement {
           position: absolute;
           bottom: 8px;
           right: 8px;
-          color: #888;
+          color: var(--vscode-descriptionForeground, #7f848e);
           font-size: 10px;
-          background: rgba(30, 30, 30, 0.8);
+          background: color-mix(in srgb, var(--vscode-editor-background, #282c34) 80%, transparent);
           padding: 4px 8px;
           border-radius: 4px;
         }
@@ -235,8 +239,8 @@ export class NCToolpathPlot extends HTMLElement {
             top: 40px;
             right: 8px;
             left: 8px;
-            background: rgba(30, 30, 30, 0.95);
-            border: 1px solid #555;
+            background: color-mix(in srgb, var(--vscode-editorWidget-background, #21252b) 92%, transparent);
+            border: 1px solid var(--vscode-widget-border, #181a1f);
             border-radius: 4px;
             padding: 8px;
             z-index: 20;
@@ -393,7 +397,7 @@ export class NCToolpathPlot extends HTMLElement {
       // Get all active channels and their NC code
       const activeChannels = this.stateService.getActiveChannels();
       const state = this.stateService.getState();
-      const machineName = state.globalMachine || 'ISO_MILL';
+      const machineName = state.globalMachine || 'SIEMENS_MILL';
 
       if (activeChannels.length === 0) {
         throw new Error('No active channels');
@@ -503,7 +507,7 @@ export class NCToolpathPlot extends HTMLElement {
 
     // Scene setup
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1e1e1e);
+    this.applyThemeToScene();
 
     // Camera setup
     const aspect = container.clientWidth / container.clientHeight || 1;
@@ -544,8 +548,50 @@ export class NCToolpathPlot extends HTMLElement {
     });
     this.resizeObserver.observe(container);
 
+    this.setupThemeObserver();
+
     // Start animation loop
     this.animateScene();
+  }
+
+  private setupThemeObserver() {
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
+    }
+
+    const observerTargetAttributes = ['style', 'class', 'data-theme-mode', 'data-themeMode'];
+    this.themeObserver = new MutationObserver(() => {
+      this.applyThemeToScene();
+    });
+
+    const body = document.body;
+    const root = document.documentElement;
+
+    if (body) {
+      this.themeObserver.observe(body, { attributes: true, attributeFilter: observerTargetAttributes });
+    }
+
+    if (root) {
+      this.themeObserver.observe(root, { attributes: true, attributeFilter: observerTargetAttributes });
+    }
+  }
+
+  private applyThemeToScene() {
+    if (!this.scene) return;
+
+    const backgroundColor = this.resolveThemeColor('--vscode-editor-background', '#282c34');
+    this.scene.background = new THREE.Color(backgroundColor);
+
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  private resolveThemeColor(cssVariable: string, fallback: string): string {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const bodyStyles = getComputedStyle(document.body);
+    const value = rootStyles.getPropertyValue(cssVariable).trim() || bodyStyles.getPropertyValue(cssVariable).trim();
+    return value || fallback;
   }
 
   private animateScene() {

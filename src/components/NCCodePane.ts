@@ -2,13 +2,15 @@ import { ServiceRegistry } from '@core/ServiceRegistry';
 import { PARSER_SERVICE_TOKEN, EVENT_BUS_TOKEN, STATE_SERVICE_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { ParserService } from '@services/ParserService';
 import { StateService } from '@services/StateService';
-import { FileManagerService } from '@services/FileManagerService';
+import { IFileManagerService } from '@services/IFileManagerService';
 import { EventBus, EVENT_NAMES, EventSubscription } from '@services/EventBus';
 import type { ChannelId, ExecutedProgramResult, FaultDetail, NCProgram } from '@core/types';
 // @ts-expect-error - ACE module doesn't export types correctly
 import ace from 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-text';
-import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-one_dark';
+import 'ace-builds/src-noconflict/ext-searchbox';
 
 // Mobile breakpoint - matches the media query in NCEditorApp.ts
 const MOBILE_BREAKPOINT = 768;
@@ -17,7 +19,7 @@ export class NCCodePane extends HTMLElement {
   private editor?: ace.Ace.Editor;
   private parserService: ParserService;
   private stateService: StateService;
-  private fileManager: FileManagerService;
+  private fileManager: IFileManagerService;
   private eventBus: EventBus;
   private channelId: ChannelId = '1';
   private resizeObserver?: ResizeObserver;
@@ -26,6 +28,7 @@ export class NCCodePane extends HTMLElement {
   private executionSubscription?: EventSubscription;
   private plotClearedSubscription?: EventSubscription;
   private machineChangedSubscription?: EventSubscription;
+  private themeObserver?: MutationObserver;
 
   constructor() {
     super();
@@ -97,6 +100,7 @@ export class NCCodePane extends HTMLElement {
     // Listen for machine changes to re-parse with new regex patterns
     this.machineChangedSubscription = this.eventBus.subscribe(EVENT_NAMES.MACHINE_CHANGED, () => {
       this.triggerParse();
+      this.updateSyntaxHighlighting();
     });
 
     this.eventBus.subscribe('program:active_changed', (data: { channelId: string, program: NCProgram | null }) => {
@@ -107,6 +111,20 @@ export class NCCodePane extends HTMLElement {
         } else {
           this.setValue('');
           this.stateService.updateChannel(this.channelId, { program: '' });
+        }
+      }
+    });
+
+    this.eventBus.subscribe('program:content_changed', (data: { channelId: string, program: NCProgram }) => {
+      if (data.channelId === this.channelId && this.editor) {
+        // Only update if it actually differs from what we currently have
+        // This catches VS Code 'Undo/Redo' events safely.
+        // Normalize CRLF to LF to prevent continuous loop triggers on Windows
+        const editorText = this.editor.getValue().replace(/\r\n/g, '\n');
+        const incomingText = data.program.content.replace(/\r\n/g, '\n');
+        if (editorText !== incomingText) {
+            this.setValue(incomingText);
+            this.stateService.updateChannel(this.channelId, { program: incomingText });
         }
       }
     });
@@ -124,6 +142,9 @@ export class NCCodePane extends HTMLElement {
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
     }
     if (this.editor) {
       this.editor.destroy();
@@ -143,8 +164,8 @@ export class NCCodePane extends HTMLElement {
       <style>
         .ace_editor {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace !important;
-            background-color: #272822 !important;
-            color: #f8f8f2 !important;
+          background-color: var(--vscode-editor-background, #282c34) !important;
+          color: var(--vscode-editor-foreground, #abb2bf) !important;
         }
         
         /* Layering fixes to ensure text is always on top of markers */
@@ -153,7 +174,7 @@ export class NCCodePane extends HTMLElement {
         }
         .ace_text-layer {
             z-index: 2 !important;
-            color: #f8f8f2 !important;
+          color: var(--vscode-editor-foreground, #abb2bf) !important;
         }
         .ace_cursor-layer {
             z-index: 3 !important;
@@ -178,17 +199,17 @@ export class NCCodePane extends HTMLElement {
         
         /* Improve active line visibility */
         .ace_marker-layer .ace_active-line {
-            background-color: #44475a !important;
-            border-top: 1px solid #6272a4;
-            border-bottom: 1px solid #6272a4;
+          background-color: var(--vscode-editor-lineHighlightBackground, #2c313c) !important;
+          border-top: 1px solid var(--vscode-editorHoverWidget-border, #3e4451);
+          border-bottom: 1px solid var(--vscode-editorHoverWidget-border, #3e4451);
         }
         .ace_gutter-active-line {
-            background-color: #44475a !important;
-            color: #f8f8f2 !important;
+          background-color: var(--vscode-editor-lineHighlightBackground, #2c313c) !important;
+          color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground, #abb2bf)) !important;
         }
         .ace_cursor {
-            color: #f8f8f2 !important;
-            border-left: 2px solid #f8f8f2 !important;
+          color: var(--vscode-editorCursor-foreground, #61afef) !important;
+          border-left: 2px solid var(--vscode-editorCursor-foreground, #61afef) !important;
         }
         
         /* Mobile touch support for text selection and copy */
@@ -215,13 +236,13 @@ export class NCCodePane extends HTMLElement {
         }
       </style>
       <div class="pane-wrapper" style="display: flex; flex-direction: column; width: 100%; height: 100%;">
-        <div class="pane-header" style="height: 20px; background-color: #252526; border-bottom: 1px solid #333; display: flex; flex-shrink: 0; display: none;">
+        <div class="pane-header" style="height: 20px; background-color: var(--vscode-editorGroupHeader-tabsBackground, #21252b); border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f); display: flex; flex-shrink: 0; display: none;">
             <div class="editor-header-spacer" style="flex: 1;"></div>
-            <div class="timing-header" style="width: 60px; color: #ccc; font-size: 10px; text-align: center; line-height: 20px; border-left: 1px solid #333;">TIME</div>
+          <div class="timing-header" style="width: 60px; color: var(--vscode-descriptionForeground, #7f848e); font-size: 10px; text-align: center; line-height: 20px; border-left: 1px solid var(--vscode-editorGroup-border, #181a1f);">TIME</div>
         </div>
         <div class="pane-body" style="flex: 1; display: flex; position: relative; overflow: hidden;">
-            <div class="ace-editor-container" style="flex: 1; position: relative; font-size: 14px; background-color: #272822; color: #f8f8f2; z-index: 1;"></div>
-            <div class="timing-gutter" style="width: 60px; background-color: #1e1e1e; border-left: 1px solid #333; overflow: hidden; position: relative; display: none;">
+          <div class="ace-editor-container" style="flex: 1; position: relative; font-size: 14px; background-color: var(--vscode-editor-background, #282c34); color: var(--vscode-editor-foreground, #abb2bf); z-index: 1;"></div>
+          <div class="timing-gutter" style="width: 60px; background-color: var(--vscode-editor-background, #282c34); border-left: 1px solid var(--vscode-editorGroup-border, #181a1f); overflow: hidden; position: relative; display: none;">
                 <div class="timing-content" style="position: absolute; top: 0; left: 0; width: 100%;"></div>
             </div>
         </div>
@@ -241,28 +262,15 @@ export class NCCodePane extends HTMLElement {
       editorElement.style.height = '100%';
     }
 
-    const demoProgram = `G0 X0 Y0
-T="Mill 1";Tool 1
-G98
-G1 X50 Y0 F200
-G1 X50 Y50
-G1 X0 Y50
-G1 X0 Y0
-G0 Z5
-G1 X25 Y25
-G1 Z0
-G1 X75 Y25
-G1 Z5`;
-
     this.editor = ace.edit(editorElement, {
       mode: 'ace/mode/text', // TODO: Custom NC mode
-      theme: 'ace/theme/monokai',
+      theme: 'ace/theme/one_dark',
       fontSize: 14,
       showPrintMargin: false,
       showGutter: true,
       highlightActiveLine: true,
       readOnly: false,
-      value: demoProgram, // Demo program for Channel 1
+      value: "", // Start empty, let FileManager provide content
     });
 
     // Enable native scrolling and better mobile support
@@ -285,6 +293,12 @@ G1 Z5`;
       this.editor.setFontSize(16);
     }
 
+    this.applyEditorTheme();
+    if (this.isVsCodeHost()) {
+      this.themeObserver = new MutationObserver(() => this.applyEditorTheme());
+      this.themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme-mode'] });
+    }
+
     // Use ResizeObserver to handle dynamic layout changes
     this.resizeObserver = new ResizeObserver(() => {
       this.editor?.resize();
@@ -293,8 +307,10 @@ G1 Z5`;
 
     // Trigger initial parse
     this.triggerParse();
+    setTimeout(() => this.updateSyntaxHighlighting(), 100);
 
     this.editor.on('change', () => {
+      if (this.isSettingValue) return;
       const value = this.editor?.getValue() || '';
       this.fileManager.updateActiveProgramContent(this.channelId, value);
       this.stateService.updateChannel(this.channelId, { program: value });
@@ -324,6 +340,85 @@ G1 Z5`;
     });
   }
 
+  private updateSyntaxHighlighting() {
+    const activeMachine = this.stateService.getState().activeMachine;
+    if (activeMachine && activeMachine.controlType) {
+        this.applySyntaxRules(activeMachine.controlType);
+    } else {
+        this.applySyntaxRules("FANUC_MILL");
+    }
+  }
+
+  private isVsCodeHost(): boolean {
+    // @ts-ignore
+    return window.acquireVsCodeApi !== undefined || (window.parent && window.parent !== window);
+  }
+
+  private applyEditorTheme(): void {
+    if (!this.editor) return;
+
+    const themeMode = document.body.dataset.themeMode || (this.isVsCodeHost() ? 'vscode' : 'one-dark');
+    if (themeMode === 'light') {
+      this.editor.setTheme('ace/theme/github');
+      return;
+    }
+    if (themeMode === 'one-dark') {
+      this.editor.setTheme('ace/theme/one_dark');
+      return;
+    }
+
+    const useLightTheme = this.isVsCodeHost() && document.body.classList.contains('vscode-light');
+    this.editor.setTheme(useLightTheme ? 'ace/theme/github' : 'ace/theme/one_dark');
+  }
+
+  private async applySyntaxRules(controlType: string) {
+    try {
+      const port = (window as any).backendPort || 8000;
+      const portUrl = `http://127.0.0.1:${port}`;
+      const response = await fetch(`${portUrl}/api/syntax/${controlType}`);
+      if (!response.ok) throw new Error("Failed to load syntax");
+      const data = await response.json();
+      
+      const machineRules = data.rules || [];
+      const modeName = `ace/mode/nc_${controlType.toLowerCase()}`;
+      
+      // ACE requires dynamic modules to be defined before use
+      ace.define(`${modeName}_highlight_rules`, ["require", "exports", "module", "ace/lib/oop", "ace/mode/text_highlight_rules"], function(require: any, exports: any, _module: any) {
+          const oop = require("ace/lib/oop");
+          const TextHighlightRules = require("ace/mode/text_highlight_rules").TextHighlightRules;
+
+          const NCRules = function(this: any) {
+              this.$rules = {
+                  "start": machineRules
+              };
+          };
+
+          oop.inherits(NCRules, TextHighlightRules);
+          exports.NCRules = NCRules;
+      });
+
+      ace.define(modeName, ["require", "exports", "module", "ace/lib/oop", "ace/mode/text", `${modeName}_highlight_rules`], function(require: any, exports: any, _module: any) {
+          const oop = require("ace/lib/oop");
+          const TextMode = require("ace/mode/text").Mode;
+          const NCRules = require(`${modeName}_highlight_rules`).NCRules;
+
+          const Mode = function(this: any) {
+              this.HighlightRules = NCRules;
+          };
+
+          oop.inherits(Mode, TextMode);
+          exports.Mode = Mode;
+      });
+
+      if (this.editor && this.editor.session) {
+        this.editor.session.setMode(modeName);
+        console.log(`Applied syntax highlighting mode: ${modeName} via backend`);
+      }
+    } catch (e) {
+      console.error("Syntax Highlighting Error:", e);
+    }
+  }
+
   private triggerParse() {
     if (!this.editor) return;
     const value = this.editor.getValue();
@@ -333,9 +428,17 @@ G1 Z5`;
     this.parserService.parse(value, this.channelId, { regexPatterns });
   }
 
+  private isSettingValue = false;
+
   setValue(code: string) {
     if (this.editor && this.editor.getValue() !== code) {
-      this.editor.setValue(code, -1);
+      this.isSettingValue = true;
+      const cursor = this.editor.getCursorPosition();
+      // Use doc.setValue to avoid wiping the Ace UndoManager stack history.
+      this.editor.session.doc.setValue(code);
+      this.editor.clearSelection();
+      this.editor.moveCursorToPosition(cursor);
+      this.isSettingValue = false;
     }
   }
 

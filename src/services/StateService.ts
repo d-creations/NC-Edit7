@@ -9,6 +9,7 @@ export interface AppState {
   activeMachine?: MachineProfile;
   globalMachine?: MachineType;
   uiSettings: UISettings;
+  workbenchSelectedChannel: ChannelId;
   activeFileId?: string | null;
   activeProgramIds: Map<string, string>; // channelId -> programId
 }
@@ -30,10 +31,12 @@ export class StateService {
 
   private eventBus: EventBus;
 
-  constructor(eventBus: EventBus) {
+  constructor(eventBus: EventBus, private useLocalStorage: boolean = true) {
     this.eventBus = eventBus;
     this.state = this.getInitialState();
-    this.loadFromStorage();
+    if (this.useLocalStorage) {
+      this.loadFromStorage();
+    }
   }
 
   private saveStateToHistory(): void {
@@ -79,6 +82,7 @@ export class StateService {
   }
 
   private persistState(): void {
+    if (!this.useLocalStorage) return;
     try {
       localStorage.setItem('nc-app-state', this.serializeState(this.state));
     } catch(e) {
@@ -124,6 +128,7 @@ export class StateService {
         ['3', this.createChannelState('3', false)],
       ]),
       activeProgramIds: new Map(),
+      workbenchSelectedChannel: '1',
       uiSettings: {
         timeGutterPosition: 'left',
         keywordListPosition: 'left',
@@ -175,6 +180,14 @@ export class StateService {
     if (!channel || !channel.active) return;
 
     this.updateChannel(id, { active: false });
+
+    if (this.state.workbenchSelectedChannel === id) {
+      const nextActiveChannel = this.getActiveChannels().find((activeChannel) => activeChannel.id !== id);
+      if (nextActiveChannel) {
+        this.setWorkbenchSelectedChannel(nextActiveChannel.id);
+      }
+    }
+
     this.eventBus.publish(EVENT_NAMES.CHANNEL_DEACTIVATED, { channelId: id });
   }
 
@@ -204,6 +217,19 @@ export class StateService {
 
   getActiveChannels(): ChannelState[] {
     return Array.from(this.state.channels.values()).filter((ch) => ch.active);
+  }
+
+  getWorkbenchSelectedChannel(): ChannelId {
+    return this.state.workbenchSelectedChannel;
+  }
+
+  setWorkbenchSelectedChannel(channelId: ChannelId): void {
+    if (this.state.workbenchSelectedChannel === channelId) return;
+
+    this.saveStateToHistory();
+    this.state.workbenchSelectedChannel = channelId;
+    this.persistState();
+    this.eventBus.publish(EVENT_NAMES.STATE_CHANGED, { workbenchSelectedChannel: channelId });
   }
   
   setActiveProgramId(channelId: string, programId: string): void {

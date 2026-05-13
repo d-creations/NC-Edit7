@@ -1,7 +1,7 @@
-import './NCVariableList';
-import './NCErrorList';
+import './NCVariablesPanelContent';
+import './NCErrorsPanelContent';
 import type { CustomVariable } from '@core/types';
-import type { NCVariableList } from './NCVariableList';
+import type { NCVariablesPanelContent } from './NCVariablesPanelContent';
 
 export class NCBottomPanel extends HTMLElement {
   private channelId: string = '';
@@ -19,10 +19,10 @@ export class NCBottomPanel extends HTMLElement {
   }
 
   getCustomVariables(): CustomVariable[] {
-    const variableList = this.shadowRoot?.querySelector(
-      'nc-variable-list',
-    ) as NCVariableList | null;
-    return variableList ? variableList.getCustomVariables() : [];
+    const variablesContent = this.shadowRoot?.querySelector(
+      'nc-variables-panel-content',
+    ) as NCVariablesPanelContent | null;
+    return variablesContent ? variablesContent.getCustomVariables() : [];
   }
 
   attributeChangedCallback(name: string, _oldValue: string, newValue: string) {
@@ -42,13 +42,13 @@ export class NCBottomPanel extends HTMLElement {
   }
 
   private updateChildren() {
-    const variableList = this.shadowRoot?.querySelector('nc-variable-list');
-    if (variableList) {
-      variableList.setAttribute('channel-id', this.channelId);
+    const variablesContent = this.shadowRoot?.querySelector('nc-variables-panel-content');
+    if (variablesContent) {
+      variablesContent.setAttribute('channel-id', this.channelId);
     }
-    const errorList = this.shadowRoot?.querySelector('nc-error-list');
-    if (errorList) {
-      errorList.setAttribute('channel-id', this.channelId);
+    const errorsContent = this.shadowRoot?.querySelector('nc-errors-panel-content');
+    if (errorsContent) {
+      errorsContent.setAttribute('channel-id', this.channelId);
     }
   }
 
@@ -61,11 +61,11 @@ export class NCBottomPanel extends HTMLElement {
           display: block;
           height: 34px; /* closed tab height */
           overflow: hidden;
-          background: #252526;
-          color: #d4d4d4;
+          background: var(--vscode-editorWidget-background, #21252b);
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-family: monospace;
           font-size: 12px;
-          border-top: 1px solid #3e3e42;
+          border-top: 1px solid var(--vscode-editorGroup-border, #181a1f);
           transition: height 0.15s ease;
           display: flex;
           flex-direction: column;
@@ -100,8 +100,8 @@ export class NCBottomPanel extends HTMLElement {
           align-items: center;
           justify-content: space-between;
           padding: 0 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
           height: 34px;
           flex-shrink: 0;
         }
@@ -118,27 +118,27 @@ export class NCBottomPanel extends HTMLElement {
           align-items: center;
           cursor: pointer;
           border-bottom: 2px solid transparent;
-          color: #888;
+          color: var(--vscode-descriptionForeground, #7f848e);
           font-weight: bold;
         }
 
         .tab:hover {
-          color: #d4d4d4;
-          background: rgba(255, 255, 255, 0.05);
+          color: var(--vscode-editor-foreground, #abb2bf);
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
 
         .tab.active {
-          color: #d4d4d4;
-          border-bottom-color: #0e639c;
-          background: rgba(255, 255, 255, 0.05);
+          color: var(--vscode-editor-foreground, #abb2bf);
+          border-bottom-color: var(--vscode-button-background, #61afef);
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
         
         .tab.error-tab.has-errors {
-            color: #f48771;
+            color: var(--vscode-inputValidation-errorBackground, #e06c75);
         }
         
         .tab.error-tab.active {
-            border-bottom-color: #f48771;
+            border-bottom-color: var(--vscode-inputValidation-errorBackground, #e06c75);
         }
 
         .drawer-controls {
@@ -148,16 +148,16 @@ export class NCBottomPanel extends HTMLElement {
 
         .close-button {
           padding: 4px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 3px;
           cursor: pointer;
           font-size: 11px;
         }
 
         .close-button:hover {
-          background: #4c4c4c;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
 
         .content-area {
@@ -192,10 +192,10 @@ export class NCBottomPanel extends HTMLElement {
       </div>
       <div class="content-area">
         <div class="tab-pane active" id="pane-variables">
-          <nc-variable-list channel-id="${this.channelId}"></nc-variable-list>
+          <nc-variables-panel-content channel-id="${this.channelId}"></nc-variables-panel-content>
         </div>
         <div class="tab-pane" id="pane-errors">
-          <nc-error-list channel-id="${this.channelId}"></nc-error-list>
+          <nc-errors-panel-content channel-id="${this.channelId}"></nc-errors-panel-content>
         </div>
       </div>
     `;
@@ -322,14 +322,40 @@ export class NCBottomPanel extends HTMLElement {
     });
   }
 
-  toggle() {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
+  open(tabName: 'variables' | 'errors' = 'variables') {
+    this.switchTab(tabName);
+
+    if (!this.isOpen) {
+      this.isOpen = true;
       this.setAttribute('open', '');
       this.style.setProperty('--drawer-height', `${this.lastHeight}px`);
-    } else {
-      this.removeAttribute('open');
     }
+
+    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.textContent = 'Close';
+    }
+  }
+
+  close() {
+    if (!this.isOpen) return;
+
+    this.isOpen = false;
+    this.removeAttribute('open');
+
+    const closeButton = this.shadowRoot?.getElementById('close-toggle') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.textContent = 'Open';
+    }
+  }
+
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+      return;
+    }
+
+    this.open();
   }
 }
 

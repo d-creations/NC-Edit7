@@ -19,7 +19,7 @@ import logging
 from ncplot7py.domain.exec_chain import Handler
 from ncplot7py.shared.nc_nodes import NCCommandNode
 from ncplot7py.domain.cnc_state import CNCState
-from ncplot7py.domain.handlers.variable import VariableHandler
+from ncplot7py.domain.expression_evaluator import ExpressionEvaluator
 
 
 class ControlFlowHandler(Handler):
@@ -27,14 +27,43 @@ class ControlFlowHandler(Handler):
 
     def __init__(self, next_handler: Optional[Handler] = None):
         super().__init__(next_handler=next_handler)
-        # use variable handler utilities for expression evaluation
-        self._eval_helper = VariableHandler()
+        # use expression evaluator for evaluations
+        self._eval_helper = ExpressionEvaluator()
         # runtime maps (populated by canal before execution)
         self._n_map = None
         self._do_map = None
         self._end_map = None
         self._nodes = None
         self._loop_counters = {}
+
+    def setup_maps(self, nodes: list[NCCommandNode]) -> None:
+        """Precomputes lookup maps for N-labels and DO/END loops.
+        Called by the canal before execution begins.
+        """
+        self._nodes = nodes
+        self._n_map = {}
+        self._do_map = {}
+        self._end_map = {}
+        self._loop_counters = {}
+
+        for nd in self._nodes:
+            try:
+                nval = nd.command_parameter.get("N")
+            except Exception:
+                nval = None
+            if nval is not None:
+                try:
+                    key = float(nval)
+                    self._n_map[key] = nd
+                except Exception:
+                    pass
+            # detect DO/END labels inside loop_command
+            lc = getattr(nd, "loop_command", None)
+            if lc:
+                for m in re.findall(r"DO(\d+)", lc):
+                    self._do_map.setdefault(m, []).append(nd)
+                for m in re.findall(r"END(\d+)", lc):
+                    self._end_map.setdefault(m, []).append(nd)
 
     def _find_node_with_N(self, start: NCCommandNode, pos: str) -> Optional[NCCommandNode]:
         # Prefer lookup via precomputed map when available
@@ -121,8 +150,8 @@ class ControlFlowHandler(Handler):
             if op in cond_text:
                 left, right = cond_text.split(op, 1)
                 try:
-                    lv = self._eval_helper._eval_expression(left, state)
-                    rv = self._eval_helper._eval_expression(right, state)
+                    lv = self._eval_helper.evaluate(left, state)
+                    rv = self._eval_helper.evaluate(right, state)
                 except Exception:
                     logger.debug("_is_true failed eval for cond=%s left=%s right=%s", cond_text, left, right, exc_info=True)
                     try:
@@ -242,7 +271,7 @@ class ControlFlowHandler(Handler):
                     lval = None
                 if lval is not None:
                     try:
-                        cnt = int(float(self._eval_helper._eval_expression(str(lval), state)))
+                        cnt = int(float(self._eval_helper.evaluate(str(lval), state)))
                     except Exception:
                         try:
                             cnt = int(float(lval))

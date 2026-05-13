@@ -1,4 +1,4 @@
-"""Motion handler for G1/G2/G3 moves located in domain.handlers.
+﻿"""Motion handler for G1/G2/G3 moves located in domain.handlers.
 
 This is the domain-located copy of the motion handler implementation.
 """
@@ -31,18 +31,32 @@ class MotionHandler(Handler):
         super().__init__(next_handler=next_handler)
         self.max_segment = float(max_segment)
 
+    def _normalize_interp_mode(self, code: Optional[str]) -> Optional[str]:
+        if not code:
+            return None
+
+        normalized = str(code).strip().upper()
+        if normalized in ("G00", "G0"):
+            return "G00"
+        if normalized in ("G01", "G1"):
+            return "G01"
+        if normalized in ("G02", "G2"):
+            return "G02"
+        if normalized in ("G03", "G3"):
+            return "G03"
+        return None
+
     def handle(self, node: NCCommandNode, state: CNCState) -> Tuple[Optional[List[Point]], Optional[float]]:
         # detect motion codes
         interp_mode = None  # 'G00','G01','G02','G03'
         for g in node.g_code:
-            if g.upper() in ("G00", "G0", "G0 "):
-                interp_mode = "G00"
-            if g.upper() in ("G01", "G1"):
-                interp_mode = "G01"
-            if g.upper() in ("G02", "G2"):
-                interp_mode = "G02"
-            if g.upper() in ("G03", "G3"):
-                interp_mode = "G03"
+            interp_mode = self._normalize_interp_mode(g) or interp_mode
+
+        motion_axes = {"X", "Y", "Z", "A", "B", "C", "U", "V", "W", "H"}
+        has_motion_words = any(str(key).upper() in motion_axes for key in node.command_parameter)
+
+        if interp_mode is None and has_motion_words:
+            interp_mode = self._normalize_interp_mode(state.get_modal("G_GROUP_1"))
 
         if interp_mode is None:
             return super().handle(node, state)
@@ -86,7 +100,7 @@ class MotionHandler(Handler):
         params = state.normalize_arc_params(params)
 
         if interp_mode == "G01" or interp_mode == "G00":
-            points, duration = self._linear_interpolate(start, resolved, state)
+            points, duration = self._linear_interpolate(start, resolved, state, rapid=interp_mode == "G00")
         elif interp_mode in ("G02", "G03"):
             cw = interp_mode == "G02"
             points, duration = self._circular_interpolate(start, resolved, params, state, cw)
@@ -102,7 +116,13 @@ class MotionHandler(Handler):
         # compute durations.
         return self._transform_points_for_plot(points, state), duration
 
-    def _linear_interpolate(self, start: Dict[str, float], end: Dict[str, float], state: CNCState) -> Tuple[List[Point], float]:
+    def _linear_interpolate(
+        self,
+        start: Dict[str, float],
+        end: Dict[str, float],
+        state: CNCState,
+        rapid: bool = False,
+    ) -> Tuple[List[Point], float]:
         # compute distance in XYZ space and include C-axis sweep as physical
         # travel when the tool is offset from the rotary center.
         axes = ("X", "Y", "Z")
@@ -126,8 +146,12 @@ class MotionHandler(Handler):
         if eff_max_segment <= 0.0:
             eff_max_segment = float(self.max_segment)
         n = max(1, int(math.ceil(dist / eff_max_segment)))
-        feed_mm_s = self._get_feed_mm_s(state)
-        duration = dist / feed_mm_s if feed_mm_s > 0 else 0.0
+        if rapid:
+            rapid_mm_s = self._get_rapid_mm_s(state)
+            duration = dist / rapid_mm_s if rapid_mm_s > 0 else 0.0
+        else:
+            feed_mm_s = self._get_feed_mm_s(state)
+            duration = dist / feed_mm_s if feed_mm_s > 0 else 0.0
 
         points: List[Point] = []
         # include explicit start point so joins between segments preserve
@@ -146,7 +170,7 @@ class MotionHandler(Handler):
         return points, duration
 
     def _get_active_plane(self, state: CNCState) -> str:
-        plane = getattr(state, "extra", {}).get("g_group_16_plane", "X_Y")
+        plane = getattr(state, "extra", {}).get("g_group_16_plane", "X_Z")
         if hasattr(plane, "value"):
             plane = plane.value
         plane_name = str(plane)
@@ -185,8 +209,10 @@ class MotionHandler(Handler):
             center_u = center_by_axis[ordered_axes[0]]
             center_v = center_by_axis[ordered_axes[1]]
         elif "R" in params and params.get("R", 0.0) != 0.0:
-            # derive center from radius — choose the smaller arc by default
-            r = params.get("R", 0.0)
+            # derive center from radius
+            r_val = params.get("R", 0.0)
+            r = abs(r_val)
+            is_major = r_val < 0
             # compute midpoint
             mx = (start_u + end_u) / 2.0
             my = (start_v + end_v) / 2.0
@@ -201,41 +227,37 @@ class MotionHandler(Handler):
             cy1 = my + h * dx
             cx2 = mx + h * dy
             cy2 = my - h * dx
-            # Determine which center yields the requested sweep direction
-            # and prefer the smaller absolute sweep (minor arc) when both
-            # satisfy the direction. Compute sweep angles for both centers
-            # and pick the best candidate.
-            def sweep_for_center(cx_c, cy_c):
+
+            def directional_sweep(cx_c, cy_c, cw_flag):
                 a0_c = math.atan2(start_v - cy_c, start_u - cx_c)
                 a1_c = math.atan2(end_v - cy_c, end_u - cx_c)
                 da_c = a1_c - a0_c
-                # normalize to [-pi, pi]
-                if da_c > math.pi:
-                    da_c -= 2 * math.pi
-                if da_c < -math.pi:
-                    da_c += 2 * math.pi
+                if cw_flag:
+                    while da_c >= 0:
+                        da_c -= 2 * math.pi
+                    while da_c < -2 * math.pi:
+                        da_c += 2 * math.pi
+                else:
+                    while da_c <= 0:
+                        da_c += 2 * math.pi
+                    while da_c > 2 * math.pi:
+                        da_c -= 2 * math.pi
                 return da_c
+            
+            da1 = directional_sweep(cx1, cy1, cw)
+            da2 = directional_sweep(cx2, cy2, cw)
 
-            da1 = sweep_for_center(cx1, cy1)
-            da2 = sweep_for_center(cx2, cy2)
-
-            # For cw=True we want a negative sweep (clockwise), for cw=False
-            # we want a positive sweep (counter-clockwise). Prefer the center
-            # that matches the desired sign; if both match or neither match,
-            # pick the one with smaller absolute sweep (minor arc).
-            def matches_cw(da_val, cw_flag):
-                return (da_val < 0) if cw_flag else (da_val > 0)
-
-            if matches_cw(da1, cw) and not matches_cw(da2, cw):
-                center_u, center_v = cx1, cy1
-            elif matches_cw(da2, cw) and not matches_cw(da1, cw):
-                center_u, center_v = cx2, cy2
-            else:
-                # both match or both don't — choose the smaller absolute sweep
-                if abs(da1) <= abs(da2):
+            if is_major:
+                if abs(da1) >= math.pi:
                     center_u, center_v = cx1, cy1
                 else:
                     center_u, center_v = cx2, cy2
+            else:
+                if abs(da1) <= math.pi:
+                    center_u, center_v = cx1, cy1
+                else:
+                    center_u, center_v = cx2, cy2
+
         else:
             # cannot compute arc center
             raise ValueError("Arc requires I/J or R parameter")
@@ -380,5 +402,17 @@ class MotionHandler(Handler):
 
         return effective_feed_mm_per_min / 60.0
 
+    def _get_rapid_mm_s(self, state: CNCState) -> float:
+        try:
+            rapid_feed_rate = getattr(getattr(state, "machine_config", None), "rapid_feed_rate", None)
+            if rapid_feed_rate is None:
+                return 0.0
+            rapid_mm_per_min = float(rapid_feed_rate)
+        except Exception:
+            return 0.0
+
+        return rapid_mm_per_min / 60.0 if rapid_mm_per_min > 0 else 0.0
+
 
 __all__ = ["MotionHandler", "Point"]
+

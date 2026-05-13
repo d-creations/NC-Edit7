@@ -2,16 +2,18 @@
 
 import type { ChannelId } from '@core/types';
 import { ServiceRegistry } from '@core/ServiceRegistry';
-import { STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN, FILE_MANAGER_SERVICE_TOKEN } from '@core/ServiceTokens';
+import { BACKEND_GATEWAY_TOKEN, STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVENT_BUS_TOKEN, FILE_MANAGER_SERVICE_TOKEN, CONFIG_SERVICE_TOKEN } from '@core/ServiceTokens';
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
+import type { IConfigService } from '@services/config/IConfigService';
 import './NCChannelPane';
 import './NCSyncControls';
 import './NCStatusIndicator';
 import './NCMachineSelector';
 import './NCToolpathPlot';
 import './NCFileManager'; // Keep for global file loading if needed, but removed from template
+import './NCFocasTransfer';
 
 // Constants for plot panel sizing
 const PLOT_PANEL_MIN_WIDTH = 200;
@@ -22,6 +24,7 @@ export class NCEditorApp extends HTMLElement {
   private stateService: StateService;
   private machineService: MachineService;
   private eventBus: EventBus;
+  private configService: IConfigService;
   private activeMobileView: string = 'channel-1';
 
   constructor() {
@@ -32,6 +35,7 @@ export class NCEditorApp extends HTMLElement {
     this.stateService = this.registry.get(STATE_SERVICE_TOKEN);
     this.machineService = this.registry.get(MACHINE_SERVICE_TOKEN);
     this.eventBus = this.registry.get(EVENT_BUS_TOKEN);
+    this.configService = this.registry.get(CONFIG_SERVICE_TOKEN);
   }
 
   async connectedCallback(): Promise<void> {
@@ -60,6 +64,19 @@ export class NCEditorApp extends HTMLElement {
 
   private async init(): Promise<void> {
     try {
+      const config = await this.configService.getConfig();
+
+      if (config.focasPlacement === 'external-panel' || config.focasPlacement === 'disabled') {
+        this.hideEmbeddedFocas();
+      }
+
+      // Check feature flags
+      this.registry.get(BACKEND_GATEWAY_TOKEN).getFeatures().then(features => {
+        if (!features.focas_enabled) {
+          this.hideEmbeddedFocas();
+        }
+      }).catch(() => { /* Ignore network feature check errors on init */ });
+
       // Initialize machine service
       await this.machineService.init();
 
@@ -77,6 +94,23 @@ export class NCEditorApp extends HTMLElement {
     }
   }
 
+  private hideEmbeddedFocas(): void {
+    const focasToggle = this.querySelector('#focas-toggle');
+    if (focasToggle) {
+      (focasToggle as HTMLElement).style.display = 'none';
+    }
+
+    const focasTab = this.querySelector('.side-tab[data-view="focas"]');
+    if (focasTab) {
+      (focasTab as HTMLElement).style.display = 'none';
+    }
+
+    const focasView = this.querySelector('#side-view-focas');
+    if (focasView) {
+      (focasView as HTMLElement).style.display = 'none';
+    }
+  }
+
   private async render(): Promise<void> {
     this.innerHTML = `
       <style>
@@ -85,8 +119,8 @@ export class NCEditorApp extends HTMLElement {
           flex-direction: column;
           width: 100%;
           height: 100%;
-          background: #1e1e1e;
-          color: #d4d4d4;
+          background: var(--vscode-editor-background, #282c34);
+          color: var(--vscode-editor-foreground, #abb2bf);
           /* CSS custom properties for consistent sizing */
           --bottom-nav-height: 70px;
         }
@@ -97,14 +131,14 @@ export class NCEditorApp extends HTMLElement {
           gap: 16px;
           /* Use safe area inset so header content won't be covered by iPhone URL/notch */
           padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
-          background: #252526;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-titleBar-activeBackground, var(--vscode-editorGroupHeader-tabsBackground, #21252b));
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
 
         .app-title {
           font-size: 18px;
           font-weight: 600;
-          color: #569cd6;
+          color: var(--vscode-textLink-foreground, #61afef);
         }
 
         .app-channel-controls {
@@ -115,8 +149,8 @@ export class NCEditorApp extends HTMLElement {
 
         .app-channel-toggle {
           padding: 4px 12px;
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
           border: none;
           border-radius: 4px;
           cursor: pointer;
@@ -124,23 +158,38 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .app-channel-toggle.inactive {
-          background: #3c3c3c;
-          color: #888;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-disabledForeground, #7f848e);
+        }
+
+        .app-focas-toggle {
+          padding: 4px 12px;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+
+        .app-focas-toggle.active {
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
 
         .app-plot-toggle {
           padding: 4px 12px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
         }
 
         .app-plot-toggle.active {
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
         }
 
         /* Small open-bar that shows when plot panel is hidden */
@@ -152,11 +201,11 @@ export class NCEditorApp extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #0e639c;
-          color: #fff;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
           cursor: pointer;
           border-radius: 6px 0 0 6px;
-          border: 1px solid #084a70;
+          border: 1px solid var(--vscode-focusBorder, #528bff);
           z-index: 200;
           /* make the label render vertically so it's readable in narrow bar */
           writing-mode: vertical-rl;
@@ -165,7 +214,7 @@ export class NCEditorApp extends HTMLElement {
           font-size: 13px;
         }
         .plot-open-bar:hover {
-          background: #1177bb;
+          background: var(--vscode-button-hoverBackground, #70b7ff);
         }
         .plot-open-bar.hidden {
           display: none;
@@ -180,8 +229,8 @@ export class NCEditorApp extends HTMLElement {
 
         .app-sidebar {
           width: 250px;
-          background: #252526;
-          border-right: 1px solid #3e3e42;
+          background: var(--vscode-sideBar-background, #21252b);
+          border-right: 1px solid var(--vscode-sideBar-border, var(--vscode-editorGroup-border, #181a1f));
           overflow-y: auto;
         }
 
@@ -192,11 +241,21 @@ export class NCEditorApp extends HTMLElement {
           overflow: hidden;
         }
 
+        .app-focas-container {
+          width: 350px;
+          display: none;
+          background: var(--vscode-editor-background, #282c34);
+        }
+        
+        .app-main-content.show-focas .app-focas-container {
+          display: block;
+        }
+
         .app-plot-container {
           width: 0;
           display: none;
-          background: #1e1e1e;
-          border-left: 1px solid #3e3e42;
+          background: var(--vscode-editor-background, #282c34);
+          border-left: 1px solid var(--vscode-editorGroup-border, #181a1f);
           overflow: hidden;
           position: relative;
         }
@@ -211,7 +270,7 @@ export class NCEditorApp extends HTMLElement {
         .plot-resize-handle {
           width: 6px;
           cursor: ew-resize;
-          background: #3e3e42;
+          background: var(--vscode-editorGroup-border, #181a1f);
           flex-shrink: 0;
           display: flex;
           align-items: center;
@@ -220,7 +279,7 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .plot-resize-handle:hover {
-          background: #0e639c;
+          background: var(--vscode-button-background, #61afef);
         }
 
         .plot-resize-handle::before {
@@ -245,8 +304,8 @@ export class NCEditorApp extends HTMLElement {
           transform: translateY(-50%);
           width: 16px;
           height: 40px;
-          background: #3c3c3c;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-left: none;
           border-radius: 0 4px 4px 0;
           cursor: pointer;
@@ -257,12 +316,12 @@ export class NCEditorApp extends HTMLElement {
         }
 
         .plot-hide-bar:hover {
-          background: #0e639c;
+          background: var(--vscode-button-background, #61afef);
         }
 
         .plot-hide-bar::before {
           content: '›';
-          color: #d4d4d4;
+          color: var(--vscode-button-secondaryForeground, #abb2bf);
           font-size: 14px;
           font-weight: bold;
         }
@@ -284,15 +343,15 @@ export class NCEditorApp extends HTMLElement {
           align-items: center;
           gap: 16px;
           padding: 4px 16px;
-          background: #007acc;
-          color: #fff;
+          background: var(--vscode-statusBar-background, #21252b);
+          color: var(--vscode-statusBar-foreground, #abb2bf);
           font-size: 12px;
         }
 
         .error-message {
           padding: 16px;
-          background: #f48771;
-          color: #1e1e1e;
+          background: var(--vscode-inputValidation-errorBackground, #e06c75);
+          color: var(--vscode-inputValidation-errorForeground, #1f2329);
           margin: 8px;
           border-radius: 4px;
         }
@@ -371,8 +430,8 @@ export class NCEditorApp extends HTMLElement {
             left: 0;
             width: 100%;
             height: var(--bottom-nav-height);
-            background: #252526;
-            border-top: 1px solid #3e3e42;
+            background: var(--vscode-sideBar-background, #21252b);
+            border-top: 1px solid var(--vscode-editorGroup-border, #181a1f);
             z-index: 200;
           }
 
@@ -382,7 +441,7 @@ export class NCEditorApp extends HTMLElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #888;
+            color: var(--vscode-disabledForeground, #7f848e);
             font-size: 14px; /* Increased from 12px */
             cursor: pointer;
             border: none;
@@ -392,8 +451,8 @@ export class NCEditorApp extends HTMLElement {
           }
 
           .nav-item.active {
-            color: #0e639c;
-            background: rgba(255, 255, 255, 0.05);
+            color: var(--vscode-button-background, #61afef);
+            background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
           }
 
           .nav-item.disabled {
@@ -423,14 +482,15 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
+          <button class="app-focas-toggle" id="focas-toggle" title="CNC FOCAS Transfer">Transfer</button>
           <!-- plot toggle removed from header — small open bar sits beside the plot container when hidden -->
         </div>
         <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
       </div>
 
-      <nc-file-manager style="display: block; border-bottom: 1px solid #3e3e42;"></nc-file-manager>
+      <nc-file-manager style="display: block; border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);"></nc-file-manager>
 
-      <div class="app-main-content">
+      <div class="app-main-content" id="main-content">
         <div class="app-channel-container">
           <div class="app-channels" id="channels">
             <nc-channel-pane channel-id="1" data-channel="1"></nc-channel-pane>
@@ -439,14 +499,27 @@ export class NCEditorApp extends HTMLElement {
           </div>
         </div>
         <!-- small open bar that appears when plot panel is hidden and integrated into layout -->
-        <div id="plot-open-bar" class="plot-open-bar hidden" title="Open plot panel">📈 Plot</div>
+        <div id="plot-open-bar" class="plot-open-bar hidden" title="Open side panel">📈 Tools</div>
         
         <div class="app-plot-container" id="plot-container">
           <div class="plot-resize-handle" id="plot-resize-handle"></div>
-          <div class="plot-content">
-            <nc-toolpath-plot></nc-toolpath-plot>
+          <div class="plot-content" style="display: flex; flex-direction: column;">
+            <div class="side-panel-tabs" style="display: flex; background: var(--vscode-editorGroupHeader-tabsBackground, #2d2d2d); border-bottom: 1px solid var(--vscode-editorGroup-border, #3e3e42);">
+              <button class="side-tab active" data-view="plot" style="flex:1; padding: 6px; background: var(--vscode-tab-activeBackground, #1e1e1e); color: var(--vscode-tab-activeForeground, #ffffff); border: none; cursor: pointer; border-top: 2px solid var(--vscode-tab-activeBorderTop, #007fd4);">Plot</button>
+              <button class="side-tab" data-view="focas" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">FOCAS</button>
+            </div>
+            <div id="side-view-plot" style="flex: 1; overflow: hidden; display: block;">
+              <nc-toolpath-plot></nc-toolpath-plot>
+            </div>
+            <div id="side-view-focas" style="flex: 1; overflow: hidden; display: none;">
+              <nc-focas-transfer></nc-focas-transfer>
+            </div>
           </div>
-          <div class="plot-hide-bar" id="plot-hide-bar" title="Hide plot panel"></div>
+          <div class="plot-hide-bar" id="plot-hide-bar" title="Hide side panel"></div>
+        </div>
+
+        <div class="app-focas-container" id="focas-container">
+          <nc-focas-transfer></nc-focas-transfer>
         </div>
       </div>
 
@@ -487,6 +560,25 @@ export class NCEditorApp extends HTMLElement {
   }
 
   private attachEventListeners(): void {
+    // FOCAS transfer toggle
+    const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
+    if (focasToggle) {
+      focasToggle.addEventListener('click', () => {
+        this.setPlotViewerVisible(true);
+        this.switchSidePanelView('focas');
+      });
+    }
+
+    // Side panel tabs
+    const sideTabs = this.querySelectorAll('.side-tab');
+    sideTabs.forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const view = btn.dataset.view;
+        if (view) this.switchSidePanelView(view);
+      });
+    });
+
     // Channel toggles
     const toggles = this.querySelectorAll('.app-channel-toggle');
     toggles?.forEach((toggle) => {
@@ -523,6 +615,7 @@ export class NCEditorApp extends HTMLElement {
     const plotOpenBar = this.querySelector('#plot-open-bar');
     plotOpenBar?.addEventListener('click', () => {
       this.setPlotViewerVisible(true);
+      this.switchSidePanelView('plot');
     });
 
     const plotRequest = this.querySelector('#plot-request');
@@ -593,7 +686,7 @@ export class NCEditorApp extends HTMLElement {
 
     const content = document.createElement('div');
     content.style.cssText = `
-      background: #252526;
+      background: var(--vscode-editorWidget-background, #21252b);
       padding: 20px;
       border-radius: 8px;
       width: 80%;
@@ -624,8 +717,8 @@ export class NCEditorApp extends HTMLElement {
       toggle.textContent = channel?.active ? 'ON' : 'OFF';
       toggle.style.cssText = `
         padding: 8px 16px;
-        background: ${channel?.active ? '#0e639c' : '#3c3c3c'};
-        color: #fff;
+        background: ${channel?.active ? 'var(--vscode-button-background, #61afef)' : 'var(--vscode-button-secondaryBackground, #3a3f4b)'};
+        color: ${channel?.active ? 'var(--vscode-button-foreground, #1f2329)' : 'var(--vscode-button-secondaryForeground, #abb2bf)'};
         border: none;
         border-radius: 6px;
         cursor: pointer;
@@ -638,11 +731,13 @@ export class NCEditorApp extends HTMLElement {
         if (channel?.active) {
           this.stateService.deactivateChannel(channelId);
           toggle.textContent = 'OFF';
-          toggle.style.background = '#3c3c3c';
+          toggle.style.background = 'var(--vscode-button-secondaryBackground, #3a3f4b)';
+          toggle.style.color = 'var(--vscode-button-secondaryForeground, #abb2bf)';
         } else {
           this.stateService.activateChannel(channelId);
           toggle.textContent = 'ON';
-          toggle.style.background = '#0e639c';
+          toggle.style.background = 'var(--vscode-button-background, #61afef)';
+          toggle.style.color = 'var(--vscode-button-foreground, #1f2329)';
         }
         this.updateChannelDisplay();
       });
@@ -657,8 +752,8 @@ export class NCEditorApp extends HTMLElement {
     closeBtn.style.cssText = `
       margin-top: 10px;
       padding: 10px 20px;
-      background: #3c3c3c;
-      color: #fff;
+      background: var(--vscode-button-secondaryBackground, #3a3f4b);
+      color: var(--vscode-button-secondaryForeground, #abb2bf);
       border: none;
       border-radius: 6px;
       cursor: pointer;
@@ -741,6 +836,37 @@ export class NCEditorApp extends HTMLElement {
     });
   }
 
+  private switchSidePanelView(view: string): void {
+    const tabs = this.querySelectorAll('.side-tab');
+    const plotView = this.querySelector('#side-view-plot') as HTMLElement;
+    const focasView = this.querySelector('#side-view-focas') as HTMLElement;
+    
+    tabs.forEach(t => {
+      const btn = t as HTMLButtonElement;
+      if (btn.dataset.view === view) {
+        btn.style.background = 'var(--vscode-tab-activeBackground, #1e1e1e)';
+        btn.style.color = 'var(--vscode-tab-activeForeground, #ffffff)';
+        btn.style.borderTop = '2px solid var(--vscode-tab-activeBorderTop, #007fd4)';
+      } else {
+        btn.style.background = 'var(--vscode-tab-inactiveBackground, #2d2d2d)';
+        btn.style.color = 'var(--vscode-tab-inactiveForeground, #cccccc)';
+        btn.style.borderTop = '2px solid transparent';
+      }
+    });
+
+    if (view === 'plot') {
+      if (plotView) plotView.style.display = 'block';
+      if (focasView) focasView.style.display = 'none';
+      const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
+      if (focasToggle) focasToggle.classList.remove('active');
+    } else if (view === 'focas') {
+      if (plotView) plotView.style.display = 'none';
+      if (focasView) focasView.style.display = 'block';
+      const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement;
+      if (focasToggle) focasToggle.classList.add('active');
+    }
+  }
+
   private setPlotViewerVisible(visible: boolean): void {
     const plotContainer = this.querySelector('#plot-container');
     const plotToggle = this.querySelector('#plot-toggle') as HTMLElement | null;
@@ -757,6 +883,9 @@ export class NCEditorApp extends HTMLElement {
       // show the small open bar so user has a clickable open affordance
       plotOpenBar?.classList.remove('hidden');
       plotToggle?.classList.remove('active');
+      
+      const focasToggle = this.querySelector('#focas-toggle') as HTMLButtonElement | null;
+      if(focasToggle) focasToggle.classList.remove('active');
     }
 
     this.stateService.updateUISettings({ plotViewerOpen: visible });

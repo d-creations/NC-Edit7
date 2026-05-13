@@ -106,8 +106,8 @@ export class NCVariableList extends HTMLElement {
           flex-direction: column;
           height: 100%;
           overflow: hidden;
-          background: #252526;
-          color: #d4d4d4;
+          background: var(--vscode-editorWidget-background, #21252b);
+          color: var(--vscode-editor-foreground, #abb2bf);
           font-family: monospace;
           font-size: 12px;
         }
@@ -117,43 +117,43 @@ export class NCVariableList extends HTMLElement {
           align-items: center;
           gap: 8px;
           padding: 4px 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
 
         .filter-input {
           flex: 1;
           padding: 2px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-input-background, #3c3f41);
+          color: var(--vscode-input-foreground, #abb2bf);
+          border: 1px solid var(--vscode-input-border, #181a1f);
           border-radius: 3px;
           font-size: 11px;
         }
 
         .add-button {
           padding: 2px 8px;
-          background: #0e639c;
-          color: #fff;
-          border: 1px solid #0e639c;
+          background: var(--vscode-button-background, #61afef);
+          color: var(--vscode-button-foreground, #1f2329);
+          border: 1px solid var(--vscode-button-background, #61afef);
           border-radius: 3px;
           cursor: pointer;
           font-size: 11px;
         }
 
         .add-button:hover {
-          background: #1177bb;
+          background: var(--vscode-button-hoverBackground, #70b7ff);
         }
 
         .custom-section {
           padding: 8px;
-          background: #2d2d30;
-          border-bottom: 1px solid #3e3e42;
+          background: var(--vscode-editorGroupHeader-tabsBackground, #21252b);
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
 
         .custom-section-title {
           font-weight: bold;
-          color: #569cd6;
+          color: var(--vscode-textLink-foreground, #61afef);
           margin-bottom: 8px;
           font-size: 11px;
         }
@@ -167,9 +167,9 @@ export class NCVariableList extends HTMLElement {
 
         .prefix-display {
           padding: 4px 6px;
-          background: #444;
-          color: #dcdcaa;
-          border: 1px solid #555;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
+          color: var(--vscode-editor-foreground, #abb2bf);
+          border: 1px solid var(--vscode-widget-border, #181a1f);
           border-radius: 3px 0 0 3px;
           font-size: 11px;
           font-family: monospace;
@@ -179,9 +179,9 @@ export class NCVariableList extends HTMLElement {
 
         .custom-input {
           padding: 4px 8px;
-          background: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
+          background: var(--vscode-input-background, #3c3f41);
+          color: var(--vscode-input-foreground, #abb2bf);
+          border: 1px solid var(--vscode-input-border, #181a1f);
           border-radius: 3px;
           font-size: 11px;
           font-family: monospace;
@@ -189,7 +189,7 @@ export class NCVariableList extends HTMLElement {
 
         .custom-input:focus {
           outline: none;
-          border-color: #569cd6;
+          border-color: var(--vscode-focusBorder, #528bff);
         }
 
         .custom-input.name {
@@ -204,7 +204,7 @@ export class NCVariableList extends HTMLElement {
         }
 
         .equals-sign {
-          color: #888;
+          color: var(--vscode-descriptionForeground, #7f848e);
           padding: 0 4px;
         }
 
@@ -223,26 +223,26 @@ export class NCVariableList extends HTMLElement {
           justify-content: space-between;
           align-items: center;
           padding: 2px 8px;
-          background: #333;
+          background: var(--vscode-button-secondaryBackground, #3a3f4b);
           border-radius: 3px;
           margin-bottom: 2px;
         }
 
         .custom-item-info {
-          color: #9cdcfe;
+          color: var(--vscode-textLink-foreground, #61afef);
         }
 
         .remove-button {
           background: transparent;
           border: none;
-          color: #f14c4c;
+          color: var(--vscode-inputValidation-errorBackground, #e06c75);
           cursor: pointer;
           font-size: 14px;
           padding: 0 4px;
         }
 
         .remove-button:hover {
-          color: #ff6b6b;
+          color: var(--vscode-inputValidation-errorBackground, #e06c75);
         }
 
         .variable-list {
@@ -255,35 +255,35 @@ export class NCVariableList extends HTMLElement {
           display: flex;
           justify-content: space-between;
           padding: 2px 8px;
-          border-bottom: 1px solid #3e3e42;
+          border-bottom: 1px solid var(--vscode-editorGroup-border, #181a1f);
         }
 
         .variable-item:hover {
-          background: #2a2d2e;
+          background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.05));
         }
 
         .variable-item.modified {
-          background: #373310;
+          background: color-mix(in srgb, var(--vscode-button-background, #61afef) 14%, var(--vscode-editorWidget-background, #21252b));
         }
 
         .variable-register {
-          color: #dcdcaa;
+          color: var(--vscode-editor-foreground, #abb2bf);
           min-width: 60px;
         }
 
         .variable-value {
-          color: #b5cea8;
+          color: var(--vscode-descriptionForeground, #7f848e);
         }
 
         .empty-message {
           padding: 16px;
           text-align: center;
-          color: #858585;
+          color: var(--vscode-descriptionForeground, #7f848e);
         }
         
         .input-hint {
           font-size: 10px;
-          color: #999;
+          color: var(--vscode-descriptionForeground, #7f848e);
           margin-top: 4px;
           width: 100%;
         }

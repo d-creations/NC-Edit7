@@ -1,7 +1,9 @@
 from fastapi.testclient import TestClient
 import os
+import ctypes
 
 from backend.main_import import app, apply_turn_axis_defaults, build_segments_from_engine_output, mock_parse_nc_program
+from backend.focas_service import EW_OK, RealFocasClient
 from ncplot7py.domain.cnc_state import CNCState
 
 
@@ -35,7 +37,7 @@ def test_list_machines():
 
 
 def test_post_machinedata_minimal():
-    payload = {"machinedata": [{"program": "G1 X10 X10", "machineName": "ISO_MILL", "canalNr": "1"}]}
+    payload = {"machinedata": [{"program": "G1 X10 X10", "machineName": "SIEMENS_MILL", "canalNr": "1"}]}
     resp = client.post("/ncplot7py/scripts/cgiserver.cgi", json=payload)
     assert resp.status_code == 200
     j = resp.json()
@@ -96,7 +98,7 @@ def test_build_segments_prefers_explicit_plot_line_numbers():
     assert converted["segments"][0]["lineNumber"] == 5
 
 def test_mock_parser_treats_h_as_incremental_c_rotation():
-    result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "ISO_MILL")
+    result = mock_parse_nc_program("G1 X0 Y50\nG1 C90\nG1 H90", "SIEMENS_MILL")
 
     last_segment = result["segments"][-1]
     assert len(last_segment["points"]) > 2
@@ -112,3 +114,44 @@ def test_apply_turn_axis_defaults_sets_x_to_diameter():
     apply_turn_axis_defaults([state])
 
     assert state.get_axis_unit("X") == "diameter"
+
+def test_apply_turn_axis_defaults_sets_y_to_diameter_for_sr20jii():
+    state = CNCState()
+
+    apply_turn_axis_defaults([state], "SR20JII_F")
+
+    assert state.get_axis_unit("X") == "diameter"
+    assert state.get_axis_unit("Y") == "diameter"
+
+
+def test_real_focas_upload_program_reads_until_trailing_percent():
+    class UploadLibStub:
+        def __init__(self):
+            self.chunks = [
+                b"%\nO1234\nG1 X1.\n",
+                b"G1 X2.\nM30\n%",
+            ]
+            self.upend_calls = 0
+
+        def cnc_upstart3(self, handle, mode, start_prog, end_prog):
+            return EW_OK
+
+        def cnc_upload3(self, handle, length_ptr, buffer):
+            chunk = self.chunks.pop(0)
+            ctypes.memmove(buffer, chunk, len(chunk))
+            length_ptr._obj.value = len(chunk)
+            return EW_OK
+
+        def cnc_upend3(self, handle):
+            self.upend_calls += 1
+            return EW_OK
+
+    client_instance = RealFocasClient.__new__(RealFocasClient)
+    client_instance.lib = UploadLibStub()
+    client_instance.handle = ctypes.c_ushort(1)
+    client_instance.set_path = lambda path_no: None
+
+    program_text = client_instance.upload_program(1234)
+
+    assert program_text == "%\nO1234\nG1 X1.\nG1 X2.\nM30\n%"
+    assert client_instance.lib.upend_calls == 1

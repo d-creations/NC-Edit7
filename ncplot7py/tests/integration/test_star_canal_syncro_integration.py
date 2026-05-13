@@ -6,7 +6,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from ncplot7py.application.nc_execution import NCExecutionEngine
-from ncplot7py.infrastructure.machines.stateful_star_turn_control import StatefulIsoTurnNCControl
+from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl as UniversalConfigDrivenControl
+from ncplot7py.domain.machines import get_machine_config
+from ncplot7py.domain.cnc_state import CNCState
 from ncplot7py.shared import configure_logging, configure_i18n
 
 
@@ -23,7 +25,7 @@ class TestStarCanalSynchroIntegration(unittest.TestCase):
         prog1 = "G98; G1 X0; G1 X10 F60 M300; G1 X12;"
         prog2 = "G98; G1 X0; G1 X5 F60 M300; G1 X6;"
 
-        ctrl = StatefulIsoTurnNCControl(count_of_canals=2)
+        ctrl = UniversalConfigDrivenControl(count_of_canals=2, init_nc_states=[CNCState(machine_config=get_machine_config("FANUC_STAR_x-D_y-R_z_R")), CNCState(machine_config=get_machine_config("FANUC_STAR_x-D_y-R_z_R"))])
         engine = NCExecutionEngine(ctrl)
 
         result = engine.get_Syncro_plot([prog1, prog2], synch=True)
@@ -54,7 +56,7 @@ class TestStarCanalSynchroIntegration(unittest.TestCase):
         prog2 = "G98;M250P12;M260 P23; G1 X0; G1 X4 F120 M500 P12; G1 X2; G1 X4; M310;"
         prog3 = "G98;M260P23; G1 X0; G1 X10; G1 X10; G1 X12 F120 M500; M80; M310;"
 
-        ctrl = StatefulIsoTurnNCControl(count_of_canals=3)
+        ctrl = UniversalConfigDrivenControl(count_of_canals=3)
         engine = NCExecutionEngine(ctrl)
 
         result = engine.get_Syncro_plot([prog1, prog2, prog3], synch=True)
@@ -78,7 +80,7 @@ class TestStarCanalSynchroIntegration(unittest.TestCase):
         prog1 = "G1 X10; G1 X10 F60 M300; G1 X12;"
         prog2 = "G1 X10; G1 X5 F60 M301; G1 X6;"
 
-        ctrl = StatefulIsoTurnNCControl(count_of_canals=2)
+        ctrl = UniversalConfigDrivenControl(count_of_canals=2, init_nc_states=[CNCState(machine_config=get_machine_config("FANUC_STAR_x-D_y-R_z_R")), CNCState(machine_config=get_machine_config("FANUC_STAR_x-D_y-R_z_R"))])
         engine = NCExecutionEngine(ctrl)
 
         result = engine.get_Syncro_plot([prog1, prog2], synch=True)

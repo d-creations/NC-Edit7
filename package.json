@@ -3,16 +3,23 @@
   "version": "0.1.0",
   "description": "Multi-channel CNC NC code editor with plot interface",
   "type": "module",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run copy-ncplot7py",
+    "build:ext": "tsc && vite build && npm run copy-ncplot7py && node nc-edit7-desktop/nc-edit7-extension/scripts/bundle.js && cd nc-edit7-desktop/nc-edit7-extension && npm run compile && cd ../.. && vite build && npm run copy-ncplot7py",
+    "copy:ext": "node nc-edit7-desktop/nc-edit7-extension/scripts/bundle.js && powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path 'plugins/nc-edit7-extension' | Out-Null; robocopy 'nc-edit7-desktop/nc-edit7-extension' 'plugins/nc-edit7-extension' /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP; if ($LASTEXITCODE -gt 7) { exit $LASTEXITCODE } else { exit 0 }\"",
+ 
     "preview": "vite preview",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "copy-ncplot7py": "node scripts/copy-ncplot7py.js"
+    "copy-ncplot7py": "node scripts/copy-ncplot7py.js",
+    "build:desktop": "npm run build && cd nc-edit7-desktop && npm run build:electron"
   },
   "dependencies": {
     "ace-builds": "^1.43.4",
@@ -23,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^6.20.0",
     "@typescript-eslint/parser": "^6.20.0",
     "@vitest/ui": "^4.0.12",
+    "electron-builder": "^26.8.1",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",

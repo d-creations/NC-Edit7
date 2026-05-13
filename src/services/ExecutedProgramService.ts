@@ -213,11 +213,13 @@ export class ExecutedProgramService {
           result.executedLines.push(...canal.executedLines);
         }
 
-        // Parse timing data
+        // Parse timing data. Backend timings are emitted for plotted segments,
+        // not for every executed line, so index them by the matching segment line.
         if (canal.timing && Array.isArray(canal.timing)) {
           canal.timing.forEach((time, index) => {
-            const lineNumber = canal.executedLines?.[index] || index + 1;
-            result.timingData.set(lineNumber, time);
+            const lineNumber = canal.segments?.[index]?.lineNumber ?? canal.executedLines?.[index] ?? index + 1;
+            const priorTime = result.timingData.get(lineNumber) ?? 0;
+            result.timingData.set(lineNumber, priorTime + time);
           });
         }
 

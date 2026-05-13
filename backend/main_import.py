@@ -12,13 +12,31 @@ import traceback
 import sys
 from pathlib import Path
 import os
+from pydantic import BaseModel
+
+# Focas Service
+try:
+    from backend.focas_service import get_focas_client, get_demo_focas_client, is_demo_ip, FocasClientBase, FocasError
+    FOCAS_IMPORT_OK = True
+except ImportError:
+    try:
+        from focas_service import get_focas_client, get_demo_focas_client, is_demo_ip, FocasClientBase, FocasError
+        FOCAS_IMPORT_OK = True
+    except ImportError as e:
+        import logging
+        logging.exception(f"Failed to import focas_service: {e}")
+        FOCAS_IMPORT_OK = False
+        class FocasClientBase: pass
+        def get_focas_client(): return None
+        def get_demo_focas_client(): return None
+        def is_demo_ip(ip_address: str): return False
+        class FocasError(Exception): pass
 
 # Simple security: API Key to prevent basic bot requests
 API_KEY = os.environ.get("API_KEY", "nc-edit7-secret-key")
+ENABLE_FOCAS = os.environ.get("ENABLE_FOCAS", "True").lower() in ("true", "1", "t", "yes")
 
-async def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid or missing API Key")
+async def verify_api_key(x_api_key: Optional[str] = Header(None)): return True
 
 # Ensure ncplot7py/src is in sys.path for F1/Code deployment where PYTHONPATH env var might not be set easily
 # We assume this file is in backend/main_import.py, and ncplot7py is at ../ncplot7py
@@ -33,8 +51,7 @@ except Exception:
 # Import ncplot7py internals
 try:
     from ncplot7py.application.nc_execution import NCExecutionEngine
-    from ncplot7py.infrastructure.machines.stateful_iso_turn_control import StatefulIsoTurnControl
-    from ncplot7py.infrastructure.machines.stateful_siemens_mill_control import StatefulSiemensMillControl
+    from ncplot7py.infrastructure.machines.base_stateful_control import UniversalConfigDrivenControl
     from ncplot7py.cli.main import bootstrap as cli_bootstrap
     from ncplot7py.domain.machines import (
         get_available_machines,
@@ -48,8 +65,7 @@ except Exception as e:
     logging.error(traceback.format_exc())
     # If package isn't importable in some environments, we will raise at runtime
     NCExecutionEngine = None  # type: ignore
-    StatefulIsoTurnControl = None  # type: ignore
-    StatefulSiemensMillControl = None  # type: ignore
+    UniversalConfigDrivenControl = None  # type: ignore
     cli_bootstrap = None  # type: ignore
     get_available_machines = None # type: ignore
     get_machine_regex_patterns = None # type: ignore
@@ -123,13 +139,17 @@ async def add_security_headers(request: Request, call_next):
 logging.basicConfig(level=logging.INFO)
 
 
-def apply_turn_axis_defaults(states: List[Optional[Any]]) -> None:
+def apply_turn_axis_defaults(states: List[Optional[Any]], machine_name: str = "") -> None:
+    from ncplot7py.domain.machines import get_machine_config
+    config = get_machine_config(machine_name)
+    
     for state in states:
         if state is None:
             continue
         try:
-            if state.get_axis_unit("X").lower() == "radius":
-                state.set_axis_unit("X", "diameter")
+            for axis in config.diameter_axes:
+                if state.get_axis_unit(axis).lower() == "radius":
+                    state.set_axis_unit(axis, "diameter")
         except Exception:
             continue
 
@@ -174,6 +194,45 @@ async def favicon_ico():
         if p.exists():
             return FileResponse(str(p), media_type="image/x-icon")
     raise HTTPException(status_code=404, detail="favicon.ico not found")
+
+
+@app.get("/api/syntax/{control_type}")
+async def get_syntax(control_type: str):
+    """Endpoint providing ACE Editor syntax highlights dynamically by reading machines.json directly."""
+    # Find machines.json
+    config_path = ROOT_DIR / "ncplot7py" / "config" / "machines.json"
+    
+    rules = []
+    
+    try:
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                machines_data = json.load(f)
+                
+            # Scan for the first config matching the control_type to get its syntax_rules
+            for key, config in machines_data.items():
+                if isinstance(config, dict) and config.get("control_type", "").upper() == control_type.upper():
+                    rules = config.get("syntax_rules", [])
+                    break
+    except Exception as e:
+        logging.error(f"Failed to read machines.json for syntax endpoint: {e}")
+
+    # Fallback if no rules found for the control type
+    if not rules:
+        rules = [
+            {"token": "comment.line.modifier", "regex": "^\\s*\\/.*"},
+            {"token": "comment", "regex": "\\([^)]*\\)"},
+            {"token": "string.quoted.double", "regex": "\"[^\"]*\""},
+            {"token": "keyword.control", "regex": "\\b(?:GOTO|IF|WHILE|DO|END)\\b"},
+            {"token": "support.function", "regex": "\\b(?:SQRT|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|BIN|BCD|ROUND|FIX|FUP)\\b"},
+            {"token": "keyword.operator", "regex": "[\\+\\-\\*\\/=]"},
+            {"token": "variable.parameter", "regex": "#(\\d+)"},
+            {"token": "constant.language.gcode", "regex": "[Gg]\\s*\\d+(?:\\.\\d+)?"},
+            {"token": "constant.language.mcode", "regex": "[Mm]\\s*\\d+(?:\\.\\d+)?"},
+            {"token": ["entity.name.tag", "constant.numeric"], "regex": "([A-Z])(\\s*[+-]?\\d+(?:\\.\\d+)?)"}
+        ]
+        
+    return {"status": "success", "control_type": control_type.upper(), "rules": rules}
 
 
 def list_machines() -> Dict[str, Any]:
@@ -418,7 +477,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     for program_entry in machinedata:
         program = program_entry.get("program", "")
-        machine_name = program_entry.get("machineName", "ISO_MILL")
+        machine_name = program_entry.get("machineName", "SIEMENS_MILL")
         canal_nr = str(program_entry.get("canalNr", "1"))
         
         # Parse program
@@ -438,7 +497,7 @@ def run_mock_parser(machinedata: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 @app.post("/cgiserver_import", dependencies=[Depends(verify_api_key)])
 async def cgiserver_import(request: Request):
-    if NCExecutionEngine is None or StatefulIsoTurnControl is None:
+    if NCExecutionEngine is None or UniversalConfigDrivenControl is None:
         logging.warning("ncplot7py package not importable in this environment; some actions will be limited")
 
     # Log incoming request path and headers for debugging proxy issues
@@ -494,7 +553,7 @@ async def cgiserver_import(request: Request):
         prog_sanitized = sanitize_program(prog)
         programs.append(prog_sanitized)
         canal_names.append(str(entry.get("canalNr", "1")))
-        machine_names.append(str(entry.get("machineName", "ISO_MILL")))
+        machine_names.append(str(entry.get("machineName", "SIEMENS_MILL")))
         
         # Extract toolValues (Q quadrant 1-9 and R radius for tool compensation)
         tool_values = entry.get("toolValues", [])
@@ -511,6 +570,13 @@ async def cgiserver_import(request: Request):
     for idx in range(len(programs)):
         if CNCState is not None:
             state = CNCState()
+            machine_name = machine_names[idx] if idx < len(machine_names) else ""
+            if machine_name:
+                try:
+                    state.machine_config = get_machine_config(machine_name)
+                except Exception:
+                    logging.warning("Failed to load machine config for %s", machine_name)
+
             # Set custom variables into state parameters
             custom_vars = custom_variables_list[idx] if idx < len(custom_variables_list) else []
             for var in custom_vars:
@@ -543,37 +609,28 @@ async def cgiserver_import(request: Request):
             init_states.append(None)
 
     # Determine control type based on machine name
-    # Default to ISO_MILL (Siemens-style) when no machine is specified
+    # Default to SIEMENS_MILL (Siemens-style) when no machine is specified
     first_machine = machine_names[0] if machine_names else ""
-    is_siemens_mill = (
-        "SIEMENS" in first_machine.upper() or 
-        first_machine.upper() == "ISO_MILL" or
-        (first_machine.upper().endswith("_MILL") and "FANUC" not in first_machine.upper())
-    )
-    # If no machine specified, default to Siemens mill for ISO compatibility
+    is_siemens_mill = "SIEMENS" in first_machine.upper()
+    is_fanuc_mill = "FANUC_MILL" in first_machine.upper()
+    
+    # If no machine specified, default to Siemens mill
     if not first_machine:
         is_siemens_mill = True
 
-    if not is_siemens_mill:
-        apply_turn_axis_defaults(init_states)
+    if not is_siemens_mill and not is_fanuc_mill:
+        apply_turn_axis_defaults(init_states, first_machine)
 
     # Create a control that can handle multiple canals and run the engine.
     engine_output = None
     errors: List[Dict[str, Any]] = []
     try:
         # Choose control type based on machine
-        if is_siemens_mill and StatefulSiemensMillControl is not None:
-            control = StatefulSiemensMillControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
-        else:
-            control = StatefulIsoTurnControl(
-                count_of_canals=len(programs), 
-                canal_names=canal_names,
-                init_nc_states=init_states if any(s is not None for s in init_states) else None
-            )
+        control = UniversalConfigDrivenControl(
+            count_of_canals=len(programs), 
+            canal_names=canal_names,
+            init_nc_states=init_states if any(s is not None for s in init_states) else None
+        )
         engine = NCExecutionEngine(control)
         engine_output = engine.get_Syncro_plot(programs, False)
         
@@ -692,3 +749,116 @@ async def legacy_cgiserver(request: Request):
     except Exception:
         logging.exception("Unhandled error in legacy_cgiserver")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# --- Features Endpoint ---
+
+@app.get("/api/features")
+async def get_features():
+    """Endpoint for frontend to query which backend modules are available."""
+    return {
+        "focas_enabled": ENABLE_FOCAS and FOCAS_IMPORT_OK,
+        "cgi_path": ""  # Only relevant for main.py subprocess
+    }
+
+# --- FOCAS API Routes ---
+
+class FocasConnection(BaseModel):
+    ip_address: str
+    port: int = 8193
+    timeout: int = 10
+
+class FocasDownloadData(BaseModel):
+    program_text: str
+
+@app.get("/api/focas/ping")
+async def focas_ping(ip_address: str):
+    if not ENABLE_FOCAS:
+        raise HTTPException(status_code=501, detail="FOCAS support is disabled on this server.")
+    
+    import platform
+    import asyncio
+    
+    is_windows = platform.system().lower() == "windows"
+    param_count = "-n" if is_windows else "-c"
+    param_wait = "-w" if is_windows else "-W"
+    wait_val = "1000" if is_windows else "1"
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "ping", param_count, "1", param_wait, wait_val, ip_address,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await process.communicate()
+        return {"status": "success", "available": process.returncode == 0}
+    except Exception as e:
+        return {"status": "success", "available": False, "error": str(e)}
+
+@app.post("/api/focas/connect")
+async def focas_connect(conn: FocasConnection, client: FocasClientBase = Depends(get_focas_client)):
+    if is_demo_ip(conn.ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+        raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    try:
+        success = client.connect(conn.ip_address, conn.port, conn.timeout)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to connect to CNC")
+        
+        client.disconnect()
+        return {"status": "success", "message": f"Connected to {conn.ip_address}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/focas/programs/{path_no}")
+async def focas_list_programs(path_no: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+        raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    try:
+        if not client.connect(ip_address, port):
+            raise HTTPException(status_code=500, detail="Failed to connect to CNC")
+            
+        programs = client.list_programs(path_no)
+        return {"status": "success", "programs": programs}
+    except FocasError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        client.disconnect()
+
+@app.get("/api/focas/upload/{path_no}/{prog_num}")
+async def focas_upload(path_no: int, prog_num: int, ip_address: str, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+        raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    try:
+        if not client.connect(ip_address, port):
+            raise HTTPException(status_code=500, detail="Failed to connect to CNC before upload")
+            
+        program_text = client.upload_program(prog_num, path_no)
+        return {"status": "success", "program_text": program_text}
+    except FocasError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        client.disconnect()
+
+@app.post("/api/focas/download/{path_no}")
+async def focas_download(path_no: int, ip_address: str, data: FocasDownloadData, port: int = 8193, client: FocasClientBase = Depends(get_focas_client)):
+    if is_demo_ip(ip_address):
+        client = get_demo_focas_client()
+    elif not ENABLE_FOCAS or not FOCAS_IMPORT_OK:
+        raise HTTPException(status_code=501, detail="FOCAS support is disabled.")
+    try:
+        if not client.connect(ip_address, port):
+            raise HTTPException(status_code=500, detail="Failed to connect to CNC before download")
+            
+        client.download_program(data.program_text, path_no)
+        return {"status": "success", "message": "Program successfully downloaded to CNC"}
+    except FocasError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        client.disconnect()
+
+

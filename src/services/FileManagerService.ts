@@ -2,15 +2,20 @@ import { EventBus } from './EventBus';
 import { NCFile, NCProgram } from '../core/types';
 import { StateService } from './StateService';
 
-export class FileManagerService {
+import { IFileManagerService } from './IFileManagerService';
+
+export class FileManagerService implements IFileManagerService {
   private files: NCFile[] = [];
   private programs: NCProgram[] = [];
 
   constructor(
     private eventBus: EventBus,
-    private stateService?: StateService
+    private stateService?: StateService,
+    private useLocalStorage: boolean = true
   ) {
-    this.loadFromStorage();
+    if (this.useLocalStorage) {
+      this.loadFromStorage();
+    }
     
     // Auto-save the machine type against the active file when it changes globally
     this.eventBus.subscribe('machine:changed', (data: any) => {
@@ -267,6 +272,7 @@ export class FileManagerService {
   }
 
   private saveToStorage() {
+    if (!this.useLocalStorage) return;
     try {
         localStorage.setItem('nc-files', JSON.stringify(this.files));
         localStorage.setItem('nc-programs', JSON.stringify(this.programs));

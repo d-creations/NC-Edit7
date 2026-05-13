@@ -1,11 +1,11 @@
 import { ServiceRegistry } from '@core/ServiceRegistry';
 import { FILE_MANAGER_SERVICE_TOKEN, EVENT_BUS_TOKEN } from '@core/ServiceTokens';
-import { FileManagerService } from '@services/FileManagerService';
+import { IFileManagerService } from '@services/IFileManagerService';
 import { EventBus } from '@services/EventBus';
 import { NCFile } from '@core/types';
 
 export class NCFileManager extends HTMLElement {
-  private fileManager: FileManagerService;
+  private fileManager: IFileManagerService;
   private eventBus: EventBus;
   private files: NCFile[] = [];
   private activeFileId: string | null = null;
@@ -19,6 +19,13 @@ export class NCFileManager extends HTMLElement {
   }
 
   connectedCallback() {
+    // 2. Hide when running in VS Code / Theia Desktop Mode
+    // @ts-ignore
+    if (window.acquireVsCodeApi !== undefined || (window.parent && window.parent !== window)) {
+        this.style.display = 'none';
+        return;
+    }
+
     this.render();
     this.setupEventListeners();
     this.refreshFiles();

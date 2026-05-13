@@ -55,7 +55,7 @@ describe('ExecutedProgramService', () => {
       const result = await service.executeProgram({
         channelId: '1',
         program: 'G0 X10 Y10\nG1 X60',
-        machineName: 'ISO_MILL',
+        machineName: 'SIEMENS_MILL',
       });
 
       expect(result.plotMetadata).toBeDefined();
@@ -99,7 +99,7 @@ describe('ExecutedProgramService', () => {
       const result = await service.executeProgram({
         channelId: '1',
         program: '',
-        machineName: 'ISO_MILL',
+        machineName: 'SIEMENS_MILL',
       });
 
       expect(result.plotMetadata).toBeDefined();
@@ -143,7 +143,7 @@ describe('ExecutedProgramService', () => {
       const result = await service.executeProgram({
         channelId: '1',
         program: 'G1 X10 Y10\nG1 X20 Y20',
-        machineName: 'ISO_MILL',
+        machineName: 'SIEMENS_MILL',
       });
 
       // Should have 2 segments but only 3 unique points (not 4)
@@ -187,7 +187,7 @@ describe('ExecutedProgramService', () => {
       const result = await service.executeProgram({
         channelId: '1',
         program: 'G0 X10 Y10\nG2 X20 Y20 R10',
-        machineName: 'ISO_MILL',
+        machineName: 'SIEMENS_MILL',
       });
 
       expect(result.plotMetadata?.segments[0].type).toBe('rapid');
@@ -222,7 +222,7 @@ describe('ExecutedProgramService', () => {
       const result = await service.executeProgram({
         channelId: '1',
         program: 'G1 C180',
-        machineName: 'ISO_MILL',
+        machineName: 'SIEMENS_MILL',
       });
 
       expect(result.plotMetadata?.points).toHaveLength(3);
@@ -280,6 +280,40 @@ describe('ExecutedProgramService', () => {
       expect(result.variableSnapshot.get(1)).toBe(4.7);
       expect(result.variableSnapshot.get(26)).toBe(3.1415);
       expect(result.variableSnapshot.get(100)).toBe(1.005);
+    });
+
+    it('should map timing to segment line numbers instead of all executed lines', async () => {
+      const mockResponse: PlotResponse = {
+        canal: {
+          '1': {
+            segments: [
+              {
+                type: 'LINEAR',
+                lineNumber: 2,
+                toolNumber: 1,
+                points: [
+                  { x: 0, y: 0, z: 0 },
+                  { x: 1, y: 0, z: 0 },
+                ],
+              },
+            ],
+            executedLines: [1, 2],
+            variables: {},
+            timing: [0.6],
+          },
+        },
+      };
+
+      vi.mocked(mockBackend.requestPlot).mockResolvedValue(mockResponse);
+
+      const result = await service.executeProgram({
+        channelId: '1',
+        program: 'F100\nG1 X1',
+        machineName: 'SIEMENS_MILL',
+      });
+
+      expect(result.timingData.get(1)).toBeUndefined();
+      expect(result.timingData.get(2)).toBe(0.6);
     });
   });
 });

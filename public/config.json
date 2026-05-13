@@ -1,0 +1,7 @@
+{
+  "focasDefaultIp": "DEMO",
+  "backendPort": 8000,
+  "themeMode": "one-dark",
+  "hostMode": "web",
+  "focasPlacement": "side-panel"
+}

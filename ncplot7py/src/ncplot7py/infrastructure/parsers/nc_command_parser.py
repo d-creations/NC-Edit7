@@ -156,8 +156,9 @@ class NCCommandStringParser(BaseNCCommandParser):
             # --- END UNMASK CHECK ---
 
             if is_dddp:
-                dddp_ccr_set.add(code)
+                dddp_ccr_set.add("," + code)
                 is_dddp = False
+                continue
             elif code.startswith('G'):
                 g_code_set.add(code)
             elif code.startswith('#'):
@@ -184,14 +185,17 @@ class NCCommandStringParser(BaseNCCommandParser):
                 else:
                     var_calculation_str = code
             elif code.startswith(','):
+                if len(code) > 1:
+                    dddp_ccr_set.add(code)
+                    continue
                 is_dddp = True
             elif is_dddp is True and (code.startswith(',R') or code.startswith(',C') or code.startswith(',A')):
                 dddp_ccr_set.add(code)
             elif code.startswith('M'):
                 # M codes treated as parameter-like (original code used code[:1])
                 axis_coordinate_dict.update({code[:1]: code[1:]})
-            elif code.startswith(('A', 'B', 'C', 'N', 'T', 'S', 'F', 'D', 'X', 'Y', 'Z', 'R', 'H', 'U', 'V', 'W', 'K', 'L', 'I',
-                                 'Q', 'x', 'y', 'z', 'u', 'v', 'w', 'r', 'g')):
+            elif code.startswith(('A', 'B', 'C', 'N', 'T', 'S', 'F', 'D', 'X', 'Y', 'Z', 'R', 'H', 'U', 'V', 'W', 'K', 'L', 'I', 'J', 'P',
+                                 'Q', 'x', 'y', 'z', 'u', 'v', 'w', 'r', 'g', 'j', 'p', 'i', 'k', 'l')):
                 key = code[:1]
                 if key in axis_coordinate_dict:
                     domain_exceptions.raise_nc_error(

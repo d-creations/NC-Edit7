@@ -29,7 +29,7 @@ class TestNCCommandParser(unittest.TestCase):
     def test_dddp_parsing_after_comma(self):
         node = self.parser.parse(",R10")
         # the parser places the token following the comma into dddp_command
-        self.assertIn("R10", node.dddp_command)
+        self.assertIn(",R10", node.dddp_command)
 
     def test_loop_detection(self):
         node = self.parser.parse("GOTO100", line_nr=3)

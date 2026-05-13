@@ -24,8 +24,8 @@ The `cgiserver.cgi` script is a Python CGI script that:
 ```json
 {
   "machines": [
-    {"machineName": "ISO_MILL", "controlType": "MILL"},
-    {"machineName": "FANUC_T", "controlType": "TURN"},
+    {"machineName": "SIEMENS_840D", "controlType": "SIEMENS"},
+    {"machineName": "FANUC_MILL", "controlType": "FANUC"},
     ...
   ],
   "success": true
@@ -40,12 +40,18 @@ The `cgiserver.cgi` script is a Python CGI script that:
   "machinedata": [
     {
       "program": "G90 G54\nG0 X0 Y0 Z10\nG1 X50 Y0 F300\nM30",
-      "machineName": "ISO_MILL",
-      "canalNr": "channel-1"
+      "machineName": "SIEMENS_840D",
+      "canalNr": "channel-1",
+      "customMachineConfig": {
+        "control_type": "SIEMENS",
+        "variable_prefix": "R"
+      }
     }
   ]
 }
 ```
+
+*Note: `customMachineConfig` is optional (Bring Your Own Config - BYOC).*
 
 **Response:**
 ```json
@@ -75,12 +81,12 @@ The `cgiserver.cgi` script is a Python CGI script that:
 
 ## Supported Machines
 
-- `ISO_MILL` - ISO standard milling machine
-- `FANUC_T` - FANUC turning machine
-- `SB12RG_F` - SB12RG front spindle
-- `SB12RG_B` - SB12RG back spindle
-- `SR20JII_F` - SR20JII front spindle
-- `SR20JII_B` - SR20JII back spindle
+The default available machine configurations are defined in `ncplot7py/config/machines.json` and currently include:
+- `SIEMENS_840D` - Siemens standard control
+- `FANUC_MILL` - FANUC milling machine
+- `FANUC_STAR` - FANUC basic lathe/Swiss
+- `FANUC_STAR_SR20` - FANUC for Star SR20 series
+- `FANUC_GENERIC` - Generic FANUC (default fallback)
 
 ## Deployment
 
@@ -119,7 +125,7 @@ EOF
 
 # Execute program
 cat > test.json <<'TESTEOF'
-{"machinedata": [{"program": "G0 X0 Y0\nG1 X50 Y0", "machineName": "ISO_MILL", "canalNr": "1"}]}
+{"machinedata": [{"program": "G0 X0 Y0\nG1 X50 Y0", "machineName": "FANUC_GENERIC", "canalNr": "1"}]}
 TESTEOF
 
 REQUEST_METHOD=POST CONTENT_LENGTH=$(wc -c < test.json) python3 cgiserver.cgi < test.json
