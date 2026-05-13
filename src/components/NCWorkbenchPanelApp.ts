@@ -296,7 +296,7 @@ export class NCWorkbenchPanelApp extends HTMLElement {
           display: none;
           height: 100%;
           min-height: 0;
-          overflow: auto;
+          overflow: hidden;
         }
 
         .tab-panel.active {

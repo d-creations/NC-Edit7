@@ -9,6 +9,8 @@ export class VsCodeFileManagerService implements IFileManagerService {
     private vsCodeFileId: string | null = null;
     private isInternalUpdate: boolean = false;
 
+    private internalUpdateTimeout?: ReturnType<typeof setTimeout>;
+
     constructor(
         private eventBus: EventBus,
         private stateService: StateService
@@ -111,7 +113,11 @@ export class VsCodeFileManagerService implements IFileManagerService {
         this.baseManager.updateActiveProgramContent(channelId, content);
         this.isInternalUpdate = true;
         this.syncToHost(channelId, content);
-        setTimeout(() => { this.isInternalUpdate = false; }, 50);
+        
+        if (this.internalUpdateTimeout) {
+            clearTimeout(this.internalUpdateTimeout);
+        }
+        this.internalUpdateTimeout = setTimeout(() => { this.isInternalUpdate = false; }, 50);
     }
     
     setActiveProgram(channelId: string, programId: string): void { this.baseManager.setActiveProgram(channelId, programId); }

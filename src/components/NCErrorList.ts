@@ -102,9 +102,12 @@ export class NCErrorList extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
+          display: flex;
+          flex-direction: column;
           height: 100%;
+          min-height: 0;
           overflow-y: auto;
+          box-sizing: border-box;
           background: var(--vscode-editorWidget-background, #21252b);
           color: var(--vscode-editor-foreground, #abb2bf);
           font-family: monospace;

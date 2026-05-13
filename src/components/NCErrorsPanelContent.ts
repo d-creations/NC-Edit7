@@ -36,13 +36,20 @@ export class NCErrorsPanelContent extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
           height: 100%;
+          min-height: 0;
+          overflow: hidden;
         }
 
         nc-error-list {
-          display: block;
+          display: flex;
+          flex: 1;
+          width: 100%;
           height: 100%;
+          min-height: 0;
         }
       </style>
 

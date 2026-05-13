@@ -162,21 +162,36 @@ export class NCBottomPanel extends HTMLElement {
 
         .content-area {
           flex: 1;
+          min-height: 0;
           overflow: hidden;
           display: none; /* Hidden by default, shown when open */
+          flex-direction: column;
         }
 
         :host([open]) .content-area {
-          display: block;
+          display: flex;
         }
 
         .tab-pane {
           display: none;
+          flex: 1;
           height: 100%;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .tab-pane.active {
+          display: flex;
+          flex-direction: column;
+        }
+
+        nc-variables-panel-content,
+        nc-errors-panel-content {
           display: block;
+          flex: 1;
+          width: 100%;
+          height: 100%;
+          min-height: 0;
         }
       </style>
 

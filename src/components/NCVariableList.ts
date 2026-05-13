@@ -105,6 +105,7 @@ export class NCVariableList extends HTMLElement {
           display: flex;
           flex-direction: column;
           height: 100%;
+          min-height: 0;
           overflow: hidden;
           background: var(--vscode-editorWidget-background, #21252b);
           color: var(--vscode-editor-foreground, #abb2bf);
@@ -247,6 +248,7 @@ export class NCVariableList extends HTMLElement {
 
         .variable-list {
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
           padding: 4px;
         }
