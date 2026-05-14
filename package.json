@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && npm run copy-ncplot7py",
-    "build:ext": "tsc && vite build && npm run copy-ncplot7py && node nc-edit7-desktop/nc-edit7-extension/scripts/bundle.js && cd nc-edit7-desktop/nc-edit7-extension && npm run compile && cd ../.. && vite build && npm run copy-ncplot7py",
+    "build": "tsc && vite build",
+    "build:ext": "tsc && vite build && node nc-edit7-desktop/nc-edit7-extension/scripts/bundle.js && cd nc-edit7-desktop/nc-edit7-extension && npm run compile && cd ../.. && vite build",
     "copy:ext": "node nc-edit7-desktop/nc-edit7-extension/scripts/bundle.js && powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path 'plugins/nc-edit7-extension' | Out-Null; robocopy 'nc-edit7-desktop/nc-edit7-extension' 'plugins/nc-edit7-extension' /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP; if ($LASTEXITCODE -gt 7) { exit $LASTEXITCODE } else { exit 0 }\"",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts",
@@ -17,12 +17,16 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "copy-ncplot7py": "node scripts/copy-ncplot7py.js",
-    "build:desktop": "npm run build && cd nc-edit7-desktop && npm run build:electron"
+    "build:desktop": "npm run build && cd nc-edit7-desktop && npm run build:electron",
+    "prepare": "npm run build"
   },
+  "files": [
+      "dist",
+      "package.json"
+  ],
   "dependencies": {
     "ace-builds": "^1.43.4",
-    "cnc7drawnccode": "file:CNC7drawNCcode",
+    "cnc7drawnccode": "git+https://github.com/d-creations/CNC7drawNCcode.git",
     "three": "^0.161.0"
   },
   "devDependencies": {

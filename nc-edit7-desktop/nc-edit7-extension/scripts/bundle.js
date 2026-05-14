@@ -19,7 +19,6 @@ const filesToBundle = [
 const foldersToBundle = [
     { src: path.join(rootDir, 'dist'), dest: path.join(bundleDir, 'dist') },
     { src: path.join(rootDir, 'backend'), dest: path.join(bundleDir, 'backend') },
-    { src: path.join(rootDir, 'ncplot7py'), dest: path.join(bundleDir, 'ncplot7py') },
     { src: path.join(rootDir, 'nc-edit7-desktop', 'python_embedded'), dest: path.join(bundleDir, 'python_embedded') }
 ];
 
@@ -75,13 +74,6 @@ filesToBundle.forEach(({ src, dest }) => {
 });
 
 const bundledPth = path.join(bundleDir, 'python_embedded', 'python311._pth');
-if (fs.existsSync(bundledPth)) {
-    const pth = fs.readFileSync(bundledPth, 'utf8');
-    const rewritten = pth.replace('..\\..\\ncplot7py\\src\\', '..\\ncplot7py\\src\\');
-    if (rewritten !== pth) {
-        fs.writeFileSync(bundledPth, rewritten, 'utf8');
-        console.log(`Rewrote ${bundledPth} to point at bundled ncplot7py sources.`);
-    }
-}
+/* Removed ncplot7py pth rewriting as it is now installed via pip */
 
 console.log('Bundle complete.');
