@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import importlib.util
 import asyncio
 import json
 import os
@@ -27,6 +28,29 @@ ENABLE_FOCAS = os.environ.get("ENABLE_FOCAS", "True").lower() in ("true", "1", "
 logging.basicConfig(level=logging.INFO)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+
+
+def resolve_machines_config_path() -> Path | None:
+    local_config = ROOT_DIR / "ncplot7py" / "config" / "machines.json"
+    if local_config.exists():
+        return local_config
+
+    spec = importlib.util.find_spec("ncplot7py")
+    if spec is None or spec.origin is None:
+        return None
+
+    package_root = Path(spec.origin).resolve().parent
+    candidates = [
+        package_root / "config" / "machines.json",
+        package_root.parent / "config" / "machines.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
 FRONTEND_DIRS = [ROOT_DIR / "dist", ROOT_DIR / "public", ROOT_DIR]
 STATIC_DIR = None
 for directory in FRONTEND_DIRS:
@@ -42,6 +66,15 @@ if STATIC_DIR is not None:
     if images_dir.exists():
         app.mount("/images", StaticFiles(directory=str(images_dir)), name="images")
 
+
+@app.get("/config.json")
+async def config_json():
+    if STATIC_DIR is not None:
+        config_file = STATIC_DIR / "config.json"
+        if config_file.exists():
+            return FileResponse(config_file, media_type="application/json")
+    raise HTTPException(status_code=404, detail="config.json not found")
+
 @app.get("/api/features")
 async def get_features():
     """Endpoint for frontend to query which backend modules are available."""
@@ -53,13 +86,12 @@ async def get_features():
 @app.get("/api/syntax/{control_type}")
 async def get_syntax(control_type: str):
     """Endpoint providing ACE Editor syntax highlights dynamically by reading machines.json directly."""
-    # Find machines.json
-    config_path = Path(__file__).resolve().parents[1] / "ncplot7py" / "config" / "machines.json"
+    config_path = resolve_machines_config_path()
     
     rules = []
     
     try:
-        if config_path.exists():
+        if config_path is not None and config_path.exists():
             with open(config_path, "r") as f:
                 machines_data = json.load(f)
                 

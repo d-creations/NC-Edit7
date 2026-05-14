@@ -12,6 +12,7 @@ import traceback
 import sys
 from pathlib import Path
 import os
+import importlib.util
 from pydantic import BaseModel
 
 # Focas Service
@@ -47,6 +48,27 @@ try:
         sys.path.insert(0, str(package_src))
 except Exception:
     pass
+
+
+def resolve_machines_config_path() -> Optional[Path]:
+    local_config = ROOT_DIR / "ncplot7py" / "config" / "machines.json"
+    if local_config.exists():
+        return local_config
+
+    spec = importlib.util.find_spec("ncplot7py")
+    if spec is None or spec.origin is None:
+        return None
+
+    package_root = Path(spec.origin).resolve().parent
+    candidates = [
+        package_root / "config" / "machines.json",
+        package_root.parent / "config" / "machines.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
 
 # Import ncplot7py internals
 try:
@@ -184,6 +206,15 @@ if STATIC_DIR is not None:
     # Note: the index route (`/`) will return index.html explicitly.
 
 
+@app.get("/config.json")
+async def config_json():
+    if STATIC_DIR is not None:
+        config_file = STATIC_DIR / "config.json"
+        if config_file.exists():
+            return FileResponse(str(config_file), media_type="application/json")
+    raise HTTPException(status_code=404, detail="config.json not found")
+
+
 @app.get("/favicon.svg")
 async def favicon_svg():
     return RedirectResponse(url="/favicon/favicon.svg", status_code=307)
@@ -197,13 +228,12 @@ async def favicon_ico():
 @app.get("/api/syntax/{control_type}")
 async def get_syntax(control_type: str):
     """Endpoint providing ACE Editor syntax highlights dynamically by reading machines.json directly."""
-    # Find machines.json
-    config_path = ROOT_DIR / "ncplot7py" / "config" / "machines.json"
+    config_path = resolve_machines_config_path()
     
     rules = []
     
     try:
-        if config_path.exists():
+        if config_path is not None and config_path.exists():
             with open(config_path, "r") as f:
                 machines_data = json.load(f)
                 
