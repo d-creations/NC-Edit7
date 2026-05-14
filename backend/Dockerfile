@@ -13,8 +13,8 @@ WORKDIR /app
 # Copy backend adapter and the ncplot7py package
 COPY ncplot7py/ ./ncplot7py/
 COPY backend/ ./backend/
-COPY favicon.svg ./favicon.svg
-COPY public/favicon.svg ./public/favicon.svg
+COPY public/favicon/ ./public/favicon/
+COPY public/images/ ./public/images/
 
 # Copy built frontend from the builder stage
 COPY --from=frontend-builder /app/dist ./dist

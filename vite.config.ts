@@ -1,22 +1,81 @@
-import { defineConfig } from 'vite';
+import { cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { resolve } from 'path';
+import { defineConfig, type Plugin } from 'vite';
+
+const rootDir = __dirname;
+const publicDir = resolve(rootDir, 'public');
+const htmlEntry = resolve(publicDir, 'index.html');
+const distDir = resolve(rootDir, 'dist');
+
+function servePublicIndex(): Plugin {
+  return {
+    name: 'serve-public-index',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const requestUrl = req.url?.split('?')[0];
+        if (requestUrl !== '/') {
+          next();
+          return;
+        }
+
+        try {
+          const html = await readFile(htmlEntry, 'utf8');
+          const transformed = await server.transformIndexHtml('/', html);
+          res.setHeader('Content-Type', 'text/html');
+          res.end(transformed);
+        } catch (error) {
+          next(error as Error);
+        }
+      });
+    },
+  };
+}
+
+function copyPublicAssets(): Plugin {
+  return {
+    name: 'copy-public-assets',
+    apply: 'build',
+    async closeBundle() {
+      const entries = await readdir(publicDir, { withFileTypes: true });
+      await mkdir(distDir, { recursive: true });
+
+      for (const entry of entries) {
+        if (entry.name === 'index.html') {
+          continue;
+        }
+
+        await cp(resolve(publicDir, entry.name), resolve(distDir, entry.name), {
+          force: true,
+          recursive: true,
+        });
+      }
+
+      const builtIndexDir = resolve(distDir, 'public');
+      const builtIndexPath = resolve(builtIndexDir, 'index.html');
+      await cp(builtIndexPath, resolve(distDir, 'index.html'), { force: true });
+      await rm(builtIndexDir, { force: true, recursive: true });
+    },
+  };
+}
 
 export default defineConfig({
   publicDir: 'public',
+  plugins: [servePublicIndex(), copyPublicAssets()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-      '@core': resolve(__dirname, './src/core'),
-      '@services': resolve(__dirname, './src/services'),
-      '@components': resolve(__dirname, './src/components'),
+      '@': resolve(rootDir, './src'),
+      '@core': resolve(rootDir, './src/core'),
+      '@services': resolve(rootDir, './src/services'),
+      '@components': resolve(rootDir, './src/components'),
     },
   },
   build: {
-    outDir: 'dist',
+    copyPublicDir: false,
+    outDir: distDir,
     sourcemap: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
+        main: htmlEntry,
       },
     },
   },

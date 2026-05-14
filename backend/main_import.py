@@ -170,8 +170,14 @@ if STATIC_DIR is not None:
     # Mount only asset directories to avoid shadowing API POST routes.
     # The built Vite app places hashed assets under `assets/`.
     assets_dir = STATIC_DIR / "assets"
+    favicon_dir = STATIC_DIR / "favicon"
+    images_dir = STATIC_DIR / "images"
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+    if favicon_dir.exists():
+        app.mount("/favicon", StaticFiles(directory=str(favicon_dir)), name="favicon")
+    if images_dir.exists():
+        app.mount("/images", StaticFiles(directory=str(images_dir)), name="images")
 
     # Expose other top-level static files (like favicon) under /static
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -180,20 +186,12 @@ if STATIC_DIR is not None:
 
 @app.get("/favicon.svg")
 async def favicon_svg():
-    candidates = [ROOT_DIR / "favicon.svg", ROOT_DIR / "public" / "favicon.svg"]
-    for p in candidates:
-        if p.exists():
-            return FileResponse(str(p), media_type="image/svg+xml")
-    raise HTTPException(status_code=404, detail="favicon.svg not found")
+    return RedirectResponse(url="/favicon/favicon.svg", status_code=307)
 
 
 @app.get("/favicon.ico")
 async def favicon_ico():
-    candidates = [ROOT_DIR / "favicon.ico", ROOT_DIR / "public" / "favicon.ico"]
-    for p in candidates:
-        if p.exists():
-            return FileResponse(str(p), media_type="image/x-icon")
-    raise HTTPException(status_code=404, detail="favicon.ico not found")
+    return RedirectResponse(url="/favicon/favicon.svg", status_code=307)
 
 
 @app.get("/api/syntax/{control_type}")

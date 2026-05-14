@@ -50,3 +50,6 @@ out/
 dist/
 bundle/
 *.vsix
+package-lock.json
+THIRD_PARTY_NODE_LICENSES.md
+copilot_instructions.md

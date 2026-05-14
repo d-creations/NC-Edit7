@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import asyncio
 import json
 import os
@@ -24,6 +25,22 @@ CGI_TIMEOUT = int(os.environ.get("CGI_TIMEOUT", "30"))
 ENABLE_FOCAS = os.environ.get("ENABLE_FOCAS", "True").lower() in ("true", "1", "t", "yes")
 
 logging.basicConfig(level=logging.INFO)
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+FRONTEND_DIRS = [ROOT_DIR / "dist", ROOT_DIR / "public", ROOT_DIR]
+STATIC_DIR = None
+for directory in FRONTEND_DIRS:
+    if (directory / "index.html").exists() or directory == ROOT_DIR / "public":
+        STATIC_DIR = directory
+        break
+
+if STATIC_DIR is not None:
+    favicon_dir = STATIC_DIR / "favicon"
+    images_dir = STATIC_DIR / "images"
+    if favicon_dir.exists():
+        app.mount("/favicon", StaticFiles(directory=str(favicon_dir)), name="favicon")
+    if images_dir.exists():
+        app.mount("/images", StaticFiles(directory=str(images_dir)), name="images")
 
 @app.get("/api/features")
 async def get_features():
@@ -127,7 +144,16 @@ async def run_cgi(input_data: str, timeout: int = CGI_TIMEOUT) -> str:
 
 @app.get("/")
 async def index():
-    return {"service": "ncplot7py-adapter", "status": "ok"}
+    if STATIC_DIR is not None:
+        index_file = STATIC_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file, media_type="text/html")
+
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if frontend_url:
+        return RedirectResponse(frontend_url)
+
+    return {"service": "ncplot7py-adapter", "status": "ok", "note": "No frontend build found"}
 
 
 # --- FOCAS API Routes ---
@@ -266,34 +292,9 @@ async def cgiserver(request: Request):
 # don't get a 404 when the FastAPI backend is the same origin as the frontend.
 @app.get("/favicon.svg")
 async def favicon_svg():
-    # Look for files in repository root and public/ (deployment may copy to either)
-    repo_root = Path(__file__).resolve().parents[1]
-    candidates = [repo_root / "favicon.svg", repo_root / "public" / "favicon.svg"]
-    checked = []
-    for p in candidates:
-        exists = p.exists()
-        checked.append({"path": str(p), "exists": exists})
-        logging.info("favicon check: %s exists=%s", p, exists)
-        if exists:
-            return FileResponse(p, media_type="image/svg+xml")
-    # None found — include the checked paths in the error detail to aid debugging
-    detail = {"error": "favicon.svg not found", "checked": checked, "cwd": str(Path.cwd())}
-    logging.warning("favicon.svg not found; checked: %s", checked)
-    raise HTTPException(status_code=404, detail=detail)
+    return RedirectResponse(url="/favicon/favicon.svg", status_code=307)
 
 
 @app.get("/favicon.ico")
 async def favicon_ico():
-    # Prefer an existing .ico file, but fall back to converted PNG if present.
-    repo_root = Path(__file__).resolve().parents[1]
-    candidates = [repo_root / "favicon.ico", repo_root / "public" / "favicon.ico"]
-    checked = []
-    for p in candidates:
-        exists = p.exists()
-        checked.append({"path": str(p), "exists": exists})
-        logging.info("favicon.ico check: %s exists=%s", p, exists)
-        if exists:
-            return FileResponse(p, media_type="image/x-icon")
-    detail = {"error": "favicon.ico not found", "checked": checked, "cwd": str(Path.cwd())}
-    logging.warning("favicon.ico not found; checked: %s", checked)
-    raise HTTPException(status_code=404, detail=detail)
+    return RedirectResponse(url="/favicon/favicon.svg", status_code=307)
