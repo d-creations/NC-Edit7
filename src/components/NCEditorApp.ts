@@ -6,7 +6,7 @@ import { BACKEND_GATEWAY_TOKEN, STATE_SERVICE_TOKEN, MACHINE_SERVICE_TOKEN, EVEN
 import { StateService } from '@services/StateService';
 import { MachineService } from '@services/MachineService';
 import { EventBus, EVENT_NAMES } from '@services/EventBus';
-import type { IConfigService } from '@services/config/IConfigService';
+import type { AppConfiguration, IConfigService } from '@services/config/IConfigService';
 import './NCChannelPane';
 import './NCSyncControls';
 import './NCStatusIndicator';
@@ -27,6 +27,7 @@ export class NCEditorApp extends HTMLElement {
   private eventBus: EventBus;
   private configService: IConfigService;
   private activeMobileView: string = 'channel-1';
+  private config?: AppConfiguration;
 
   constructor() {
     super();
@@ -65,9 +66,10 @@ export class NCEditorApp extends HTMLElement {
 
   private async init(): Promise<void> {
     try {
-      const config = await this.configService.getConfig();
+      const config = this.config ?? await this.configService.getConfig();
+      this.config = config;
 
-      if (config.focasPlacement === 'external-panel' || config.focasPlacement === 'disabled') {
+      if (!config.showFocasTransfer || config.focasPlacement === 'external-panel' || config.focasPlacement === 'disabled') {
         this.hideEmbeddedFocas();
       }
 
@@ -113,6 +115,11 @@ export class NCEditorApp extends HTMLElement {
   }
 
   private async render(): Promise<void> {
+    const config = this.config ?? await this.configService.getConfig();
+    this.config = config;
+    const showDrawPanel = config.showDrawPanel;
+    const showFocasTransfer = config.showFocasTransfer;
+
     this.innerHTML = `
       <style>
         nc-editor-app {
@@ -483,7 +490,7 @@ export class NCEditorApp extends HTMLElement {
           <button class="app-channel-toggle" data-channel="1">Channel 1</button>
           <button class="app-channel-toggle" data-channel="2">Channel 2</button>
           <button class="app-channel-toggle" data-channel="3">Channel 3</button>
-          <button class="app-focas-toggle" id="focas-toggle" title="CNC FOCAS Transfer">Transfer</button>
+          ${showFocasTransfer ? '<button class="app-focas-toggle" id="focas-toggle" title="CNC FOCAS Transfer">Transfer</button>' : ''}
           <!-- plot toggle removed from header — small open bar sits beside the plot container when hidden -->
         </div>
         <button class="app-channel-toggle mobile-channels-btn" id="mobile-channels-btn" style="display: none;">Channels</button>
@@ -507,25 +514,19 @@ export class NCEditorApp extends HTMLElement {
           <div class="plot-content" style="display: flex; flex-direction: column;">
             <div class="side-panel-tabs" style="display: flex; background: var(--vscode-editorGroupHeader-tabsBackground, #2d2d2d); border-bottom: 1px solid var(--vscode-editorGroup-border, #3e3e42);">
               <button class="side-tab active" data-view="plot" style="flex:1; padding: 6px; background: var(--vscode-tab-activeBackground, #1e1e1e); color: var(--vscode-tab-activeForeground, #ffffff); border: none; cursor: pointer; border-top: 2px solid var(--vscode-tab-activeBorderTop, #007fd4);">Plot</button>
-              <button class="side-tab" data-view="draw" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">Draw</button>
-              <button class="side-tab" data-view="focas" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">FOCAS</button>
+              ${showDrawPanel ? '<button class="side-tab" data-view="draw" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">Draw</button>' : ''}
+              ${showFocasTransfer ? '<button class="side-tab" data-view="focas" style="flex:1; padding: 6px; background: var(--vscode-tab-inactiveBackground, #2d2d2d); color: var(--vscode-tab-inactiveForeground, #cccccc); border: none; cursor: pointer; border-top: 2px solid transparent;">FOCAS</button>' : ''}
             </div>
             <div id="side-view-plot" style="flex: 1; overflow: hidden; display: block;">
               <nc-toolpath-plot></nc-toolpath-plot>
             </div>
-            <div id="side-view-draw" style="flex: 1; overflow: hidden; display: none;">
-              <nc-draw-board-panel></nc-draw-board-panel>
-            </div>
-            <div id="side-view-focas" style="flex: 1; overflow: hidden; display: none;">
-              <nc-focas-transfer></nc-focas-transfer>
-            </div>
+            ${showDrawPanel ? '<div id="side-view-draw" style="flex: 1; overflow: hidden; display: none;"><nc-draw-board-panel></nc-draw-board-panel></div>' : ''}
+            ${showFocasTransfer ? '<div id="side-view-focas" style="flex: 1; overflow: hidden; display: none;"><nc-focas-transfer></nc-focas-transfer></div>' : ''}
           </div>
           <div class="plot-hide-bar" id="plot-hide-bar" title="Hide side panel"></div>
         </div>
 
-        <div class="app-focas-container" id="focas-container">
-          <nc-focas-transfer></nc-focas-transfer>
-        </div>
+        ${showFocasTransfer ? '<div class="app-focas-container" id="focas-container"><nc-focas-transfer></nc-focas-transfer></div>' : ''}
       </div>
 
       <div class="app-status-bar">
@@ -550,10 +551,7 @@ export class NCEditorApp extends HTMLElement {
           <span class="nav-icon">📈</span>
           <span>Plot</span>
         </button>
-        <button class="nav-item" data-view="draw">
-          <span class="nav-icon">✏️</span>
-          <span>Draw</span>
-        </button>
+        ${showDrawPanel ? '<button class="nav-item" data-view="draw"><span class="nav-icon">✏️</span><span>Draw</span></button>' : ''}
       </div>
     `;
 

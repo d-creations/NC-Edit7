@@ -282,6 +282,11 @@ def list_machines() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/machines")
+async def api_machines():
+    return list_machines()
+
+
 def build_segments_from_engine_output(canal_output: Dict[str, Any]) -> Dict[str, Any]:
     """Convert NCExecutionEngine canal output to the legacy response shape."""
     segments = []

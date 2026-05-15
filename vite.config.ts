@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, access } from 'node:fs/promises';
 import { resolve } from 'path';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -52,8 +52,18 @@ function copyPublicAssets(): Plugin {
 
       const builtIndexDir = resolve(distDir, 'public');
       const builtIndexPath = resolve(builtIndexDir, 'index.html');
-      await cp(builtIndexPath, resolve(distDir, 'index.html'), { force: true });
-      await rm(builtIndexDir, { force: true, recursive: true });
+
+      // If the build emitted `public/index.html` (when input path includes
+      // the `public` directory), move it to the dist root. If the built
+      // `index.html` is already at the dist root, nothing needs to be done.
+      try {
+        await access(builtIndexPath);
+        await cp(builtIndexPath, resolve(distDir, 'index.html'), { force: true });
+        await rm(builtIndexDir, { force: true, recursive: true });
+      } catch (err) {
+        // builtIndexPath doesn't exist — assume Vite emitted index.html to
+        // the dist root already, so nothing to copy.
+      }
     },
   };
 }
@@ -68,6 +78,14 @@ export default defineConfig({
       '@services': resolve(rootDir, './src/services'),
       '@components': resolve(rootDir, './src/components'),
     },
+  },
+  esbuild: {
+    keepNames: true
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      keepNames: true
+    }
   },
   build: {
     copyPublicDir: false,

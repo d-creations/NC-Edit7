@@ -8,6 +8,8 @@ export interface AppConfiguration {
   themeMode: 'vscode' | 'one-dark' | 'light';
   hostMode: HostMode;
   focasPlacement: FocasPlacement;
+  showDrawPanel: boolean;
+  showFocasTransfer: boolean;
 }
 
 export interface IConfigService {

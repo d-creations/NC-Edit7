@@ -1,9 +1,14 @@
-import { DrawBoard, Camera, MouseControl, MouseState } from 'cnc7drawnccode';
+import { DrawBoard, Camera, MouseControl, MouseState, PropertySchemaProvider, ToolInstructionProvider } from 'cnc7drawnccode';
 
 export class NCDrawBoardPanel extends HTMLElement {
     private canvas: HTMLCanvasElement;
+    private toolPanel: HTMLDivElement;
+    private propertyPanel: HTMLDivElement;
+
     public drawBoard!: DrawBoard;
     public mouseControl!: MouseControl;
+    public propertySchema!: PropertySchemaProvider;
+    public toolInstructions!: ToolInstructionProvider;
 
     constructor() {
         super();
@@ -13,6 +18,39 @@ export class NCDrawBoardPanel extends HTMLElement {
         this.canvas.style.width = "100%";
         this.canvas.style.height = "100%";
         this.canvas.style.display = "block"; // prevents bottom scrollbar space
+
+        // Create Tool Panel (Bottom Center)
+        this.toolPanel = document.createElement('div');
+        this.toolPanel.classList.add('nc-tool-panel');
+        this.toolPanel.style.position = 'absolute';
+        this.toolPanel.style.bottom = '12px';
+        this.toolPanel.style.left = '50%';
+        this.toolPanel.style.transform = 'translateX(-50%)';
+        this.toolPanel.style.padding = '10px 16px';
+        this.toolPanel.style.background = 'var(--vscode-editorHoverWidget-background, rgba(40, 40, 40, 0.95))';
+        this.toolPanel.style.color = 'var(--vscode-editorHoverWidget-foreground, white)';
+        this.toolPanel.style.border = '1px solid var(--vscode-editorHoverWidget-border, #454545)';
+        this.toolPanel.style.borderRadius = '8px';
+        this.toolPanel.style.minWidth = '280px';
+        this.toolPanel.style.display = 'none';
+        this.toolPanel.style.zIndex = '20';
+
+        // Create Property Panel (Right Side)
+        this.propertyPanel = document.createElement('div');
+        this.propertyPanel.classList.add('nc-property-panel');
+        this.propertyPanel.style.position = 'absolute';
+        this.propertyPanel.style.top = '50px';
+        this.propertyPanel.style.right = '10px';
+        this.propertyPanel.style.background = 'var(--vscode-editorHoverWidget-background, rgba(40, 40, 40, 0.95))';
+        this.propertyPanel.style.color = 'var(--vscode-editorHoverWidget-foreground, white)';
+        this.propertyPanel.style.border = '1px solid var(--vscode-editorHoverWidget-border, #454545)';
+        this.propertyPanel.style.boxShadow = '2px 2px 10px rgba(0,0,0,0.2)';
+        this.propertyPanel.style.padding = '12px';
+        this.propertyPanel.style.minWidth = '240px';
+        this.propertyPanel.style.maxHeight = 'calc(100% - 60px)';
+        this.propertyPanel.style.overflowY = 'auto';
+        this.propertyPanel.style.display = 'none';
+        this.propertyPanel.style.zIndex = '20';
     }
 
     connectedCallback() {
@@ -24,6 +62,8 @@ export class NCDrawBoardPanel extends HTMLElement {
         this.style.overflow = "hidden";
 
         this.appendChild(this.canvas);
+        this.appendChild(this.toolPanel);
+        this.appendChild(this.propertyPanel);
 
         // 2. Initialize Engine
         const camera = new Camera();
@@ -31,6 +71,10 @@ export class NCDrawBoardPanel extends HTMLElement {
         
         // Disable internal command tools from generating HTML directly, use only as headless engine
         this.mouseControl = new MouseControl(this, this.drawBoard);
+
+        // Initialize headless providers
+        this.toolInstructions = new ToolInstructionProvider(this.mouseControl);
+        this.propertySchema = new PropertySchemaProvider(this.drawBoard);
 
         // 3. Setup Auto-Resizing
         this.setupResizeObserver();
@@ -48,6 +92,14 @@ export class NCDrawBoardPanel extends HTMLElement {
                 const { width, height } = entry.contentRect;
                 this.canvas.width = width;
                 this.canvas.height = height;
+                
+                // Initialize camera position to center (0,0) on first valid sizing
+                if (this.drawBoard && this.drawBoard.camera && !(this.drawBoard.camera as any)['_initialized']) {
+                    this.drawBoard.camera.moveX(width / 2);
+                    this.drawBoard.camera.moveY(height / 2);
+                    (this.drawBoard.camera as any)['_initialized'] = true;
+                }
+                
                 this.drawBoard.draw();
             }
         });
@@ -55,18 +107,40 @@ export class NCDrawBoardPanel extends HTMLElement {
     }
 
     private getPosition(e: MouseEvent) {
+        // Calculate the accurate scale between CSS display size and actual Canvas resolution
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+
         return {
-            x: e.offsetX,
-            y: e.offsetY,
+            // Adjust the coordinates proportionally to the canvas' inner bounds
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY,
             button: e.button
         };
     }
 
     private setupEventForwarding() {
         // Forward DOM interaction to CAD logic using relative offsets
-        this.canvas.addEventListener('click', (e) => this.mouseControl.mouseClicked(this.getPosition(e)));
-        this.canvas.addEventListener('mousedown', (e) => this.mouseControl.mouseDown(this.getPosition(e)));
-        this.canvas.addEventListener('mouseup', (e) => this.mouseControl.mouseUp(this.getPosition(e)));
+        
+        let downPos = { x: 0, y: 0 };
+        this.canvas.addEventListener('mousedown', (e) => {
+            const pos = this.getPosition(e);
+            downPos = pos;
+            this.mouseControl.mouseDown(pos);
+        });
+        
+        this.canvas.addEventListener('mouseup', (e) => {
+            const pos = this.getPosition(e);
+            const dist = Math.hypot(pos.x - downPos.x, pos.y - downPos.y);
+            this.mouseControl.mouseUp(pos);
+
+            // Re-trigger click events from mouseUp to guarantee tool steps advance correctly (as browser `click` natively drops fast actions)
+            if (dist < 5) {
+                this.mouseControl.mouseClicked(pos);
+            }
+        });
+        
         this.canvas.addEventListener('mousemove', (e) => this.mouseControl.mouseMove(this.getPosition(e)));
         
         // Disabling context menu to allow custom right-clicks or tool cancellations
@@ -75,9 +149,236 @@ export class NCDrawBoardPanel extends HTMLElement {
         this.canvas.addEventListener('selection-changed', (e: any) => {
             const { object } = e.detail;
             console.log("NC-Edit7 Canvas Selection Event Fired!", object);
-            // Example: Map this to your NC-Edit EventBus properties window updates
-            // window.dispatchEvent(new CustomEvent('NC_DRAW_SELECTION', { detail: object }));
+            
+            if (this.propertySchema) {
+                this.propertySchema.setObject(object);
+                this.renderPropertyPanel();
+            }
         });
+
+        // Hook up mouse state change to render instructions
+        const previousOnStateChange = this.mouseControl.onStateChange;
+        this.mouseControl.onStateChange = () => {
+            if (typeof previousOnStateChange === 'function') {
+                previousOnStateChange();
+            }
+            this.renderToolPanel();
+        };
+
+        // Render initial UI state
+        // Need brief delay to allow panel rendering
+        setTimeout(() => {
+            if (this.toolInstructions) this.renderToolPanel();
+            if (this.propertySchema) this.renderPropertyPanel();
+        }, 0);
+    }
+
+    private renderToolPanel() {
+        if (!this.toolInstructions) return;
+        const snapshot = this.toolInstructions.getSnapshot();
+        this.toolPanel.innerHTML = '';
+
+        if (!snapshot.visible) {
+            this.toolPanel.style.display = 'none';
+            return;
+        }
+
+        this.toolPanel.style.display = 'block';
+
+        const title = document.createElement('div');
+        title.textContent = snapshot.title;
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '6px';
+        this.toolPanel.appendChild(title);
+
+        const instruction = document.createElement('div');
+        instruction.textContent = snapshot.instruction;
+        instruction.style.color = 'var(--vscode-descriptionForeground, #ccc)';
+        instruction.style.marginBottom = '8px';
+        this.toolPanel.appendChild(instruction);
+
+        for (const field of snapshot.fields) {
+            const input = document.createElement('input');
+            input.type = field.type || 'text';
+            input.value = field.value;
+            input.style.background = 'var(--vscode-input-background, #3c3c3c)';
+            input.style.color = 'var(--vscode-input-foreground, #ccc)';
+            input.style.border = '1px solid var(--vscode-input-border, #555)';
+            input.style.padding = '4px';
+            input.style.marginRight = '6px';
+            if (field.min !== undefined) input.min = field.min;
+            if (field.step !== undefined) input.step = field.step;
+            input.onchange = () => {
+                this.toolInstructions.setFieldValue(field.id, input.value);
+                this.renderToolPanel();
+            };
+            this.toolPanel.appendChild(input);
+        }
+
+        for (const action of snapshot.actions) {
+            const button = document.createElement('button');
+            button.textContent = action.label;
+            button.style.background = 'var(--vscode-button-background, #0e639c)';
+            button.style.color = 'var(--vscode-button-foreground, #ffffff)';
+            button.style.border = 'none';
+            button.style.padding = '4px 8px';
+            button.style.marginRight = '6px';
+            button.style.cursor = 'pointer';
+            button.onclick = () => {
+                this.toolInstructions.runAction(action.id);
+                this.renderToolPanel();
+            };
+            this.toolPanel.appendChild(button);
+        }
+
+        if (snapshot.output) {
+            const output = document.createElement('textarea');
+            output.readOnly = true;
+            output.value = snapshot.output.value;
+            output.placeholder = snapshot.output.placeholder || '';
+            output.style.width = '100%';
+            output.style.height = '120px';
+            output.style.marginTop = '8px';
+            output.style.background = 'var(--vscode-input-background, #3c3c3c)';
+            output.style.color = 'var(--vscode-input-foreground, #ccc)';
+            output.style.border = '1px solid var(--vscode-input-border, #555)';
+            this.toolPanel.appendChild(output);
+        }
+
+        if (snapshot.status) {
+            const status = document.createElement('div');
+            status.textContent = snapshot.status.text;
+            status.style.marginTop = '8px';
+            status.style.color = snapshot.status.tone === 'error' ? 'var(--vscode-errorForeground, #f14c4c)' : 'var(--vscode-notificationsInfoIcon-foreground, #3794ff)';
+            this.toolPanel.appendChild(status);
+        }
+    }
+
+    private renderPropertyNode(node: any, parent: HTMLElement) {
+        if (node.type === 'group') {
+            const group = document.createElement('div');
+            group.style.marginBottom = '10px';
+            group.style.padding = '5px';
+            group.style.border = '1px solid var(--vscode-widget-border, #454545)';
+
+            if (node.title) {
+                const heading = document.createElement('h4');
+                heading.textContent = node.title;
+                heading.style.margin = '0 0 6px 0';
+                group.appendChild(heading);
+            }
+
+            for (const child of node.children || []) {
+                this.renderPropertyNode(child, group);
+            }
+
+            parent.appendChild(group);
+            return;
+        }
+
+        if (node.type === 'text') {
+            const text = document.createElement('p');
+            text.textContent = node.text;
+            parent.appendChild(text);
+            return;
+        }
+
+        if (node.type === 'field') {
+            const row = document.createElement('div');
+            row.style.marginBottom = '6px';
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+
+            const label = document.createElement('label');
+            label.textContent = `${node.label}: `;
+            label.style.width = '90px';
+            label.style.flexShrink = '0';
+
+            const input = document.createElement('input');
+            input.type = node.inputType || 'text';
+            input.value = node.value;
+            input.style.flexGrow = '1';
+            input.style.width = '100px';
+            input.style.background = 'var(--vscode-input-background, #3c3c3c)';
+            input.style.color = 'var(--vscode-input-foreground, #ccc)';
+            input.style.border = '1px solid var(--vscode-input-border, #555)';
+            if (node.step !== undefined) input.step = node.step;
+            if (node.min !== undefined) input.min = node.min;
+            input.onchange = () => {
+                this.propertySchema.applyFieldValue(node.id, input.value);
+                this.renderPropertyPanel();
+                if (this.drawBoard) this.drawBoard.draw();
+            };
+
+            row.appendChild(label);
+            row.appendChild(input);
+            parent.appendChild(row);
+            return;
+        }
+
+        if (node.type === 'action') {
+            const button = document.createElement('button');
+            button.textContent = node.label;
+            button.style.background = 'var(--vscode-button-background, #0e639c)';
+            button.style.color = 'var(--vscode-button-foreground, #ffffff)';
+            button.style.border = 'none';
+            button.style.padding = '4px 8px';
+            button.style.marginRight = '6px';
+            button.style.cursor = 'pointer';
+            button.onclick = () => {
+                this.propertySchema.runAction(node.id);
+                this.renderPropertyPanel();
+                if (this.drawBoard) this.drawBoard.draw();
+            };
+            parent.appendChild(button);
+        }
+    }
+
+    private renderPropertyPanel() {
+        if (!this.propertySchema) return;
+        const schema = this.propertySchema.getSchema();
+        this.propertyPanel.innerHTML = '';
+
+        if (!schema.visible) {
+            this.propertyPanel.style.display = 'none';
+            return;
+        }
+
+        this.propertyPanel.style.display = 'block';
+
+        const title = document.createElement('h3');
+        title.textContent = schema.title;
+        title.style.marginTop = '0';
+        title.style.marginBottom = '10px';
+        this.propertyPanel.appendChild(title);
+
+        for (const section of schema.sections) {
+            this.renderPropertyNode(section, this.propertyPanel);
+        }
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.flexWrap = 'wrap';
+        actions.style.gap = '6px';
+        actions.style.marginTop = '10px';
+
+        for (const action of schema.actions) {
+            const button = document.createElement('button');
+            button.textContent = action.label;
+            button.style.background = 'var(--vscode-button-background, #0e639c)';
+            button.style.color = 'var(--vscode-button-foreground, #ffffff)';
+            button.style.border = 'none';
+            button.style.padding = '4px 8px';
+            button.style.cursor = 'pointer';
+            button.onclick = () => {
+                this.propertySchema.runAction(action.id);
+                this.renderPropertyPanel();
+                if (this.drawBoard) this.drawBoard.draw();
+            };
+            actions.appendChild(button);
+        }
+
+        this.propertyPanel.appendChild(actions);
     }
 
     public setTool(toolName: string) {
@@ -127,6 +428,7 @@ export class NCDrawBoardPanel extends HTMLElement {
         toolbarDiv.style.position = 'absolute';
         toolbarDiv.style.top = '10px';
         toolbarDiv.style.left = '10px';
+        toolbarDiv.style.right = '10px'; // Added right constraint
         toolbarDiv.style.display = 'flex';
         toolbarDiv.style.gap = '5px';
         toolbarDiv.style.flexWrap = 'nowrap';
@@ -137,6 +439,19 @@ export class NCDrawBoardPanel extends HTMLElement {
         toolbarDiv.style.borderRadius = '4px';
         toolbarDiv.style.border = '1px solid var(--vscode-editorGroup-border, #444)';
         toolbarDiv.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.3)';
+        toolbarDiv.style.overflowX = 'auto'; // Enable horizontal scrolling
+        toolbarDiv.style.scrollbarWidth = 'none'; // Hide scrollbar (Firefox)
+        (toolbarDiv.style as any)['-ms-overflow-style'] = 'none'; // Hide scrollbar (IE/Edge)
+
+        // Hide scrollbar (Chrome/Safari/Webkit)
+        const style = document.createElement('style');
+        style.textContent = `
+            .nc-draw-toolbar::-webkit-scrollbar {
+                display: none;
+            }
+        `;
+        document.head.appendChild(style);
+        toolbarDiv.classList.add('nc-draw-toolbar');
 
         // Helper to format grouped tool dropdowns
         const createGroup = (labelStr: string, options: { label: string, val: string }[]) => {
@@ -193,6 +508,7 @@ export class NCDrawBoardPanel extends HTMLElement {
         toolbarDiv.appendChild(createBtn('Select', 'SELECT'));
         toolbarDiv.appendChild(createBtn('Point', 'POINT'));
         toolbarDiv.appendChild(createBtn('Line', 'LINE'));
+        toolbarDiv.appendChild(createBtn('CAM Gen.', 'CAM_PATH'));
 
         // Draw Tools Group
         toolbarDiv.appendChild(createGroup('Draw ...', [

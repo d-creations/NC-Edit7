@@ -4,9 +4,11 @@ export class WebConfigService implements IConfigService {
   private config: AppConfiguration = {
     focasDefaultIp: '192.168.1.1',
     backendPort: 8000,
-    themeMode: 'one-dark',
+    themeMode: 'light',
     hostMode: 'web',
     focasPlacement: 'side-panel',
+    showDrawPanel: true,
+    showFocasTransfer: false,
   }; // Defaults
   private listeners: ((cfg: AppConfiguration) => void)[] = [];
   private loadPromise: Promise<AppConfiguration>;

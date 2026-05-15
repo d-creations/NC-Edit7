@@ -7,6 +7,8 @@ export class VsCodeConfigService implements IConfigService {
     themeMode: 'vscode',
     hostMode: 'vscode-editor',
     focasPlacement: 'external-panel',
+    showDrawPanel: true,
+    showFocasTransfer: true,
   }; // Defaults
   private listeners: ((cfg: AppConfiguration) => void)[] = [];
 

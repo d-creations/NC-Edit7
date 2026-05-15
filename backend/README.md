@@ -1,32 +1,41 @@
-# ncplot7py FastAPI adapter
+# Backend Service
 
-This folder contains a small FastAPI adapter that runs side-by-side with the existing `cgiserver.cgi` script.
+This folder contains the FastAPI backend used by NC-Edit7. It serves the built frontend when available, exposes the backend API used by the editor, and bridges to the `ncplot7py` CGI and FOCAS helpers.
 
-What it does
-- Exposes a JSON HTTP endpoint at `/cgiserver` on port `8000`.
-- For each request it invokes the existing `ncplot7py/scripts/cgiserver.cgi` as a subprocess, passing JSON on stdin and returning JSON on stdout.
+## What it serves
 
-Run locally with Docker Compose
+- `GET /` serves `dist/index.html` when the frontend has been built, or falls back to `public/index.html` during development.
+- `GET /config.json` serves the runtime configuration file.
+- `GET /api/features` reports which backend features are enabled.
+- `GET /api/machines` returns the machine list used by the frontend machine selector.
+- `GET /api/syntax/{control_type}` returns ACE syntax rules for the requested control type.
+- `GET /api/focas/ping`, `POST /api/focas/connect`, and `GET /api/focas/programs/{path_no}` expose the FOCAS integration.
 
-Build and start the adapter (this also mounts the repo for live edits):
+## Run locally
+
+The backend app entrypoint is `backend.main_import:app`.
+
+With Docker Compose:
 
 ```bash
 docker-compose build backend
 docker-compose up backend
 ```
 
-Then test the adapter:
+Without Docker:
 
 ```bash
-curl -sS -X POST http://localhost:8000/cgiserver -H 'Content-Type: application/json' -d '{"action":"list_machines"}' | jq
+pip install -r requirements.txt
+uvicorn backend.main_import:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Notes
-- The original `cgiserver.cgi` is left in place — this adapter simply runs it as a subprocess so no behaviour change is required.
-- Environment variables:
-  - `CGI_PATH` - path to the CGI script inside container (default `/app/ncplot7py/scripts/cgiserver.cgi`).
-  - `CGI_TIMEOUT` - seconds to wait for CGI to respond (default `30`).
+## Environment variables
 
-If you want I can also:
-- Add a Vite dev proxy so the frontend dev server forwards requests to the adapter path transparently.
-- Implement a direct-import adapter (faster) if `ncplot7py` exposes callable functions.
+- `CGI_PATH` sets the path to the CGI script used by the subprocess bridge. The default is `/app/ncplot7py/scripts/cgiserver.cgi`.
+- `CGI_TIMEOUT` sets the CGI subprocess timeout in seconds. The default is `30`.
+- `ENABLE_FOCAS` enables or disables FOCAS routes. The default is `True`.
+
+## Notes
+
+- The backend reads `ncplot7py/config/machines.json` when it is available to provide the machine list and control-specific syntax rules.
+- Static assets are served from the built frontend output first, with `public/` as a fallback for local development.

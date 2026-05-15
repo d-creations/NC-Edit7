@@ -13,7 +13,10 @@ export class FileManagerService implements IFileManagerService {
     private stateService?: StateService,
     private useLocalStorage: boolean = true
   ) {
-    if (this.useLocalStorage) {
+    // If stateService is provided, we should NOT use local storage directly in FileManagerService
+    // as StateService already handles its own persistence.
+    // However, if no stateService is provided, we fall back to private file management.
+    if (this.useLocalStorage && !this.stateService) {
       this.loadFromStorage();
     }
     
@@ -83,8 +86,12 @@ export class FileManagerService implements IFileManagerService {
   }
 
   public getActiveFile(): NCFile | null {
-    const id = this.stateService?.getState().activeFileId;
-    return id ? this.files.find(f => f.id === id) || null : null;
+    if (this.stateService) {
+      const id = this.stateService.getState().activeFileId;
+      return id ? this.files.find(f => f.id === id) || null : null;
+    }
+    // Fallback if no StateService is present (mostly for tests or decoupling)
+    return this.files.length > 0 ? this.files[this.files.length - 1] : null;
   }
 
   public async openFile(content: string, name: string, options: { parseMultiChannel: boolean, channel?: number }): Promise<NCFile> {

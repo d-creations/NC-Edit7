@@ -107,11 +107,24 @@ export class BackendGateway {
   // --- CGI API Methods ---
 
   async listMachines(): Promise<ServerMachineListResponse> {
-    const request: ServerMachineListRequest = {
-      action: 'list_machines',
-    };
+    const port = await this.getPort();
 
-    return this.post<ServerMachineListResponse>(request);
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/machines`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.warn('Direct machines endpoint unavailable, falling back to CGI bridge', error);
+
+      const request: ServerMachineListRequest = {
+        action: 'list_machines',
+      };
+
+      return this.post<ServerMachineListResponse>(request);
+    }
   }
 
   async requestPlot(plotRequest: PlotRequest): Promise<PlotResponse> {
